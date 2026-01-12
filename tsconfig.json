@@ -38,6 +38,8 @@
   ],
   "exclude": [
     "node_modules",
-    "check_db_direct.ts"
+    "check_db_direct.ts",
+    "scripts",
+    "src/scripts"
   ]
 }
