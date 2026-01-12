@@ -1,0 +1,480 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>システム詳細仕様書兼マニュアル</title>
+<style>
+    body { font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; color: #333; }
+    h1 { color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; }
+    h2 { color: #1d4ed8; margin-top: 30px; border-left: 5px solid #1d4ed8; padding-left: 10px; }
+    h3 { color: #1e40af; margin-top: 25px; }
+    code { background: #f3f4f6; padding: 2px 5px; rounded: 3px; font-family: monospace; }
+    pre { background: #1f2937; color: white; padding: 15px; overflow-x: auto; border-radius: 5px; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f3f4f6; }
+    blockquote { border-left: 4px solid #ddd; margin: 0; padding-left: 20px; color: #666; }
+    .alert { padding: 10px; border-radius: 5px; margin: 10px 0; }
+</style>
+</head>
+<body>
+<h1>システム詳細仕様書兼マニュアル (SYSTEM_FULL_SPECS.md)</h1>
+<p>このドキュメントは、エンジニアではない方でも、このシステムの全てを理解し、運用し、もし壊れてもゼロから作り直せるように書かれた「完全ガイド」です。</p>
+<hr>
+<h1>1. 製品仕様書（これはどんな機械か？）</h1>
+<h2>製品の目的</h2>
+<p>このシステムは、<strong>「神言学（しんげんがく）集中講座」のその場の事務作業を自動化するロボット</strong>です。</p>
+<p>これまで人間が手作業でやっていた以下の仕事を、全部自動でやってくれます。</p>
+<ul>
+<li>「誰が申し込んだか」をリストにする。</li>
+<li>「お金は払われたか」をチェックする。</li>
+<li>「申込完了メール」を一人ひとりに送る。</li>
+<li>「同じ人が2回申し込んでいないか」を見張る。</li>
+</ul>
+<h2>全体像</h2>
+<ul>
+<li><strong>申込者（ユーザー）ができること</strong>:<ul>
+<li>スマホやパソコンから専用の画面を開き、名前やメールアドレスを入れて「申し込む」ボタンを押すだけで、手続きが完了します。</li>
+</ul>
+</li>
+<li><strong>管理者（運営）ができること</strong>:<ul>
+<li>管理専用の画面（ダッシュボード）を見て、今何人集まっているか、誰が入金済みかを一目で確認できます。</li>
+<li>申込画面に「ただいま満席です！」のようなお知らせポップアップを出すことができます。</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h1>2. 機能一覧と挙動（何ができるか？）</h1>
+<h2>クライアント側（申込画面）</h2>
+<p>誰でも見れる、申し込み用のページです。</p>
+<ul>
+<li><strong>画面構成</strong>:<ul>
+<li><strong>お知らせボタン</strong>: 管理者がメッセージを設定していると、タイトル下に「集中講座詳細はこちら」ボタンが表示されます。</li>
+<li><strong>お知らせポップアップ</strong>: ボタンを押すと、重要なお知らせが表示されます。</li>
+<li><strong>入力フォーム</strong>:<ul>
+<li><strong>お名前・ふりがな</strong>: 入力必須です。</li>
+<li><strong>メールアドレス</strong>: 「@」がないなど、形がおかしいと「正しく入力してね」と注意してくれます。</li>
+<li><strong>参加会場</strong>: 東京、福岡、両方、不参加 から選べるラジオボタンです。</li>
+<li><strong>懇親会</strong>: 会場に合わせて、参加できる懇親会だけが選べるようになっています（例えば「福岡だけ参加」の人は「東京懇親会」を選べません）。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>ボタンを押した時の動き</strong>:<ul>
+<li>「申し込む」を押すと、入力漏れがないかチェックします。</li>
+<li>送信中はボタンが「送信中...」に変わり、連打できないようになります。</li>
+<li>無事にデータが届くと画面が切り替わり、「受付完了」と表示されます。同時に、申込者のメールアドレスに確認メールが届きます。</li>
+</ul>
+</li>
+</ul>
+<h2>管理画面側（データ確認）</h2>
+<p>パスワードを知っている運営メンバーだけが入れる秘密の部屋です。</p>
+<ul>
+<li><strong>ログイン機能</strong>:<ul>
+<li><code>ADMIN_PASSWORD</code> という「合い言葉」を知っている人だけがログインできます。</li>
+</ul>
+</li>
+<li><strong>データ確認</strong>:<ul>
+<li>エクセルのような表で、申込者がズラリと並んでいます。</li>
+<li><strong>検索・絞り込み</strong>: 「東京会場の人だけ」「未決済の人だけ」を表示できます。</li>
+<li><strong>CSV出力</strong>: ボタン一つで、全データをエクセルで開けるファイルとしてダウンロードできます。</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h1>3. データベース設計と紐付け（中身の仕組み）</h1>
+<p>データは「Supabase（スパベース）」という、インターネット上の巨大な「名簿ノート（データベース）」に書き込まれます。</p>
+<h2>テーブル構成図</h2>
+<p>名簿ノートには、以下の2種類のページ（テーブル）があります。</p>
+<h3>1. <code>applications</code> テーブル（申込者リスト）</h3>
+<p>ここにお客さんの情報が1行ずつ増えていきます。</p>
+<table>
+<thead>
+<tr>
+<th align="left">項目名 (カラム)</th>
+<th align="left">データの種類</th>
+<th align="left">何の情報？</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><code>id</code></td>
+<td align="left">記号</td>
+<td align="left">背番号。システムが勝手につけます（例: a1b2...）。</td>
+</tr>
+<tr>
+<td align="left"><code>created_at</code></td>
+<td align="left">日時</td>
+<td align="left">申し込んだ日時。「2024/01/01 10:00」のように記録されます。</td>
+</tr>
+<tr>
+<td align="left"><code>input_name</code></td>
+<td align="left">文字</td>
+<td align="left"><strong>お名前</strong>。画面で入力された漢字の名前です。</td>
+</tr>
+<tr>
+<td align="left"><code>input_email</code></td>
+<td align="left">文字</td>
+<td align="left"><strong>メールアドレス</strong>。連絡先です。</td>
+</tr>
+<tr>
+<td align="left"><code>venue</code></td>
+<td align="left">文字</td>
+<td align="left"><strong>参加会場</strong>。「tokyo」などのローマ字で記録されます。</td>
+</tr>
+<tr>
+<td align="left"><code>social_venue</code></td>
+<td align="left">文字</td>
+<td align="left"><strong>懇親会</strong>。こちらもローマ字で記録されます。</td>
+</tr>
+<tr>
+<td align="left"><code>payment_status</code></td>
+<td align="left">文字</td>
+<td align="left"><strong>支払状況</strong>。「unpaid（未払い）」「paid（支払い済み）」などが入ります。</td>
+</tr>
+<tr>
+<td align="left"><code>is_duplicate_confirmed</code></td>
+<td align="left">真偽値</td>
+<td align="left"><strong>同姓確認</strong>。同姓同名のチェックが済んだかどうかの旗（フラグ）です。</td>
+</tr>
+<tr>
+<td align="left"><code>tags</code></td>
+<td align="left">文字の列</td>
+<td align="left"><strong>タグ</strong>。「重複を無視する」などの目印シールです。</td>
+</tr>
+</tbody></table>
+<h3>2. <code>app_settings</code> テーブル（設定メモ）</h3>
+<p>システムの設定をメモしておく場所です。</p>
+<table>
+<thead>
+<tr>
+<th align="left">項目名 (カラム)</th>
+<th align="left">何の情報？</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><code>key</code></td>
+<td align="left">設定の名前（例：<code>application_text</code> ＝ 申込画面の文章）。</td>
+</tr>
+<tr>
+<td align="left"><code>value</code></td>
+<td align="left">設定の中身（例：ポップアップに表示する実際のメッセージ）。</td>
+</tr>
+</tbody></table>
+<h3>3. <code>admin_users</code> テーブル（管理者リスト）</h3>
+<p>管理画面にログインできる人のリストです。</p>
+<table>
+<thead>
+<tr>
+<th align="left">項目名 (カラム)</th>
+<th align="left">何の情報？</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><code>username</code></td>
+<td align="left">ログインID（ユーザー名）。</td>
+</tr>
+<tr>
+<td align="left"><code>email</code></td>
+<td align="left"><strong>メールアドレス</strong>。パスワードを忘れた時に使います。</td>
+</tr>
+<tr>
+<td align="left"><code>password_hash</code></td>
+<td align="left">暗号化されたパスワード。</td>
+</tr>
+<tr>
+<td align="left"><code>created_at</code></td>
+<td align="left">作成日時。</td>
+</tr>
+<tr>
+<td align="left"><code>reset_token</code></td>
+<td align="left">パスワード再設定用の一時的なカギ。</td>
+</tr>
+<tr>
+<td align="left"><code>reset_token_expires</code></td>
+<td align="left">カギの有効期限。</td>
+</tr>
+</tbody></table>
+<h2>画面との紐付け（データフロー）</h2>
+<p>画面に入力された文字が、どうやって名簿ノートに書かれるかを説明します。</p>
+<ol>
+<li><p><strong>入力 (<code>page.tsx</code>)</strong>:</p>
+<ul>
+<li>あなたが画面の「<strong>お名前</strong>」欄に「<strong>山田太郎</strong>」と入力します。</li>
+<li>プログラム内の <code>formData.name</code> という箱に「山田太郎」が入ります。</li>
+</ul>
+</li>
+<li><p><strong>送信 (<code>route.ts</code>)</strong>:</p>
+<ul>
+<li>「申し込む」ボタンを押すと、<code>src/app/api/apply/route.ts</code> という「受付係のプログラム」にデータが渡されます。</li>
+<li>この受付係が、Supabase（名簿ノート）に向かって「これ書いて！」と命令します。</li>
+</ul>
+</li>
+<li><p><strong>記録 (Database)</strong>:</p>
+<ul>
+<li>データベースの <code>applications</code> テーブルにある <code>input_name</code> という欄に「<strong>山田太郎</strong>」と書き込まれます。</li>
+</ul>
+</li>
+</ol>
+<p><strong>図解イメージ</strong>:
+[画面:お名前] ➡ (formData) ➡ [受付係プログラム] ➡ (input_name) ➡ [名簿ノート:applications表]</p>
+<hr>
+<h1>4. ユーザーマニュアル（使い方）</h1>
+<h2>申込手順（お客さん用）</h2>
+<ol>
+<li>教えてもらった <strong>URL</strong> をクリックします。</li>
+<li>タイトル下にある「<strong>集中講座詳細はこちら</strong>」ボタンを押し、内容を確認して閉じます（ボタンがない場合はお知らせはありません）。</li>
+<li><strong>お名前、ふりがな、メールアドレス</strong> を入力します。</li>
+<li><strong>参加する会場</strong> をポチッと選びます。</li>
+<li><strong>懇親会</strong> に出る場合はチェックを入れます。</li>
+<li>最下部の「<strong>申し込む</strong>」ボタンを押します。</li>
+<li>「受付完了」と出たら終わりです。メールを確認してください。</li>
+</ol>
+<h2>管理手順（運営用）</h2>
+<ol>
+<li>管理画面のURL（<code>/admin/login</code>）を開きます。</li>
+<li>パスワードを入れて <strong>ログイン</strong> します。</li>
+<li><strong>データの確認</strong>:<ul>
+<li>リストを見て、入金があった人のステータスを「<strong>決済済</strong>」に変えます。</li>
+<li>名前の横に黄色い「<strong>⚠ 同姓あり</strong>」が出ていたら、同じ人か確認して、問題なければクリックして「<strong>確認済</strong>」にします。</li>
+</ul>
+</li>
+<li><strong>お知らせの変更</strong>:<ul>
+<li>画面下の「設定」ボタン（歯車）を押します。</li>
+<li>「マスタ管理へのリンク」にある「<strong>申込画面お知らせ設定へ</strong>」をクリックします。</li>
+<li>文章を入力して「保存」すると、申込画面にすぐ反映されます。</li>
+</ul>
+</li>
+<li><strong>管理者の管理</strong>:<ul>
+<li>「管理者設定」メニューから、ログインできるユーザー（ID/PASS）を追加・削除できます。</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h1>5. 【実録】世界中に公開する手順（本番環境への移行）</h1>
+<p>自分のパソコンで作ったこのシステムを、世界中の人が見れるように「インターネット上に公開」する手順です。
+難しいサーバー設定は不要です。「<strong>GitHub（ギットハブ）</strong>」と「<strong>Vercel（バーセル）</strong>」という無料サービスを使います。</p>
+<h3>ステップ1：ソースコードの保管（GitHub）</h3>
+<ol>
+<li><a href="https://github.com/">GitHub</a> でアカウントを作ります（無料）。</li>
+<li>このエディタ（Antigravity）の左側にある「<strong>ソース管理</strong>（枝のようなアイコン）」をクリックします。</li>
+<li>メッセージ欄に「完成」と入力して「<strong>コミット</strong>」ボタンを押します。</li>
+<li>「<strong>ブランチの発行</strong>（Publish Branch）」ボタンを押します。これでコードがGitHubという倉庫に保存されます。</li>
+</ol>
+<h3>ステップ2：データベースの完全構築（Supabase）</h3>
+<p>本番環境の箱（データベース）を用意します。以下の手順で<strong>一発で完了</strong>するように準備しました。</p>
+<ol>
+<li>Supabaseの管理画面を開き、左メニューから <strong>SQL Editor</strong> を開きます。</li>
+<li>以下の「完全構築用SQL」を全てコピーして貼り付け、「Run」を押します。</li>
+</ol>
+<pre><code class="language-sql">-- 1. 申込者テーブル
+CREATE TABLE IF NOT EXISTS applications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone(&#39;utc&#39;::text, now()) NOT NULL,
+  input_name TEXT NOT NULL,
+  input_email TEXT NOT NULL,
+  venue TEXT NOT NULL,
+  social_venue TEXT DEFAULT &#39;none&#39;,
+  payment_status TEXT DEFAULT &#39;unpaid&#39;,
+  is_duplicate_confirmed BOOLEAN DEFAULT false,
+  tags TEXT[] DEFAULT &#39;{}&#39;,
+  updated_at TIMESTAMP WITH TIME ZONE
+);
+
+-- 2. 設定テーブル
+CREATE TABLE IF NOT EXISTS app_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key TEXT UNIQUE NOT NULL,
+  value TEXT
+);
+
+-- 3. 管理者テーブル
+CREATE TABLE IF NOT EXISTS admin_users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  username TEXT UNIQUE NOT NULL,
+  email TEXT UNIQUE,
+  password_hash TEXT NOT NULL,
+  reset_token TEXT,
+  reset_token_expires TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone(&#39;utc&#39;::text, now()) NOT NULL
+);
+
+-- 初期管理者 (ID: admin, Pass: admin123)
+INSERT INTO admin_users (username, password_hash)
+VALUES (&#39;admin&#39;, &#39;240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9&#39;)
+ON CONFLICT (username) DO NOTHING;
+
+-- 4. 会場マスタ
+CREATE TABLE IF NOT EXISTS venues (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  sort_order INTEGER DEFAULT 0
+);
+
+-- 5. ランク（属性）マスタ
+CREATE TABLE IF NOT EXISTS ranks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT UNIQUE NOT NULL,
+  base_fee INTEGER NOT NULL DEFAULT 0,
+  sort_order INTEGER DEFAULT 0
+);
+
+-- 6. 受講生マスタ
+CREATE TABLE IF NOT EXISTS members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  furigana TEXT NOT NULL,
+  email TEXT,
+  rank_id UUID REFERENCES ranks(id),
+  generation INTEGER NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone(&#39;utc&#39;::text, now()) NOT NULL
+);
+</code></pre>
+<ol start="3">
+<li>画面下に「Success」と出れば成功です。</li>
+<li>これで <strong>ID: <code>admin</code>, Password: <code>admin123</code></strong> でログインできるようになります。
+<strong>重要</strong>: ログイン後、すぐに「管理者設定」から自分のメールアドレスを登録してください。（これをしないとパスワードリセットができません）</li>
+</ol>
+<h3>ステップ3：公開ボタンを押す（Vercel）</h3>
+<ol>
+<li><p><a href="https://vercel.com/">Vercel</a> に行き、「Sign Up」から <strong>GitHubアカウントでログイン</strong> します。</p>
+</li>
+<li><p>ダッシュボードの「<strong>Add New...</strong>」ボタンを押し、「Project」を選びます。</p>
+</li>
+<li><p>左側にさっきGitHubに保存した「shingengaku-app」が出てくるので、「<strong>Import</strong>」ボタンを押します。</p>
+</li>
+<li><p><strong>【最重要】秘密の鍵の引っ越し</strong>:</p>
+<ul>
+<li>画面にある「<strong>Environment Variables</strong>（環境変数）」という項目を開きます。</li>
+<li>ここに、自分のパソコンの <code>.env</code> ファイルに書いてある「秘密の鍵」をコピペします。これがないと動きません。</li>
+<li>設定する項目：<ul>
+<li><code>NEXT_PUBLIC_SUPABASE_URL</code>: SupabaseのURL</li>
+<li><code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>: SupabaseのAPIキー</li>
+<li><code>SUPABASE_SERVICE_ROLE_KEY</code>: Supabaseの管理者キー</li>
+<li><code>RESEND_API_KEY</code>: ResendのAPIキー</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>全て入れたら、下の「<strong>Deploy</strong>（デプロイ）」ボタンを押します。</p>
+</li>
+<li><p>1〜2分待つと、画面に花吹雪が舞います。これで完了です！</p>
+</li>
+</ol>
+<h3>ステップ3：完成</h3>
+<ul>
+<li>画面に表示された <code>https://shingengaku-app.vercel.app</code> のようなURLが、世界中からアクセスできる「本番の住所」です。これを参加者に配ってください。</li>
+</ul>
+<hr>
+<h1>6. 【最重要】メールを確実に届ける設定（DNS設定）</h1>
+<p>システムを公開して「さあ本番！」となった時、何もしないと<strong>申込完了メールが「迷惑メール」に入ったり、そもそも届かなかったりします。</strong>
+これはインターネットの世界で「なりすまし」を防ぐためのルールが厳しいためです。</p>
+<p>これを防ぐには、<strong>「DNS（ディーエヌエス）」</strong> という「インターネット上の住所録」に、「このシステムは偽メール送信者ではありません」という証明書を書き込む必要があります。</p>
+<h2>DNSとは？</h2>
+<p>インターネット上の住所録です。「shingengaku.com はどこのサーバーにあるか？」といった情報が書かれています。ここに「メールを送る許可」も書き込みます。</p>
+<h2>設定すべき3つのレコード</h2>
+<p>以下の3つの「おまじない（レコード）」を設定します。</p>
+<ol>
+<li><strong>SPF（エスピーエフ）</strong><ul>
+<li><strong>意味</strong>: 「このメールサーバーから送るのは、私（ドメインの持ち主）が許可しました」という証明書。</li>
+</ul>
+</li>
+<li><strong>DKIM（ディーキム）</strong><ul>
+<li><strong>意味</strong>: 「メールの中身は途中で書き換えられていません」という封印シール。</li>
+</ul>
+</li>
+<li><strong>DMARC（ディーマーク）</strong><ul>
+<li><strong>意味</strong>: 「もしSPFやDKIMの証明がない偽メールが届いたら、ゴミ箱に捨ててください」という受信側への指示書。</li>
+</ul>
+</li>
+</ol>
+<h2>具体的な設定手順</h2>
+<h3>1. レコードの情報を入手する</h3>
+<p>あなたが使っているメール配信サービス（<strong>Resend</strong> や <strong>SendGrid</strong> など）の管理画面を開きます。
+「Domain Verification（ドメイン認証）」や「DNS Records」というページに行くと、以下のような情報が表示されます。</p>
+<ul>
+<li><code>TXT</code> レコード: <code>v=spf1 include:resend.com...</code></li>
+<li><code>CNAME</code> レコード: <code>resend._domainkey...</code></li>
+</ul>
+<p>これらの文字をコピーします。</p>
+<h3>2. 住所録（DNS設定）を開く</h3>
+<p>あなたがドメインを買った会社（<strong>お名前.com</strong>、<strong>Xserver</strong>、<strong>GoDaddy</strong>、<strong>Google Domains</strong> など）の管理画面にログインします。
+「DNSレコード設定」「ネームサーバー設定」といった項目を探して開きます。</p>
+<h3>3. コピーした文字を貼り付ける</h3>
+<p>手順1で入手した文字を、住所録の１行として追加します。</p>
+<ul>
+<li><strong>Type（種類）</strong>: <code>TXT</code> や <code>CNAME</code> を選びます。</li>
+<li><strong>Host（ホスト名）</strong>: <code>@</code> や <code>resend</code> などを入力します。</li>
+<li><strong>Value（値）</strong>: 手順1の長い文字列を貼り付けます。</li>
+</ul>
+<p>これをSPF、DKIM、DMARCすべて分行います。</p>
+<blockquote>
+<p>[!IMPORTANT]
+<strong>この作業を忘れると、メールはほぼ届きません！</strong> 
+システムが壊れているわけではなく、「怪しいメール」としてブロックされてしまうからです。
+本番公開前には、必ずこのDNS設定を行ってください。</p>
+</blockquote>
+<hr>
+<h1>7. ゼロからの再構築手順（もし消えてしまったら）</h1>
+<p>もしパソコンが壊れてデータが消えても、以下の「呪文（プロンプト）」をAIに唱えれば、全く同じシステムを一瞬で作れます。</p>
+<h2>AIへの命令履歴（プロンプト集）</h2>
+<p>新しいAIチャットを開き、以下の 1〜6 を順番にコピペして命令してください。</p>
+<h3>1. 箱を作る</h3>
+<blockquote>
+<p>Next.js (App Router), TypeScript, Tailwind CSS を使って、新しいWebアプリのプロジェクトを作成して。</p>
+</blockquote>
+<h3>2. データベースの準備</h3>
+<blockquote>
+<p>Supabaseを使ってデータベースを作りたい。<code>supabase-js</code> をインストールして、<code>.env</code> ファイルで鍵を設定して、接続用のプログラム (<code>lib/supabaseClient.ts</code>) を作って。</p>
+</blockquote>
+<h3>3. 名簿ノート（テーブル）を作る</h3>
+<blockquote>
+<p>Supabaseで以下のSQLを実行してテーブルを作りたいから、SQL文を書いて。</p>
+<ul>
+<li><code>applications</code> テーブル:<ul>
+<li>id (uuid), created_at (日時), input_name, input_email, venue, social_venue</li>
+<li>payment_status, is_duplicate_confirmed, tags</li>
+</ul>
+</li>
+<li><code>app_settings</code> テーブル: key, value</li>
+<li><code>admin_users</code> テーブル: username, email, password_hash, reset_token, reset_token_expires</li>
+<li><code>venues</code> テーブル: name, type, sort_order</li>
+<li><code>ranks</code> テーブル: name, base_fee, sort_order</li>
+<li><code>members</code> テーブル: name, furigana, email, rank_id (FK), generation</li>
+</ul>
+</blockquote>
+<h3>4. 申込画面を作る</h3>
+<h3>4. 申込画面を作る</h3>
+<blockquote>
+<p><code>src/app/page.tsx</code> に申込フォームを作って。</p>
+<ul>
+<li>項目: 名前、メール、会場（ラジオボタン）、懇親会（チェックボックス）。</li>
+<li>デザイン: スマホでも見やすく、きれいな白ベースで。</li>
+<li>機能: 送信ボタンを押したら <code>/api/apply</code> にデータを送る。</li>
+<li>追加機能: ページを開いた時 <code>/api/settings</code> から文章を取ってきて、ボタンを押すとポップアップでお知らせを表示する（文章がない時はボタンも出さない）。</li>
+</ul>
+</blockquote>
+<h3>5. 裏方のプログラムを作る</h3>
+<blockquote>
+<p><code>src/app/api/apply/route.ts</code> を作って。送られてきたデータを <code>applications</code> テーブルに保存して、完了メールを送る処理を書いて。
+<code>src/app/api/settings/route.ts</code> を作って。<code>app_settings</code> テーブルからお知らせ文章を読み込む処理を書いて。</p>
+</blockquote>
+<h3>6. 管理画面を作る</h3>
+<blockquote>
+<p><code>src/app/admin/dashboard/page.tsx</code> を作って。</p>
+<ul>
+<li><code>applications</code> テーブルのデータを一覧表示する。</li>
+<li>各行に「編集」ボタンをつけて、データを修正できるようにする。</li>
+<li>「CSV出力」ボタンをつける。</li>
+<li><code>src/middleware.ts</code> を作成して、<code>/admin</code> 以下のページをクッキーで保護して（パスワードは環境変数 <code>ADMIN_PASSWORD</code>）。ログイン画面 <code>/admin/login</code> も作って（<code>admin_users</code> テーブル認証）。</li>
+<li>名前が同じ人がいたら黄色いアラートを出して、ボタンで「確認済（緑色）」に変えられるようにする。</li>
+<li>別のページ <code>/admin/popup</code> を作って、お知らせ文章を編集できるようにして。</li>
+<li>別のページ <code>/admin/users</code> を作って、管理者ユーザーを追加・削除できるようにして。</li>
+</ul>
+</blockquote>
+<p>この通りに命令すれば、魔法のように元通りになります。</p>
+
+</body>
+</html>
