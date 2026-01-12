@@ -126,7 +126,6 @@ export async function POST(request: Request) {
                 input_furigana: furigana,
                 input_email: email,
                 venue,
-                attend_social: social_venue !== 'none',
                 social_venue,
                 total_amount: totalAmount,
                 payment_status: paymentStatus,
