@@ -16,7 +16,7 @@ export async function GET() {
     .select(`
       *,
       members (
-        generation,
+        terms ( generation ),
         furigana,
         ranks (
           name,
@@ -45,8 +45,8 @@ export async function GET() {
     if (rankOrderA !== rankOrderB) return rankOrderA - rankOrderB;
 
     // 2. 期順
-    const genA = a.members?.generation ?? 9999;
-    const genB = b.members?.generation ?? 9999;
+    const genA = a.members?.terms?.generation ?? 9999;
+    const genB = b.members?.terms?.generation ?? 9999;
     if (genA !== genB) return genA - genB;
 
     // 3. ふりがな順
@@ -62,8 +62,13 @@ export async function GET() {
     const venue = app.venue;
     const social_venue = app.social_venue || 'none';
 
+    const generation = app.members?.terms?.generation;
+    // Flatten members structure for frontend
+    const members = app.members ? { ...app.members, generation } : null;
+
     return {
       ...app,
+      members,
       payment_key: app.payment_key || getPaymentKey(rankName, venue, social_venue)
     };
   });
