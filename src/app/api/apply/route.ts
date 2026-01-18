@@ -132,6 +132,7 @@ export async function POST(request: Request) {
         const paymentStatus = 'unpaid';
 
         // 備考欄の作成 (紹介者情報など)
+        const tags: string[] = [];
         let remarks = '';
         if (!matchedProduct) {
             remarks += '【要確認】商品マスタに対象の商品のお申し込みがありません。\n';
@@ -141,6 +142,7 @@ export async function POST(request: Request) {
                 remarks += '紹介者: なし\n';
             } else if (introducer) {
                 remarks += `紹介者: ${introducer}\n`;
+                tags.push('ご紹介');
             } else {
                 remarks += '紹介者: 未入力\n';
             }
@@ -159,7 +161,8 @@ export async function POST(request: Request) {
                 payment_status: paymentStatus,
                 matched_member_id: memberId,
                 applied_rank_name: rankName,
-                remarks: remarks || null
+                remarks: remarks || null,
+                tags: tags
             });
 
         if (insertError) {
