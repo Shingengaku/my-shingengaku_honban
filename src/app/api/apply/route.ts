@@ -9,7 +9,9 @@ interface ApplyRequest {
     email: string;
     venue: string; // 'tokyo', 'fukuoka',, 'both', 'none'
     social_venue: string; // 'none', 'tokyo', 'fukuoka', 'both'
-    term_id: string; // Added validation logic
+    term_id?: string; // Optional for non-students
+    introducer?: string;
+    no_introducer?: boolean;
 }
 
 interface PaymentLinkItem {
@@ -39,7 +41,7 @@ const venueDisplayMap: Record<string, string> = {
 export async function POST(request: Request) {
     try {
         const body: ApplyRequest = await request.json();
-        let { name, furigana, email, venue, social_venue } = body;
+        let { name, furigana, email, venue, social_venue, term_id, introducer, no_introducer } = body;
 
         // 0. データの正規化
         if (name) {
@@ -54,28 +56,36 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: '必須項目が不足しています' }, { status: 400 });
         }
 
-        // 1. Membersマスタと照合 (属性ID取得)
-        // 条件: 名前 (スペース無視) AND 期 (term_id)
-        const { data: allMembers, error: memberError } = await supabaseAdmin
-            .from('members')
-            .select('*, ranks(id, name)')
-            .eq('term_id', body.term_id); // term_idで絞り込み
+        let rankName = '一般';
+        let memberId = null;
+        let rankId = null;
 
-        if (memberError) {
-            console.error('Member lookup error:', memberError);
-            return NextResponse.json({ error: 'システムエラーが発生しました' }, { status: 500 });
+        // 1. Membersマスタと照合 (受講生の場合のみ)
+        if (term_id) {
+            // 条件: 名前 (スペース無視) AND 期 (term_id)
+            const { data: allMembers, error: memberError } = await supabaseAdmin
+                .from('members')
+                .select('*, ranks(id, name)')
+                .eq('term_id', term_id);
+
+            if (memberError) {
+                console.error('Member lookup error:', memberError);
+                return NextResponse.json({ error: 'システムエラーが発生しました' }, { status: 500 });
+            }
+
+            const normalizedInputName = name.replace(/\s+/g, '');
+
+            // 名前でマッチング
+            const member = allMembers?.find(m =>
+                m.name.replace(/\s+/g, '') === normalizedInputName
+            ) || null;
+
+            if (member) {
+                rankId = member.ranks?.id ? String(member.ranks.id) : null;
+                rankName = member.ranks?.name || '一般';
+                memberId = member.id;
+            }
         }
-
-        const normalizedInputName = name.replace(/\s+/g, '');
-
-        // 名前でマッチング
-        const member = allMembers?.find(m =>
-            m.name.replace(/\s+/g, '') === normalizedInputName
-        ) || null;
-
-        const rankId = member?.ranks?.id ? String(member.ranks.id) : null;
-        const rankName = member?.ranks?.name || '一般'; // Fallback for display
-        const memberId = member?.id || null;
 
         // 2. 設定取得 (商品マスタ)
         const { data: settingsData, error: settingsError } = await supabaseAdmin
@@ -104,19 +114,37 @@ export async function POST(request: Request) {
         // マッチしない場合は決済リンクなし (manual_handling)
         let matchedProduct: PaymentLinkItem | null = null;
 
+        // 一般の場合、rank_idがない商品を探す、または一般用のrank_idがあればそれを使う
+        // 現行の実装では rank_id が一致するかを見ている。
+        // 一般の人は rankId が null なので、商品マスタの rank_id も null (または undefined) のものとマッチするはず。
+
         if (Array.isArray(paymentLinks)) {
             matchedProduct = paymentLinks.find(p =>
                 p.venue_lecture === venue &&
                 p.venue_social === social_venue &&
-                (rankId ? String(p.rank_id) === rankId : false) // Assuming Product has rank_id
+                (rankId ? String(p.rank_id) === rankId : !p.rank_id) // rankIdがあれば一致確認、なければ商品側もrank_id無しを探す
             ) || null;
         }
 
         const totalAmount = matchedProduct ? (Number(matchedProduct.lecture_fee) + Number(matchedProduct.social_fee)) : 0;
         const paymentUrl = matchedProduct?.url || null;
-        // const productName = matchedProduct?.name || '未定義'; // For manual handling display // unused
 
-        const paymentStatus = 'unpaid'; // DB constraint likely requires 'unpaid', 'paid', or 'cancelled'. 'manual_handling' is logical but not schema-compliant.
+        const paymentStatus = 'unpaid';
+
+        // 備考欄の作成 (紹介者情報など)
+        let remarks = '';
+        if (!matchedProduct) {
+            remarks += '【要確認】商品マスタに対象の商品のお申し込みがありません。\n';
+        }
+        if (!term_id) {
+            if (no_introducer) {
+                remarks += '紹介者: なし\n';
+            } else if (introducer) {
+                remarks += `紹介者: ${introducer}\n`;
+            } else {
+                remarks += '紹介者: 未入力\n';
+            }
+        }
 
         // 4. DBに申込情報を保存
         const { error: insertError } = await supabaseAdmin
@@ -130,8 +158,8 @@ export async function POST(request: Request) {
                 total_amount: totalAmount,
                 payment_status: paymentStatus,
                 matched_member_id: memberId,
-                applied_rank_name: rankName, // logging purposes
-                remarks: !matchedProduct ? '【要確認】商品マスタに対象の商品のお申し込みがありません。' : null
+                applied_rank_name: rankName,
+                remarks: remarks || null
             });
 
         if (insertError) {

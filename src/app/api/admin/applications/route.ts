@@ -7,9 +7,6 @@ import { getPaymentKey } from '@/lib/payment';
 export async function GET() {
   // ... (comments omitted)
 
-  console.log('API: Fetching applications...');
-  console.log('API: URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
-  console.log('API: ServiceKey Length:', process.env.SUPABASE_SERVICE_ROLE_KEY?.length);
 
   const { data, error } = await supabaseAdmin
     .from('applications')
@@ -27,11 +24,11 @@ export async function GET() {
     `);
 
   if (error) {
-    console.error('API: Supabase Error:', error);
+
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  console.log('API: Data count:', data?.length);
+
 
   // ソートロジック
   // 1. ランク順 (ASC, nulls last -> 一般)

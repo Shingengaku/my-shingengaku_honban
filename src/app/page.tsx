@@ -18,6 +18,12 @@ export default function Home() {
     venue: '',
     term_id: '',
   });
+
+  // 新規追加: 受講生かどうか、紹介者情報
+  const [isStudent, setIsStudent] = useState(true);
+  const [introducer, setIntroducer] = useState('');
+  const [noIntroducer, setNoIntroducer] = useState(false);
+
   const [terms, setTerms] = useState<Term[]>([]);
   const [socialOptions, setSocialOptions] = useState({
     tokyo: false,
@@ -66,7 +72,8 @@ export default function Home() {
     let social_venue = 'none';
 
     // Validation
-    if (!formData.term_id) {
+    // 受講生の場合のみ Term ID 必須
+    if (isStudent && !formData.term_id) {
       setError('期を選択してください');
       setLoading(false);
       return;
@@ -85,13 +92,19 @@ export default function Home() {
     else if (socialOptions.none) social_venue = 'none';
 
     try {
+      const payload = {
+        ...formData,
+        social_venue,
+        introducer: !isStudent ? introducer : undefined,
+        no_introducer: !isStudent ? noIntroducer : undefined,
+        // 一般の場合は term_id を空にする
+        term_id: isStudent ? formData.term_id : undefined,
+      };
+
       const res = await fetch('/api/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData, // includes term_id
-          social_venue
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -161,15 +174,52 @@ export default function Home() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+
+          {/* 受講生・一般 選択 */}
           <div>
+            <span className="block text-sm font-medium text-gray-700 mb-2">
+              属性
+              <span className="text-red-500 ml-1">*必須</span>
+            </span>
+            <div className="flex space-x-6">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="userType"
+                  value="student"
+                  checked={isStudent}
+                  onChange={() => setIsStudent(true)}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                />
+                <span className="ml-2 text-gray-700">受講生</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="userType"
+                  value="general"
+                  checked={!isStudent}
+                  onChange={() => {
+                    setIsStudent(false);
+                    setFormData({ ...formData, term_id: '' }); // Reset term when switching to general
+                  }}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                />
+                <span className="ml-2 text-gray-700">一般（受講生ではない）</span>
+              </label>
+            </div>
+          </div>
+
+          <div className={!isStudent ? 'opacity-50 pointer-events-none' : ''}>
             <label htmlFor="term" className="block text-sm font-medium text-gray-700">
               期
-              <span className="text-red-500 ml-1">*必須</span>
+              {isStudent && <span className="text-red-500 ml-1">*必須</span>}
             </label>
             <select
               id="term"
-              required
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"
+              required={isStudent}
+              disabled={!isStudent}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border disabled:bg-gray-100"
               value={formData.term_id}
               onChange={(e) => setFormData({ ...formData, term_id: e.target.value })}
             >
@@ -227,7 +277,44 @@ export default function Home() {
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
+            <p className="text-sm text-red-500 mt-1 font-bold">
+              ※入力されたアドレスに決済リンクが送信されます
+            </p>
           </div>
+
+          {/* 紹介者情報 (一般のみ) */}
+          {!isStudent && (
+            <div className="bg-gray-50 p-4 rounded-md border border-gray-200 animate-fade-in">
+              <label htmlFor="introducer" className="block text-sm font-medium text-gray-700">
+                ご紹介者様
+              </label>
+              <div className="mt-2">
+                <input
+                  type="text"
+                  id="introducer"
+                  disabled={noIntroducer}
+                  placeholder="紹介者のお名前"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border disabled:bg-gray-100 disabled:text-gray-400"
+                  value={introducer}
+                  onChange={(e) => setIntroducer(e.target.value)}
+                />
+              </div>
+              <div className="mt-2">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={noIntroducer}
+                    onChange={(e) => {
+                      setNoIntroducer(e.target.checked);
+                      if (e.target.checked) setIntroducer('');
+                    }}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  />
+                  <span className="ml-2 text-sm text-gray-600">紹介者はいない（不明）</span>
+                </label>
+              </div>
+            </div>
+          )}
 
           <div>
             <span className="block text-sm font-medium text-gray-700 mb-2">
