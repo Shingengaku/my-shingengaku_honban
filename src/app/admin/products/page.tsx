@@ -719,7 +719,7 @@ export default function ProductMasterPage() {
                         </div>
                     </div>
 
-                    <div className="border rounded overflow-hidden">
+                    <div className="border rounded">
                         <table className="w-full text-left border-collapse">
                             <thead className="bg-gray-100 text-gray-600 text-sm">
                                 <tr>
