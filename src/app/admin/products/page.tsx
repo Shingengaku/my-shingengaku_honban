@@ -52,6 +52,84 @@ interface Rank {
 }
 
 // Sortable Row Component
+// Helper component for Multi-Select
+function MultiSelectVenue({
+    value,
+    options,
+    onChange
+}: {
+    value: string,
+    options: Venue[],
+    onChange: (val: string) => void
+}) {
+    // value is string like "東京・大阪" or "参加しない"
+    const selectedValues = value ? value.split('・').filter(s => s) : [];
+    const notParticipating = "参加しない";
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>, optionName: string) => {
+        const checked = e.target.checked;
+        let newSelected = [...selectedValues];
+
+        if (optionName === notParticipating) {
+            if (checked) {
+                newSelected = [notParticipating]; // Exclusive
+            } else {
+                newSelected = newSelected.filter(v => v !== notParticipating);
+            }
+        } else {
+            if (checked) {
+                // If checking a normal venue, remove 'notParticipating'
+                newSelected = newSelected.filter(v => v !== notParticipating);
+                newSelected.push(optionName);
+            } else {
+                newSelected = newSelected.filter(v => v !== optionName);
+            }
+        }
+
+        // Remove duplicates and join
+        const unique = Array.from(new Set(newSelected));
+        onChange(unique.join('・'));
+    };
+
+    return (
+        <details className="relative">
+            <summary className="cursor-pointer list-none flex items-center justify-between border rounded px-2 py-1 bg-white text-xs min-h-[26px]">
+                <span className="truncate max-w-[100px] block" title={value}>
+                    {value || <span className="text-gray-400">(選択)</span>}
+                </span>
+                <span className="text-[8px] text-gray-500 ml-1">▼</span>
+            </summary>
+            <div className="absolute top-full left-0 z-50 mt-1 w-48 bg-white border rounded shadow-lg p-2 max-h-60 overflow-y-auto">
+                <div className="space-y-1">
+                    {options.map(opt => (
+                        <label key={opt.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                            <input
+                                type="checkbox"
+                                value={opt.name}
+                                checked={selectedValues.includes(opt.name)}
+                                onChange={(e) => handleChange(e, opt.name)}
+                                className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                            />
+                            <span className="text-sm text-gray-700">{opt.name}</span>
+                        </label>
+                    ))}
+                    <div className="border-t my-1"></div>
+                    <label className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                        <input
+                            type="checkbox"
+                            value={notParticipating}
+                            checked={selectedValues.includes(notParticipating)}
+                            onChange={(e) => handleChange(e, notParticipating)}
+                            className="rounded text-red-600 focus:ring-red-500 h-4 w-4"
+                        />
+                        <span className="text-sm text-red-600 font-bold">{notParticipating}</span>
+                    </label>
+                </div>
+            </div>
+        </details>
+    );
+}
+
 function SortableRow({
     id,
     item,
@@ -115,18 +193,28 @@ function SortableRow({
                 </select>
             </td>
             <td className="p-2 align-top">
-                <select className="w-full border rounded px-1 py-1 text-xs" value={item.venue_lecture || ''} onChange={(e) => { updateRow(index, 'venue_lecture', e.target.value); updateRow(index, 'venue_social', ''); }}>
-                    <option value="">-</option>
-                    {venueList.filter(v => v.type === 'lecture').map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
-                    <option value="参加しない">不参加</option>
-                </select>
+                <MultiSelectVenue
+                    value={item.venue_lecture || ''}
+                    options={venueList.filter(v => v.type === 'lecture')}
+                    onChange={(val) => {
+                        updateRow(index, 'venue_lecture', val);
+                        // If logic requires clearing social when lecture changes? 
+                        // With multi-select, maybe just keep social? 
+                        // Or if "参加しない", clear social.
+                        if (val === '参加しない') {
+                            updateRow(index, 'venue_social', '参加しない');
+                        } else if (!val) {
+                            updateRow(index, 'venue_social', '');
+                        }
+                    }}
+                />
             </td>
             <td className="p-2 align-top">
-                <select className="w-full border rounded px-1 py-1 text-xs" value={item.venue_social || ''} onChange={(e) => updateRow(index, 'venue_social', e.target.value)} disabled={!item.venue_lecture}>
-                    <option value="">-</option>
-                    {getSocialOptions(item.venue_lecture || '').map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
-                    <option value="参加しない">不参加</option>
-                </select>
+                <MultiSelectVenue
+                    value={item.venue_social || ''}
+                    options={getSocialOptions(item.venue_lecture || '')} // This logic needs to support multi lecture
+                    onChange={(val) => updateRow(index, 'venue_social', val)}
+                />
             </td>
             <td className="p-2 align-top">
                 <input type="number" className="w-full border rounded px-1 py-1 text-right text-xs" value={item.lecture_fee} onChange={(e) => updateRow(index, 'lecture_fee', e.target.value)} />
@@ -344,27 +432,41 @@ export default function ProductMasterPage() {
     };
 
     const getSocialOptions = (lectureVenueName: string) => {
-        if (!lectureVenueName) return [];
+        if (!lectureVenueName || lectureVenueName === '参加しない') return [];
         const socialVenues = venueList.filter(v => v.type === 'social');
-        const notParticipating = "参加しない";
+        //const notParticipating = "参加しない"; // Handled in Component now
 
-        // Helper to convert Venue[] to simpler array if needed, but we return Venue[]
-        let filtered: Venue[] = [];
+        // If no lecture selected, maybe return all? or none? none.
 
+        let targetNames: string[] = [];
         if (lectureVenueName.includes('・')) {
-            const parts = lectureVenueName.split('・');
-            filtered = socialVenues.filter(v =>
-                v.name === lectureVenueName ||
-                parts.includes(v.name) ||
-                v.name === notParticipating
-            );
+            targetNames = lectureVenueName.split('・');
         } else {
-            filtered = socialVenues.filter(v =>
-                v.name === lectureVenueName ||
-                v.name === notParticipating
-            );
+            targetNames = [lectureVenueName];
         }
-        return filtered;
+
+        // Logic: Return social venues that match ANY of the selected lecture venues?
+        // Or strictly match?
+        // Usually, if I select "Tokyo", I want "Tokyo Social".
+        // If I select "Tokyo" and "Osaka", I want "Tokyo Social" and "Osaka Social".
+        // Assuming social venue names align with lecture names roughly?
+        // Current logic was: check if social venue name matches or is part of split string.
+        // Let's broaden: Return ALL social venues? The user can filter.
+        // Creating a strict filter might be annoying if names mismatch.
+        // But the previous requests asked for "Exclusive control".
+        // "三か市内を選ぶと登録された会場は選択できない" -> "参加しない" Logic handles this.
+        // "Choose Tokyo -> Cannot choose Fukuoka Social"? 
+        // Let's filter by name inclusion.
+
+        // Filter social venues that have same name as one of the lecture targets
+        // Or contained in it.
+        // This relies on naming convention. "Tokyo" lecture -> "Tokyo" social.
+
+        return socialVenues.filter(sv => {
+            // If social venue name is exactly in target list
+            // Or if social venue name contains one of the targets? (e.g. "Tokyo Social" contains "Tokyo")
+            return targetNames.some(tn => sv.name.includes(tn) || tn.includes(sv.name));
+        });
     };
 
     const handleDragEnd = (event: DragEndEvent) => {
@@ -501,7 +603,7 @@ export default function ProductMasterPage() {
                         <ul className="list-disc pl-5">
                             <li>商品名、コード、金額等を設定します。</li>
                             <li><strong>リスト左端の「⋮⋮」をドラッグ</strong>して並び順を変更できます。</li>
-                            <li>並び順は、ダッシュボードの編集画面などのプルダウン順序に反映されます。</li>
+                            <li>会場はドロップダウンから<strong>複数選択可能</strong>です。「参加しない」を選択すると他の会場は解除されます。</li>
                         </ul>
                     </div>
 
@@ -583,28 +685,25 @@ export default function ProductMasterPage() {
 
                         <div className="col-span-2 md:col-start-1">
                             <label className="text-xs font-bold text-gray-500 mb-1 block">講義会場</label>
-                            <select
-                                className="w-full border p-2 rounded"
+                            <MultiSelectVenue
                                 value={newItem.venue_lecture || ''}
-                                onChange={e => setNewItem({ ...newItem, venue_lecture: e.target.value, venue_social: '' })}
-                            >
-                                <option value="">(選択なし)</option>
-                                {venueList.filter(v => v.type === 'lecture').map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
-                                <option value="参加しない">参加しない</option>
-                            </select>
+                                options={venueList.filter(v => v.type === 'lecture')}
+                                onChange={(val) => {
+                                    setNewItem({
+                                        ...newItem,
+                                        venue_lecture: val,
+                                        venue_social: val === '参加しない' ? '参加しない' : (val ? newItem.venue_social : '')
+                                    });
+                                }}
+                            />
                         </div>
                         <div className="col-span-2">
                             <label className="text-xs font-bold text-gray-500 mb-1 block">懇親会会場</label>
-                            <select
-                                className="w-full border p-2 rounded bg-white disabled:bg-gray-100"
+                            <MultiSelectVenue
                                 value={newItem.venue_social || ''}
-                                onChange={e => setNewItem({ ...newItem, venue_social: e.target.value })}
-                                disabled={!newItem.venue_lecture}
-                            >
-                                <option value="">(選択なし)</option>
-                                {getSocialOptions(newItem.venue_lecture || '').map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
-                                <option value="参加しない">参加しない</option>
-                            </select>
+                                options={getSocialOptions(newItem.venue_lecture || '')}
+                                onChange={(val) => setNewItem({ ...newItem, venue_social: val })}
+                            />
                         </div>
                         <div className="col-span-2">
                             <label className="text-xs font-bold text-gray-500 mb-1 block">受講料</label>

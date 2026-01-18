@@ -299,6 +299,14 @@ export default function VenueMasterPage() {
                                                 <SortableItem key={v.id} venue={v} onDelete={removeVenue} />
                                             ))}
                                         </SortableContext>
+                                        <div className="p-3 flex justify-between items-center bg-gray-50 border-b group opacity-70">
+                                            <div className="flex items-center gap-3">
+                                                <div className="text-gray-300 font-bold px-1 select-none">
+                                                    🔒
+                                                </div>
+                                                <span className="font-medium text-gray-500">参加しない <span className="text-xs text-gray-400">(システム固定)</span></span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </DndContext>
                             </div>
@@ -335,6 +343,14 @@ export default function VenueMasterPage() {
                                                 <SortableItem key={v.id} venue={v} onDelete={removeVenue} />
                                             ))}
                                         </SortableContext>
+                                        <div className="p-3 flex justify-between items-center bg-gray-50 border-b group opacity-70">
+                                            <div className="flex items-center gap-3">
+                                                <div className="text-gray-300 font-bold px-1 select-none">
+                                                    🔒
+                                                </div>
+                                                <span className="font-medium text-gray-500">参加しない <span className="text-xs text-gray-400">(システム固定)</span></span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </DndContext>
                             </div>
