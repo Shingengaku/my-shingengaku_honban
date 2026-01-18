@@ -700,10 +700,22 @@ export default function ProductMasterPage() {
                                 value={newItem.venue_lecture || ''}
                                 options={venueList.filter(v => v.type === 'lecture')}
                                 onChange={(val) => {
+                                    let newSocial = newItem.venue_social;
+
+                                    if (val === '参加しない') {
+                                        newSocial = '参加しない';
+                                    } else if (!val) {
+                                        newSocial = '';
+                                    } else {
+                                        if (newSocial === '参加しない') {
+                                            newSocial = '';
+                                        }
+                                    }
+
                                     setNewItem({
                                         ...newItem,
                                         venue_lecture: val,
-                                        venue_social: val === '参加しない' ? '参加しない' : (val ? newItem.venue_social : '')
+                                        venue_social: newSocial
                                     });
                                 }}
                             />
