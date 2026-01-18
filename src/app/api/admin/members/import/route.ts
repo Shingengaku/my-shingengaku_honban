@@ -93,15 +93,29 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'データ行が見つかりません' }, { status: 400 });
         }
 
-        // 1. Fetch Ranks to map Name -> ID
-        const { data: ranks, error: rankError } = await supabaseAdmin
-            .from('ranks')
-            .select('id, name');
+        // 1. Fetch Ranks and Terms
+        const [ranksRes, termsRes] = await Promise.all([
+            supabaseAdmin.from('ranks').select('id, name'),
+            supabaseAdmin.from('terms').select('id, name')
+        ]);
 
-        if (rankError) throw rankError;
+        if (ranksRes.error) throw ranksRes.error;
+        if (termsRes.error) throw termsRes.error;
 
         const rankMap = new Map<string, number>();
-        ranks?.forEach(r => rankMap.set(r.name, r.id));
+        ranksRes.data?.forEach(r => rankMap.set(r.name, r.id));
+
+        const termMap = new Map<string, number>();
+        termsRes.data?.forEach(t => termMap.set(t.name, t.id));
+        // Add normalization support (e.g. "1" -> "1期") if needed, or rely on exact match.
+        // Also support "1" matching "1期" partially?
+        // Let's create a normalized map for numeric values too
+        termsRes.data?.forEach(t => {
+            const numDetail = t.name.match(/\d+/);
+            if (numDetail) {
+                termMap.set(numDetail[0], t.id); // "1" -> id of "1期"
+            }
+        });
 
         // 2. Prepare Match data
         const upsertData = [];
@@ -121,24 +135,42 @@ export async function POST(request: Request) {
 
             let rankId = rankMap.get(rank_name);
             if (!rankId) {
-                errors.push(`警告: 属性 "${rank_name}" がシステムに見つからないため、登録をスキップします (メール: ${email})`);
-                // If strictly requiring rank, skip explicitly
-                if (!rankId && ranks && ranks.length > 0) {
-                    rankId = ranks[0].id;
-                    errors.push(`→ 注意: 属性をデフォルトの "${ranks[0].name}" に設定しました。`);
+                // Try fallback to default if enabled, or warn
+                if (ranksRes.data && ranksRes.data.length > 0) {
+                    // For now, if missing, use first rank? or Error?
+                    // Existing logic warned and used first.
+                    rankId = ranksRes.data[0].id;
+                    errors.push(`警告: 属性 "${rank_name}" が不明なため、既定の "${ranksRes.data[0].name}" を設定しました (メール: ${email})`);
                 }
             }
 
-            // Generation parsing
-            let gen = parseInt(generation?.replace('期', '') || '0');
-            if (isNaN(gen)) gen = 0;
+            // Term parsing
+            let termId: number | null = null;
+            if (generation) {
+                // Try exact match
+                termId = termMap.get(generation) || null;
+                // Try "X期" format if generation is just number
+                if (!termId && /^\d+$/.test(generation)) {
+                    termId = termMap.get(`${generation}期`) || null;
+                }
+            }
+            // If still null, default to first term? or allow null?
+            // members table `term_id` might be nullable? Schema says int.
+            // Let's default to first term if not found
+            if (!termId && termsRes.data && termsRes.data.length > 0) {
+                // Maybe check if generation was provided but not found
+                if (generation) {
+                    errors.push(`警告: 期 "${generation}" が不明なため、既定の "${termsRes.data[0].name}" を設定しました`);
+                }
+                termId = termsRes.data[0].id;
+            }
 
             upsertData.push({
                 name,
                 furigana: furigana || name,
                 email,
                 rank_id: rankId,
-                generation: gen
+                term_id: termId
             });
         }
 

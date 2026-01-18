@@ -170,14 +170,63 @@ export default function TermMasterPage() {
         }
     };
 
+    const handleExport = () => {
+        const headers = ['ID', '期名', '並び順'];
+        const rows = terms.map(t => [t.id, t.name, t.sort_order]);
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+        ].join('\n');
+        const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+        const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `terms_master_${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+    };
+
+    const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files?.[0]) return;
+        const file = e.target.files[0];
+        e.target.value = ''; // Reset
+
+        if (!confirm('CSVファイルをインポートしますか？\n既存の「期名」と一致するデータは上書き(ID維持)はされず、新規追加のみ、または名前重複時はスキップ/更新されます(API仕様による)。\n※現在の仕様では名前重複は更新処理となります。')) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        setLoading(true);
+        try {
+            const res = await fetch('/api/admin/terms/import', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                alert(`${data.count}件処理しました`);
+                fetchTerms();
+            } else {
+                alert(`インポート失敗: ${data.error}`);
+            }
+        } catch (e) {
+            alert('エラーが発生しました');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-100 p-8">
             <div className="max-w-4xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold text-gray-800">期マスタ管理</h1>
-                    <Link href="/admin/dashboard" className="text-gray-600 hover:text-indigo-600">
-                        ← ダッシュボードに戻る
-                    </Link>
+                    <div className="flex gap-4">
+                        <button onClick={handleExport} className="px-3 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 text-sm">CSVエクスポート</button>
+                        <label className="cursor-pointer px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm flex items-center">
+                            CSVインポート
+                            <input type="file" accept=".csv" className="hidden" onChange={handleImport} />
+                        </label>
+                        <Link href="/admin/dashboard" className="text-gray-600 hover:text-indigo-600 flex items-center">
+                            ← ダッシュボードに戻る
+                        </Link>
+                    </div>
                 </div>
 
                 <div className="bg-white rounded-lg shadow p-6 mb-6">

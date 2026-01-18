@@ -379,14 +379,121 @@ export default function ProductMasterPage() {
         }
     };
 
+    const handleExport = () => {
+        const headers = [
+            '商品名', '商品コード', 'URL', '属性ID',
+            '講義会場', '懇親会会場', '受講料', '懇親会費'
+            // Exclude redundant generated keys/urls from import perspective, but useful for export
+        ];
+        // Note: Exporting internal Rank ID might be hard for user to edit? 
+        // Maybe export Rank Name? It's better, but for Import we need to map back.
+        // Let's export Rank Name as well for reference? 
+        // Or just keep it simple: Export ID. 
+        // The user request is "Export/Import". 
+        // Let's Export raw values.
+
+        const rows = paymentLinks.map(p => [
+            p.name, p.product_code || '', p.url, p.rank_id || '',
+            p.venue_lecture || '', p.venue_social || '',
+            p.lecture_fee, p.social_fee
+        ]);
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+        ].join('\n');
+
+        const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+        const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `products_master_${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+    };
+
+    const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files?.[0]) return;
+        const file = e.target.files[0];
+        e.target.value = '';
+
+        if (!confirm('CSVをインポートして一覧に追加・更新しますか？\\n※反映するにはインポート後に画面下の「設定を保存する」を押す必要があります。')) return;
+
+        const text = await file.text();
+        const cleanText = text.replace(/^\\uFEFF/, '');
+        const lines = cleanText.split(/\\r?\\n/).filter(line => line.trim() !== '');
+
+        if (lines.length < 2) return;
+
+        const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+        // Mapping
+        const headerMap: Record<string, string> = {
+            '商品名': 'name', '商品コード': 'product_code', 'URL': 'url',
+            '属性ID': 'rank_id', '講義会場': 'venue_lecture', '懇親会会場': 'venue_social',
+            '受講料': 'lecture_fee', '懇親会費': 'social_fee'
+        };
+
+        const mappedHeaders = headers.map(h => headerMap[h] || h);
+
+        const newItems: PaymentLinkItem[] = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            const vals = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+            if (vals.length < mappedHeaders.length) continue;
+
+            const obj: any = {};
+            mappedHeaders.forEach((h, idx) => obj[h] = vals[idx]);
+
+            if (!obj.name) continue;
+
+            newItems.push({
+                name: obj.name,
+                key: obj.name,
+                product_code: obj.product_code,
+                url: obj.url,
+                rank_id: obj.rank_id,
+                venue_lecture: obj.venue_lecture,
+                venue_social: obj.venue_social,
+                lecture_fee: obj.lecture_fee || '0',
+                social_fee: obj.social_fee || '0'
+            });
+        }
+
+        // Merge logic: Update if name exists, Append if not
+        // We do this locally.
+        const merged = [...paymentLinks];
+        let addedCount = 0;
+        let updatedCount = 0;
+
+        newItems.forEach(newItem => {
+            const idx = merged.findIndex(p => p.name === newItem.name);
+            if (idx >= 0) {
+                merged[idx] = { ...merged[idx], ...newItem };
+                updatedCount++;
+            } else {
+                merged.push(newItem);
+                addedCount++;
+            }
+        });
+
+        setPaymentLinks(merged);
+        alert(`インポート完了: 追加 ${addedCount}件, 更新 ${updatedCount}件\\n内容を確認し、問題なければ「設定を保存する」ボタンを押してください。`);
+    };
+
     return (
         <div className="min-h-screen bg-gray-100 p-8">
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold text-gray-800">商品マスタ管理 (決済リンク設定)</h1>
-                    <Link href="/admin/dashboard" className="text-gray-600 hover:text-indigo-600">
-                        ← ダッシュボードに戻る
-                    </Link>
+                    <div className="flex gap-4 items-center">
+                        <button onClick={handleExport} className="px-3 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 text-sm">CSVエクスポート</button>
+                        <label className="cursor-pointer px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm flex items-center">
+                            CSVインポート (編集)
+                            <input type="file" accept=".csv" className="hidden" onChange={handleImport} />
+                        </label>
+                        <Link href="/admin/dashboard" className="text-gray-600 hover:text-indigo-600 flex items-center">
+                            ← ダッシュボードに戻る
+                        </Link>
+                    </div>
                 </div>
 
                 <div className="bg-white rounded-lg shadow p-6">

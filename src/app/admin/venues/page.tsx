@@ -167,10 +167,6 @@ export default function VenueMasterPage() {
         setSaving(true);
         try {
             // Recalculate sort_order for ALL venues based on current array order
-            // We can just increment by 10 for the whole list, or grouping by type.
-            // Since API sorts by sort_order, local state order is what matters.
-            // Let's simple use index * 10
-
             const itemsToSave = venues.map((v, index) => ({
                 id: v.id,
                 sort_order: (index + 1) * 10
@@ -194,6 +190,49 @@ export default function VenueMasterPage() {
         }
     };
 
+    const handleExport = () => {
+        const headers = ['ID', '会場名', 'タイプ(lecture/social)', '並び順'];
+        const rows = venues.map(v => [v.id, v.name, v.type, v.sort_order]);
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+        ].join('\n');
+        const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+        const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `venues_master_${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+    };
+
+    const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files?.[0]) return;
+        const file = e.target.files[0];
+        e.target.value = '';
+
+        if (!confirm('CSVファイルをインポートしますか？\n既存の「会場名」と一致するデータは更新され、新規のみ追加されます。')) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        setLoading(true);
+        // Note: Use created API
+        try {
+            const res = await fetch('/api/admin/venues/import', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                alert(`${data.count}件処理しました`);
+                fetchVenues();
+            } else {
+                alert(`インポート失敗: ${data.error}`);
+            }
+        } catch (e) {
+            alert('通信エラー');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const lectureVenues = venues.filter(v => v.type === 'lecture');
     const socialVenues = venues.filter(v => v.type === 'social');
 
@@ -206,9 +245,16 @@ export default function VenueMasterPage() {
             <div className="max-w-5xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold text-gray-800">会場マスタ管理</h1>
-                    <Link href="/admin/dashboard" className="text-gray-600 hover:text-indigo-600">
-                        ← ダッシュボードに戻る
-                    </Link>
+                    <div className="flex gap-4 items-center">
+                        <button onClick={handleExport} className="px-3 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 text-sm">CSVエクスポート</button>
+                        <label className="cursor-pointer px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm flex items-center">
+                            CSVインポート
+                            <input type="file" accept=".csv" className="hidden" onChange={handleImport} />
+                        </label>
+                        <Link href="/admin/dashboard" className="text-gray-600 hover:text-indigo-600 flex items-center">
+                            ← ダッシュボードに戻る
+                        </Link>
+                    </div>
                 </div>
 
                 <div className="bg-white rounded-lg shadow p-6 mb-8">

@@ -244,7 +244,7 @@ export default function MembersPage() {
             m.furigana || '',
             m.email,
             m.ranks?.name || '',
-            m.terms?.name || '' // generation -> terms.name
+            m.terms?.name || ''
         ]);
 
         const csvContent = [
@@ -252,7 +252,8 @@ export default function MembersPage() {
             ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
         ].join('\n');
 
-        const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+        const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+        const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
