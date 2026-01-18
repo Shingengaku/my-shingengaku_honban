@@ -641,7 +641,7 @@ export default function AdminDashboard() {
 
         const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
         const header = [
-            'ID', '氏名', 'ふりがな', 'メールアドレス', '属性', '期', '会場', '懇親会', '合計金額', '支払状況', '環境', '申込日時', '備考'
+            'ID', '氏名', 'ふりがな', 'メールアドレス', '属性', '期', '会場', '懇親会', '合計金額', '支払状況', '環境', '申込日時', '備考', 'タグ'
         ].join(',');
 
         const rows = targetApps.map(app => {
@@ -651,6 +651,7 @@ export default function AdminDashboard() {
             // @ts-ignore
             const env = app.environment === 'production' ? '本番' : 'テスト';
             const remarks = (app.remarks || '').replace(/"/g, '""'); // Escape quotes for CSV
+            const tags = (app.tags || []).join(' ');
 
             return [
                 app.id,
@@ -665,7 +666,8 @@ export default function AdminDashboard() {
                 app.payment_status,
                 `"${env}"`,
                 `"${new Date(app.created_at).toLocaleString('ja-JP')}"`,
-                `"${remarks}"`
+                `"${remarks}"`,
+                `"${tags}"`
             ].join(',');
         });
 

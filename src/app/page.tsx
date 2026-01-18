@@ -24,7 +24,15 @@ export default function Home() {
   const [introducer, setIntroducer] = useState('');
   const [noIntroducer, setNoIntroducer] = useState(false);
 
+  // 会場マスタ用
+  const [venueMaster, setVenueMaster] = useState<{ name: string, type: string }[]>([]);
+  const [socialMaster, setSocialMaster] = useState<{ name: string, type: string }[]>([]);
+
   const [terms, setTerms] = useState<Term[]>([]);
+
+  // 懇親会の選択状態：動的な名前に対応するためSetで管理するか、あるいは既存のオブジェクト形式を維持しつつ動的にするか。
+  // 既存ロジックへの影響を最小限にするため、主要な2拠点（東京、福岡）のフラグは残しつつ、
+  // その他の会場は想定外だが、今回は「東京」「福岡」のキーワードで制御する。
   const [socialOptions, setSocialOptions] = useState({
     tokyo: false,
     fukuoka: false,
@@ -38,9 +46,10 @@ export default function Home() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const [settingsRes, termsRes] = await Promise.all([
+        const [settingsRes, termsRes, venuesRes] = await Promise.all([
           fetch('/api/settings', { cache: 'no-store' }),
-          fetch('/api/terms', { cache: 'no-store' })
+          fetch('/api/terms', { cache: 'no-store' }),
+          fetch('/api/venues', { cache: 'no-store' })
         ]);
 
         if (settingsRes.ok) {
@@ -51,6 +60,11 @@ export default function Home() {
         }
         if (termsRes.ok) {
           setTerms(await termsRes.json());
+        }
+        if (venuesRes.ok) {
+          const vData = await venuesRes.json();
+          setVenueMaster(vData.filter((v: any) => v.type === 'lecture'));
+          setSocialMaster(vData.filter((v: any) => v.type === 'social'));
         }
       } catch (e) {
         console.error('Failed to load settings or terms');
@@ -122,15 +136,30 @@ export default function Home() {
   };
 
   /* ... handleVenueChange ... */
+  /* ... handleVenueChange ... */
   const handleVenueChange = (val: string) => {
     setFormData({ ...formData, venue: val });
-    if (val === 'tokyo') {
-      setSocialOptions(prev => ({ ...prev, fukuoka: false, none: false }));
-    } else if (val === 'fukuoka') {
-      setSocialOptions(prev => ({ ...prev, tokyo: false, none: false }));
-    } else if (val === 'none') {
-      setSocialOptions({ tokyo: false, fukuoka: false, none: true });
-    }
+
+    // 排他制御ロジック (名前ベース)
+    const isTokyo = val.includes('東京') || val === 'tokyo';
+    const isFukuoka = val.includes('福岡') || val === 'fukuoka';
+    const isNone = val === 'none' || val === '参加しない';
+
+    setSocialOptions(prev => {
+      const next = { ...prev };
+      if (isNone) {
+        next.tokyo = false;
+        next.fukuoka = false;
+        next.none = true;
+      } else if (isTokyo) {
+        next.fukuoka = false; // 東京会場なら福岡懇親会OFF
+        next.none = false;
+      } else if (isFukuoka) {
+        next.tokyo = false; // 福岡会場なら東京懇親会OFF
+        next.none = false;
+      }
+      return next;
+    });
   };
 
   /* ... sent view ... */
@@ -322,40 +351,74 @@ export default function Home() {
               <span className="text-red-500 ml-1">*必須</span>
             </span>
             <div className="space-y-2">
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  name="venue"
-                  value="tokyo"
-                  required
-                  checked={formData.venue === 'tokyo'}
-                  onChange={(e) => handleVenueChange(e.target.value)}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                />
-                <span className="ml-2 text-gray-700">東京</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  name="venue"
-                  value="fukuoka"
-                  checked={formData.venue === 'fukuoka'}
-                  onChange={(e) => handleVenueChange(e.target.value)}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                />
-                <span className="ml-2 text-gray-700">福岡</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  name="venue"
-                  value="both"
-                  checked={formData.venue === 'both'}
-                  onChange={(e) => handleVenueChange(e.target.value)}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                />
-                <span className="ml-2 text-gray-700">両方参加</span>
-              </label>
+              {venueMaster.length > 0 ? (
+                <>
+                  {venueMaster.map((v) => (
+                    <label key={v.name} className="flex items-center">
+                      <input
+                        type="radio"
+                        name="venue"
+                        value={v.name}
+                        required
+                        checked={formData.venue === v.name}
+                        onChange={(e) => handleVenueChange(e.target.value)}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                      />
+                      <span className="ml-2 text-gray-700">{v.name}</span>
+                    </label>
+                  ))}
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="venue"
+                      value="both"
+                      checked={formData.venue === 'both'}
+                      onChange={(e) => handleVenueChange(e.target.value)}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                    />
+                    <span className="ml-2 text-gray-700">両方参加</span>
+                  </label>
+                </>
+              ) : (
+                <>
+                  {/* Fallback if master is empty */}
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="venue"
+                      value="tokyo"
+                      required
+                      checked={formData.venue === 'tokyo'}
+                      onChange={(e) => handleVenueChange(e.target.value)}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                    />
+                    <span className="ml-2 text-gray-700">東京</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="venue"
+                      value="fukuoka"
+                      checked={formData.venue === 'fukuoka'}
+                      onChange={(e) => handleVenueChange(e.target.value)}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                    />
+                    <span className="ml-2 text-gray-700">福岡</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="venue"
+                      value="both"
+                      checked={formData.venue === 'both'}
+                      onChange={(e) => handleVenueChange(e.target.value)}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                    />
+                    <span className="ml-2 text-gray-700">両方参加</span>
+                  </label>
+                </>
+              )}
+
               <label className="flex items-center">
                 <input
                   type="radio"
@@ -376,33 +439,72 @@ export default function Home() {
               <span className="text-red-500 ml-1">*必須</span>
             </span>
             <div className="space-y-2 pl-4">
-              <label className={`flex items-center ${(formData.venue === 'fukuoka' || formData.venue === 'none') ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={socialOptions.tokyo}
-                  disabled={formData.venue === 'fukuoka' || formData.venue === 'none'}
-                  onChange={(e) => setSocialOptions({ ...socialOptions, tokyo: e.target.checked, none: false })}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-                <span className="ml-2 text-gray-700">東京懇親会に参加する</span>
-              </label>
+              {socialMaster.length > 0 ? (
+                <>
+                  {socialMaster.map(s => {
+                    const isTokyoRelated = s.name.includes('東京');
+                    const isFukuokaRelated = s.name.includes('福岡');
+                    // Disable logic
+                    const disabled =
+                      formData.venue === 'none' ||
+                      formData.venue === '参加しません' ||
+                      (isTokyoRelated && (formData.venue.includes('福岡') || formData.venue === 'fukuoka') && !formData.venue.includes('東京') && !formData.venue.includes('both')) || // 福岡会場のみなら東京懇親会NG
+                      (isFukuokaRelated && (formData.venue.includes('東京') || formData.venue === 'tokyo') && !formData.venue.includes('福岡') && !formData.venue.includes('both')); // 東京会場のみなら福岡懇親会NG
 
-              <label className={`flex items-center ${(formData.venue === 'tokyo' || formData.venue === 'none') ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={socialOptions.fukuoka}
-                  disabled={formData.venue === 'tokyo' || formData.venue === 'none'}
-                  onChange={(e) => setSocialOptions({ ...socialOptions, fukuoka: e.target.checked, none: false })}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-                <span className="ml-2 text-gray-700">福岡懇親会に参加する</span>
-              </label>
+                    // Determine checked state for general master items is hard without mappings.
+                    // Assuming Master names are '東京懇親会', '福岡懇親会'
+                    const stateKey = isTokyoRelated ? 'tokyo' : (isFukuokaRelated ? 'fukuoka' : null);
+                    const isChecked = stateKey ? (socialOptions as any)[stateKey] : false;
 
-              <label className={`flex items-center ${(formData.venue === 'none') ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    return (
+                      <label key={s.name} className={`flex items-center ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          disabled={disabled}
+                          onChange={(e) => {
+                            if (stateKey) {
+                              setSocialOptions({ ...socialOptions, [stateKey]: e.target.checked, none: false });
+                            }
+                          }}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-gray-700">{s.name}に参加する</span>
+                      </label>
+                    );
+                  })}
+                </>
+              ) : (
+                <>
+                  <label className={`flex items-center ${(formData.venue === 'fukuoka' || formData.venue === 'none') ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={socialOptions.tokyo}
+                      disabled={formData.venue === 'fukuoka' || formData.venue === 'none'}
+                      onChange={(e) => setSocialOptions({ ...socialOptions, tokyo: e.target.checked, none: false })}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-gray-700">東京懇親会に参加する</span>
+                  </label>
+
+                  <label className={`flex items-center ${(formData.venue === 'tokyo' || formData.venue === 'none') ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={socialOptions.fukuoka}
+                      disabled={formData.venue === 'tokyo' || formData.venue === 'none'}
+                      onChange={(e) => setSocialOptions({ ...socialOptions, fukuoka: e.target.checked, none: false })}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-gray-700">福岡懇親会に参加する</span>
+                  </label>
+                </>
+              )}
+
+              <label className={`flex items-center ${(formData.venue === 'none' || formData.venue === '参加しません') ? 'opacity-50 cursor-not-allowed' : ''}`}>
                 <input
                   type="checkbox"
                   checked={socialOptions.none}
-                  disabled={formData.venue === 'none'}
+                  disabled={formData.venue === 'none' || formData.venue === '参加しません'}
                   onChange={(e) => {
                     if (e.target.checked) {
                       setSocialOptions({ tokyo: false, fukuoka: false, none: true });
