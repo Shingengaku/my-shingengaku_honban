@@ -137,7 +137,7 @@ function SortableRow({
     ranks,
     venueList,
     getSocialOptions,
-    updateRow,
+    updateItem,
     handleDelete
 }: {
     id: string,
@@ -146,7 +146,7 @@ function SortableRow({
     ranks: Rank[],
     venueList: Venue[],
     getSocialOptions: (v: string) => Venue[],
-    updateRow: (idx: number, field: string, val: string) => void,
+    updateItem: (idx: number, updates: Partial<PaymentLinkItem>) => void,
     handleDelete: (idx: number) => void
 }) {
     const {
@@ -168,13 +168,13 @@ function SortableRow({
                 <span className="text-gray-300 group-hover:text-gray-500 font-bold text-lg">⋮⋮</span>
             </td>
             <td className="p-2 align-top">
-                <input className="w-full border rounded px-2 py-1" value={item.name} onChange={(e) => updateRow(index, 'name', e.target.value)} />
+                <input className="w-full border rounded px-2 py-1" value={item.name} onChange={(e) => updateItem(index, { name: e.target.value })} />
             </td>
             <td className="p-2 align-top">
                 <input
                     className="w-full border rounded px-2 py-1 bg-white text-gray-600 font-mono"
                     value={item.product_code || ''}
-                    onChange={(e) => updateRow(index, 'product_code', e.target.value)}
+                    onChange={(e) => updateItem(index, { product_code: e.target.value })}
                     placeholder="Code"
                 />
             </td>
@@ -182,12 +182,12 @@ function SortableRow({
                 <input
                     className="w-full border rounded px-2 py-1 text-[10px] text-gray-500 font-mono"
                     value={item.url}
-                    onChange={(e) => updateRow(index, 'url', e.target.value)}
+                    onChange={(e) => updateItem(index, { url: e.target.value })}
                     placeholder="URL"
                 />
             </td>
             <td className="p-2 align-top">
-                <select className="w-full border rounded px-1 py-1 text-xs" value={item.rank_id || ''} onChange={(e) => updateRow(index, 'rank_id', e.target.value)}>
+                <select className="w-full border rounded px-1 py-1 text-xs" value={item.rank_id || ''} onChange={(e) => updateItem(index, { rank_id: e.target.value })}>
                     <option value="">-</option>
                     {ranks.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
@@ -197,15 +197,23 @@ function SortableRow({
                     value={item.venue_lecture || ''}
                     options={venueList.filter(v => v.type === 'lecture')}
                     onChange={(val) => {
-                        updateRow(index, 'venue_lecture', val);
-                        // If logic requires clearing social when lecture changes? 
-                        // With multi-select, maybe just keep social? 
-                        // Or if "参加しない", clear social.
+                        let newSocial = item.venue_social;
+
                         if (val === '参加しない') {
-                            updateRow(index, 'venue_social', '参加しない');
+                            newSocial = '参加しない';
                         } else if (!val) {
-                            updateRow(index, 'venue_social', '');
+                            newSocial = '';
+                        } else {
+                            // If user had "参加しない" selected in social, and changes lecture to valid venues, clear social
+                            if (newSocial === '参加しない') {
+                                newSocial = '';
+                            }
                         }
+
+                        updateItem(index, {
+                            venue_lecture: val,
+                            venue_social: newSocial
+                        });
                     }}
                 />
             </td>
@@ -213,14 +221,14 @@ function SortableRow({
                 <MultiSelectVenue
                     value={item.venue_social || ''}
                     options={getSocialOptions(item.venue_lecture || '')} // This logic needs to support multi lecture
-                    onChange={(val) => updateRow(index, 'venue_social', val)}
+                    onChange={(val) => updateItem(index, { venue_social: val })}
                 />
             </td>
             <td className="p-2 align-top">
-                <input type="number" className="w-full border rounded px-1 py-1 text-right text-xs" value={item.lecture_fee} onChange={(e) => updateRow(index, 'lecture_fee', e.target.value)} />
+                <input type="number" className="w-full border rounded px-1 py-1 text-right text-xs" value={item.lecture_fee} onChange={(e) => updateItem(index, { lecture_fee: e.target.value })} />
             </td>
             <td className="p-2 align-top">
-                <input type="number" className="w-full border rounded px-1 py-1 text-right text-xs" value={item.social_fee} onChange={(e) => updateRow(index, 'social_fee', e.target.value)} />
+                <input type="number" className="w-full border rounded px-1 py-1 text-right text-xs" value={item.social_fee} onChange={(e) => updateItem(index, { social_fee: e.target.value })} />
             </td>
             <td className="p-2 text-center align-top">
                 <button onClick={() => handleDelete(index)} className="text-red-500 hover:text-red-700 font-bold">✕</button>
@@ -369,21 +377,24 @@ export default function ProductMasterPage() {
         setPaymentLinks(newData);
     };
 
-    const updateRow = (index: number, field: string, val: string) => {
-        const newData = [...paymentLinks];
-        // @ts-ignore
-        newData[index][field] = val;
+    const updateItem = (index: number, updates: Partial<PaymentLinkItem>) => {
+        setPaymentLinks(prevLinks => {
+            const newData = [...prevLinks];
+            const currentItem = newData[index];
+            const updatedItem = { ...currentItem, ...updates };
 
-        if (field === 'name') {
-            newData[index].key = val;
-        }
+            if (updates.name !== undefined) {
+                updatedItem.key = updates.name;
+            }
 
-        // Auto-gen URL when code changes
-        if (field === 'product_code') {
-            newData[index].url = generateUrl(val);
-        }
+            // Auto-gen URL when code changes
+            if (updates.product_code !== undefined) {
+                updatedItem.url = generateUrl(updates.product_code);
+            }
 
-        setPaymentLinks(newData);
+            newData[index] = updatedItem;
+            return newData;
+        });
     };
 
     const handleSave = async () => {
@@ -759,7 +770,7 @@ export default function ProductMasterPage() {
                                                     ranks={ranks}
                                                     venueList={venueList}
                                                     getSocialOptions={getSocialOptions}
-                                                    updateRow={updateRow}
+                                                    updateItem={updateItem}
                                                     handleDelete={handleDelete}
                                                 />
                                             ))
