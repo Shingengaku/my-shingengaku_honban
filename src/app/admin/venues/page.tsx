@@ -96,7 +96,13 @@ export default function VenueMasterPage() {
     };
 
     const addVenue = async (name: string, type: 'lecture' | 'social') => {
-        if (!name.trim()) return;
+        const trimmedName = name.trim();
+        if (!trimmedName) return;
+
+        if (trimmedName === '参加しない' || trimmedName === '参加しません') {
+            alert('「参加しない」という会場はシステムにより自動管理されているため、手動で追加することはできません。');
+            return;
+        }
 
         // Calculate sort_order: max + 10
         const typeVenues = venues.filter(v => v.type === type);

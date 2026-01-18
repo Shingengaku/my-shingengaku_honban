@@ -30,14 +30,9 @@ export default function Home() {
 
   const [terms, setTerms] = useState<Term[]>([]);
 
-  // 懇親会の選択状態：動的な名前に対応するためSetで管理するか、あるいは既存のオブジェクト形式を維持しつつ動的にするか。
-  // 既存ロジックへの影響を最小限にするため、主要な2拠点（東京、福岡）のフラグは残しつつ、
-  // その他の会場は想定外だが、今回は「東京」「福岡」のキーワードで制御する。
-  const [socialOptions, setSocialOptions] = useState({
-    tokyo: false,
-    fukuoka: false,
-    none: false
-  });
+  // 多重選択用の状態管理
+  const [selectedVenues, setSelectedVenues] = useState<string[]>([]);
+  const [selectedSocialVenues, setSelectedSocialVenues] = useState<string[]>([]);
 
   /* ... popup state ... */
   const [infoText, setInfoText] = useState('');
@@ -82,9 +77,6 @@ export default function Home() {
     setLoading(true);
     setError('');
 
-    // Construct social_venue based on checkboxes
-    let social_venue = 'none';
-
     // Validation
     // 受講生の場合のみ Term ID 必須
     if (isStudent && !formData.term_id) {
@@ -94,21 +86,22 @@ export default function Home() {
     }
 
     // Validation: at least one must be selected (including none)
-    if (!socialOptions.tokyo && !socialOptions.fukuoka && !socialOptions.none) {
+    // Validation: at least one social option must be selected if venues are selected
+    // Note: User can select "None" for social.
+    if (selectedSocialVenues.length === 0) {
       setError('懇親会の参加有無（または「参加しません」）を選択してください');
       setLoading(false);
       return;
     }
 
-    if (socialOptions.tokyo && socialOptions.fukuoka) social_venue = 'both';
-    else if (socialOptions.tokyo) social_venue = 'tokyo';
-    else if (socialOptions.fukuoka) social_venue = 'fukuoka';
-    else if (socialOptions.none) social_venue = 'none';
+    const finalSocialVenue = selectedSocialVenues.join('・');
+    const finalVenue = selectedVenues.join('・');
 
     try {
       const payload = {
         ...formData,
-        social_venue,
+        venue: finalVenue,
+        social_venue: finalSocialVenue,
         introducer: !isStudent ? introducer : undefined,
         no_introducer: !isStudent ? noIntroducer : undefined,
         // 一般の場合は term_id を空にする
@@ -135,31 +128,89 @@ export default function Home() {
     }
   };
 
-  /* ... handleVenueChange ... */
-  /* ... handleVenueChange ... */
-  const handleVenueChange = (val: string) => {
-    setFormData({ ...formData, venue: val });
-
-    // 排他制御ロジック (名前ベース)
-    const isTokyo = val.includes('東京') || val === 'tokyo';
-    const isFukuoka = val.includes('福岡') || val === 'fukuoka';
+  const handleVenueChange = (val: string, checked: boolean) => {
+    let newVenues = [...selectedVenues];
     const isNone = val === 'none' || val === '参加しない';
 
-    setSocialOptions(prev => {
-      const next = { ...prev };
-      if (isNone) {
-        next.tokyo = false;
-        next.fukuoka = false;
-        next.none = true;
-      } else if (isTokyo) {
-        next.fukuoka = false; // 東京会場なら福岡懇親会OFF
-        next.none = false;
-      } else if (isFukuoka) {
-        next.tokyo = false; // 福岡会場なら東京懇親会OFF
-        next.none = false;
+    if (isNone) {
+      if (checked) {
+        newVenues = ['参加しない'];
+      } else {
+        newVenues = [];
       }
-      return next;
-    });
+    } else {
+      // Normal venue
+      if (checked) {
+        newVenues = newVenues.filter(v => v !== 'none' && v !== '参加しない');
+        newVenues.push(val);
+      } else {
+        newVenues = newVenues.filter(v => v !== val);
+      }
+    }
+
+    // De-dupe
+    newVenues = Array.from(new Set(newVenues));
+    setSelectedVenues(newVenues);
+    setFormData({ ...formData, venue: newVenues.join('・') });
+
+    // Reset Social Venues if Lecture Venues change?
+    // User asked for exclusive control.
+    // If I uncheck "Tokyo", "Tokyo Social" should be unchecked.
+    // Let's filter selectedSocialVenues based on newVenues.
+    // Logic: Keep social venue ONLY if its corresponding lecture venue is still selected.
+    // or if "Participate None" is selected for social.
+
+    // Only if none is selected for lecture, clear social?
+    // Or if "Tokyo" removed, remove "Tokyo Social".
+    if (newVenues.includes('参加しない') || newVenues.includes('none')) {
+      setSelectedSocialVenues(['参加しない']); // Auto select "None" for social?
+    } else {
+      // Filter out social venues that don't match any selected lecture venue
+      // Simplified logic: If social venue name contains lecture venue name.
+      setSelectedSocialVenues(prev => {
+        // If Lecture Venue is selected (not empty), force remove "Participate None" from Social?
+        // User request: "When checking other options (Lecture) while 'None' is checked, clear 'Social None' too."
+        // This implies if we are in this block (not "Lecture None"), we should ensure "Social None" is removed if it was auto-selected?
+        // Actually, if "Lecture None" is NOT selected, we should filter out "Social None" if it exists?
+        // Wait, user might want to select "Lecture: Tokyo" and "Social: None".
+        // But the request says: "When 'Participate None' (Lecture) is checked, and then I check other options (Lecture), 'Participate None' (Social) should be unchecked."
+        // This happens when transitioning from [None] to [Tokyo].
+        // In that case, `prev` might contain `['参加しない']`.
+        // We should filter it out here.
+
+        return prev.filter(sv => {
+          if (sv === '参加しない' || sv === 'none') return false; // Force remove "Social None" when normal venues are active?
+          // Wait, if I want to select "Tokyo" and "Social None", I can't?
+          // The user says "When I check others... uncheck Social None".
+          // Maybe just when transitions?
+          // But `prev` is the old state.
+          // If I explicitly remove '参加しない' here, I force the user to re-select '参加しない' if they really want it.
+          // Given the prompt, this seems safer.
+          return newVenues.some(lv => sv.includes(lv));
+        });
+      });
+    }
+  };
+
+  const handleSocialChange = (val: string, checked: boolean) => {
+    let newSocials = [...selectedSocialVenues];
+    const isNone = val === 'none' || val === '参加しない';
+
+    if (isNone) {
+      if (checked) {
+        newSocials = ['参加しない'];
+      } else {
+        newSocials = newSocials.filter(v => v !== '参加しない');
+      }
+    } else {
+      if (checked) {
+        newSocials = newSocials.filter(v => v !== '参加しない' && v !== 'none');
+        newSocials.push(val);
+      } else {
+        newSocials = newSocials.filter(v => v !== val);
+      }
+    }
+    setSelectedSocialVenues(newSocials);
   };
 
   /* ... sent view ... */
@@ -262,7 +313,7 @@ export default function Home() {
 
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-              お名前 (漢字)
+              ご参加者様のお名前
               <span className="text-red-500 ml-1">*必須</span>
             </label>
             <input
@@ -317,6 +368,9 @@ export default function Home() {
               <label htmlFor="introducer" className="block text-sm font-medium text-gray-700">
                 ご紹介者様
               </label>
+              <p className="text-xs text-gray-500 mb-2">
+                ※ご紹介により参加される方は、ご紹介者様のお名前をご記入ください。
+              </p>
               <div className="mt-2">
                 <input
                   type="text"
@@ -356,80 +410,56 @@ export default function Home() {
                   {venueMaster.map((v) => (
                     <label key={v.name} className="flex items-center">
                       <input
-                        type="radio"
+                        type="checkbox"
                         name="venue"
                         value={v.name}
-                        required
-                        checked={formData.venue === v.name}
-                        onChange={(e) => handleVenueChange(e.target.value)}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                        checked={selectedVenues.includes(v.name)}
+                        onChange={(e) => handleVenueChange(v.name, e.target.checked)}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                       />
                       <span className="ml-2 text-gray-700">{v.name}</span>
                     </label>
                   ))}
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="venue"
-                      value="both"
-                      checked={formData.venue === 'both'}
-                      onChange={(e) => handleVenueChange(e.target.value)}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                    />
-                    <span className="ml-2 text-gray-700">両方参加</span>
-                  </label>
                 </>
               ) : (
                 <>
                   {/* Fallback if master is empty */}
                   <label className="flex items-center">
                     <input
-                      type="radio"
-                      name="venue"
-                      value="tokyo"
-                      required
-                      checked={formData.venue === 'tokyo'}
-                      onChange={(e) => handleVenueChange(e.target.value)}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                      type="checkbox"
+                      value="東京"
+                      checked={selectedVenues.includes('東京')}
+                      onChange={(e) => handleVenueChange('東京', e.target.checked)}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                     />
                     <span className="ml-2 text-gray-700">東京</span>
                   </label>
                   <label className="flex items-center">
                     <input
-                      type="radio"
-                      name="venue"
-                      value="fukuoka"
-                      checked={formData.venue === 'fukuoka'}
-                      onChange={(e) => handleVenueChange(e.target.value)}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                      type="checkbox"
+                      value="福岡"
+                      checked={selectedVenues.includes('福岡')}
+                      onChange={(e) => handleVenueChange('福岡', e.target.checked)}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                     />
                     <span className="ml-2 text-gray-700">福岡</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="venue"
-                      value="both"
-                      checked={formData.venue === 'both'}
-                      onChange={(e) => handleVenueChange(e.target.value)}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                    />
-                    <span className="ml-2 text-gray-700">両方参加</span>
                   </label>
                 </>
               )}
 
               <label className="flex items-center">
                 <input
-                  type="radio"
-                  name="venue"
-                  value="none"
-                  checked={formData.venue === 'none'}
-                  onChange={(e) => handleVenueChange(e.target.value)}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  type="checkbox"
+                  value="参加しない"
+                  checked={selectedVenues.includes('参加しない')}
+                  onChange={(e) => handleVenueChange('参加しない', e.target.checked)}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                 />
                 <span className="ml-2 text-gray-700">参加しません</span>
               </label>
+              {(selectedVenues.length > 1 && !selectedVenues.includes('参加しない')) && (
+                <p className="text-xs text-blue-600 ml-6">※複数会場に参加される場合は、全て選択してください。</p>
+              )}
             </div>
           </div>
 
@@ -442,83 +472,83 @@ export default function Home() {
               {socialMaster.length > 0 ? (
                 <>
                   {socialMaster.map(s => {
-                    const isTokyoRelated = s.name.includes('東京');
-                    const isFukuokaRelated = s.name.includes('福岡');
-                    // Disable logic
-                    const disabled =
-                      formData.venue === 'none' ||
-                      formData.venue === '参加しません' ||
-                      (isTokyoRelated && (formData.venue.includes('福岡') || formData.venue === 'fukuoka') && !formData.venue.includes('東京') && !formData.venue.includes('both')) || // 福岡会場のみなら東京懇親会NG
-                      (isFukuokaRelated && (formData.venue.includes('東京') || formData.venue === 'tokyo') && !formData.venue.includes('福岡') && !formData.venue.includes('both')); // 東京会場のみなら福岡懇親会NG
+                    // Logic: Is this social venue selectable?
+                    // Check if ANY selected lecture venue's name matches this social venue
+                    // "Tokyo Social" should be enabled if "Tokyo" Lecture is selected.
+                    // Assuming name inclusion logic: "Tokyo" in "Tokyo"
 
-                    // Determine checked state for general master items is hard without mappings.
-                    // Assuming Master names are '東京懇親会', '福岡懇親会'
-                    const stateKey = isTokyoRelated ? 'tokyo' : (isFukuokaRelated ? 'fukuoka' : null);
-                    const isChecked = stateKey ? (socialOptions as any)[stateKey] : false;
+                    let isDisabled = true;
+                    if (selectedVenues.includes('参加しない') || selectedVenues.length === 0) {
+                      isDisabled = true;
+                    } else {
+                      // Check match
+                      // If s.name contains any of selectedVenues? or vice versa?
+                      // Product Master logic: "Tokyo" lecture -> "Tokyo Social" allowed.
+                      // Ideally exact map, but partial match "Tokyo" in "Tokyo Social".
+                      isDisabled = !selectedVenues.some(lv => s.name.includes(lv));
+                    }
+
+                    // Force disable if "参加しない" is selected for socials? (Exclusive in handleSocialChange)
+                    if (selectedSocialVenues.includes('参加しない') && s.name !== '参加しない') {
+                      // Actually, we handle this in onChange, unchecking others. 
+                      // But if we want to visually disable/gray out when "None" is checked? 
+                      // User requested "Master control only".
+                      // Let's just follow standard logic.
+                    }
 
                     return (
-                      <label key={s.name} className={`flex items-center ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                      <label key={s.name} className={`flex items-center ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
                         <input
                           type="checkbox"
-                          checked={isChecked}
-                          disabled={disabled}
-                          onChange={(e) => {
-                            if (stateKey) {
-                              setSocialOptions({ ...socialOptions, [stateKey]: e.target.checked, none: false });
-                            }
-                          }}
+                          checked={selectedSocialVenues.includes(s.name)}
+                          disabled={isDisabled}
+                          onChange={(e) => handleSocialChange(s.name, e.target.checked)}
                           className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                         />
-                        <span className="ml-2 text-gray-700">{s.name}に参加する</span>
+                        <span className="ml-2 text-gray-700">{s.name}</span>
                       </label>
                     );
                   })}
                 </>
               ) : (
                 <>
-                  <label className={`flex items-center ${(formData.venue === 'fukuoka' || formData.venue === 'none') ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  {/* Fallback */}
+                  <label className={`flex items-center ${(!selectedVenues.includes('東京')) ? 'opacity-50 cursor-not-allowed' : ''}`}>
                     <input
                       type="checkbox"
-                      checked={socialOptions.tokyo}
-                      disabled={formData.venue === 'fukuoka' || formData.venue === 'none'}
-                      onChange={(e) => setSocialOptions({ ...socialOptions, tokyo: e.target.checked, none: false })}
+                      checked={selectedSocialVenues.includes('東京懇親会')}
+                      disabled={!selectedVenues.includes('東京')}
+                      onChange={(e) => handleSocialChange('東京懇親会', e.target.checked)}
                       className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                     />
-                    <span className="ml-2 text-gray-700">東京懇親会に参加する</span>
+                    <span className="ml-2 text-gray-700">東京懇親会</span>
                   </label>
-
-                  <label className={`flex items-center ${(formData.venue === 'tokyo' || formData.venue === 'none') ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  <label className={`flex items-center ${(!selectedVenues.includes('福岡')) ? 'opacity-50 cursor-not-allowed' : ''}`}>
                     <input
                       type="checkbox"
-                      checked={socialOptions.fukuoka}
-                      disabled={formData.venue === 'tokyo' || formData.venue === 'none'}
-                      onChange={(e) => setSocialOptions({ ...socialOptions, fukuoka: e.target.checked, none: false })}
+                      checked={selectedSocialVenues.includes('福岡懇親会')}
+                      disabled={!selectedVenues.includes('福岡')}
+                      onChange={(e) => handleSocialChange('福岡懇親会', e.target.checked)}
                       className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                     />
-                    <span className="ml-2 text-gray-700">福岡懇親会に参加する</span>
+                    <span className="ml-2 text-gray-700">福岡懇親会</span>
                   </label>
                 </>
               )}
 
-              <label className={`flex items-center ${(formData.venue === 'none' || formData.venue === '参加しません') ? 'opacity-50 cursor-not-allowed' : ''}`}>
+              <label className={`flex items-center`}>
                 <input
                   type="checkbox"
-                  checked={socialOptions.none}
-                  disabled={formData.venue === 'none' || formData.venue === '参加しません'}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSocialOptions({ tokyo: false, fukuoka: false, none: true });
-                    } else {
-                      setSocialOptions(prev => ({ ...prev, none: false }));
-                    }
-                  }}
+                  value="参加しない"
+                  checked={selectedSocialVenues.includes('参加しない')}
+                  onChange={(e) => handleSocialChange('参加しない', e.target.checked)}
                   className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                 />
                 <span className="ml-2 text-gray-700">参加しません</span>
               </label>
             </div>
 
-            {(formData.venue === '' && (socialOptions.tokyo || socialOptions.fukuoka)) && (
+            {(selectedVenues.length === 0) && (
               <p className="text-xs text-red-500 mt-1">※会場を選択してください</p>
             )}
           </div>
