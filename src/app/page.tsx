@@ -473,27 +473,22 @@ export default function Home() {
                 <>
                   {socialMaster.map(s => {
                     // Logic: Is this social venue selectable?
-                    // Check if ANY selected lecture venue's name matches this social venue
-                    // "Tokyo Social" should be enabled if "Tokyo" Lecture is selected.
-                    // Assuming name inclusion logic: "Tokyo" in "Tokyo"
+                    let isDisabled = false;
 
-                    let isDisabled = true;
-                    if (selectedVenues.includes('参加しない') || selectedVenues.length === 0) {
-                      isDisabled = true;
+                    if (selectedVenues.length === 0) {
+                      // Case 1: No venue selected -> All enabled
+                      isDisabled = false;
+                    } else if (selectedVenues.includes('参加しない') && selectedVenues.length === 1) {
+                      // Case 2: Only "Participate None" selected -> Only "Participate None" allowed
+                      isDisabled = s.name !== '参加しません';
                     } else {
-                      // Check match
-                      // If s.name contains any of selectedVenues? or vice versa?
-                      // Product Master logic: "Tokyo" lecture -> "Tokyo Social" allowed.
-                      // Ideally exact map, but partial match "Tokyo" in "Tokyo Social".
-                      isDisabled = !selectedVenues.some(lv => s.name.includes(lv));
-                    }
-
-                    // Force disable if "参加しない" is selected for socials? (Exclusive in handleSocialChange)
-                    if (selectedSocialVenues.includes('参加しない') && s.name !== '参加しない') {
-                      // Actually, we handle this in onChange, unchecking others. 
-                      // But if we want to visually disable/gray out when "None" is checked? 
-                      // User requested "Master control only".
-                      // Let's just follow standard logic.
+                      // Case 3: Specific venues selected
+                      if (s.name === '参加しません') {
+                        isDisabled = false; // Always allow "None"
+                      } else {
+                        // Check correspondence (e.g., "Tokyo" selected -> "Tokyo Social" enabled)
+                        isDisabled = !selectedVenues.some(lv => s.name.includes(lv));
+                      }
                     }
 
                     return (
@@ -513,21 +508,21 @@ export default function Home() {
               ) : (
                 <>
                   {/* Fallback */}
-                  <label className={`flex items-center ${(!selectedVenues.includes('東京')) ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  <label className={`flex items-center ${(selectedVenues.length > 0 && !selectedVenues.includes('東京')) ? 'opacity-50 cursor-not-allowed' : ''}`}>
                     <input
                       type="checkbox"
                       checked={selectedSocialVenues.includes('東京懇親会')}
-                      disabled={!selectedVenues.includes('東京')}
+                      disabled={selectedVenues.length > 0 && !selectedVenues.includes('東京')}
                       onChange={(e) => handleSocialChange('東京懇親会', e.target.checked)}
                       className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                     />
                     <span className="ml-2 text-gray-700">東京懇親会</span>
                   </label>
-                  <label className={`flex items-center ${(!selectedVenues.includes('福岡')) ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  <label className={`flex items-center ${(selectedVenues.length > 0 && !selectedVenues.includes('福岡')) ? 'opacity-50 cursor-not-allowed' : ''}`}>
                     <input
                       type="checkbox"
                       checked={selectedSocialVenues.includes('福岡懇親会')}
-                      disabled={!selectedVenues.includes('福岡')}
+                      disabled={selectedVenues.length > 0 && !selectedVenues.includes('福岡')}
                       onChange={(e) => handleSocialChange('福岡懇親会', e.target.checked)}
                       className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                     />

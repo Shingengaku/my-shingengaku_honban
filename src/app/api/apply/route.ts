@@ -148,6 +148,9 @@ export async function POST(request: Request) {
             }
         }
 
+        // attend_social カラムの値を導出
+        const attendSocial = (social_venue && social_venue !== 'none' && social_venue !== '参加しない');
+
         // 4. DBに申込情報を保存
         const { error: insertError } = await supabaseAdmin
             .from('applications')
@@ -157,6 +160,7 @@ export async function POST(request: Request) {
                 input_email: email,
                 venue,
                 social_venue,
+                attend_social: attendSocial, // 必須カラムへの値追加
                 total_amount: totalAmount,
                 payment_status: paymentStatus,
                 matched_member_id: memberId,
