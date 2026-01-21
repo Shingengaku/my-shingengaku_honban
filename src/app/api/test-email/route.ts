@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
     const results: any = {
-        version: 'v3-diagnostic-status-check',
+        version: 'v4-force-deploy',
         checks: {},
         email_attempt: null,
         check_id_status: null
