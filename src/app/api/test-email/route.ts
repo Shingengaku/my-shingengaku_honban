@@ -17,31 +17,49 @@ export async function GET(request: Request) {
     results.checks.resend_api_key_prefix = apiKey ? apiKey.substring(0, 3) : 'NONE';
 
     // 2. Check From Email
-    const fromEmail = process.env.FROM_EMAIL;
-    results.checks.from_email = fromEmail || 'MISSING (Defaults to noreply@resend.dev)';
+    const fromEmailEnv = process.env.FROM_EMAIL;
+    results.checks.from_email_env = fromEmailEnv || 'MISSING';
 
-    // 3. Check DB Settings (Admin Email)
     try {
-        const { data: settings } = await supabaseAdmin.from('app_settings').select('*');
-        const adminEmailSetting = settings?.find(s => s.key === 'admin_email');
-        const adminBccSetting = settings?.find(s => s.key === 'admin_bcc_email');
+        // 3. Fetch Settings (Exact logic from apply/route.ts)
+        const { data: settingsData, error: settingsError } = await supabaseAdmin
+            .from('app_settings')
+            .select('*');
 
-        results.checks.db_admin_email = adminEmailSetting?.value;
-        results.checks.db_admin_bcc = adminBccSetting?.value;
-    } catch (e: any) {
-        results.checks.db_error = e.message;
-    }
+        if (settingsError) {
+            results.checks.db_error = settingsError;
+            throw new Error(`DB Error: ${settingsError.message}`);
+        }
 
-    // 4. Attempt Validation Send
-    if (apiKey) {
-        const resend = new Resend(apiKey);
-        try {
-            const sender = fromEmail || 'noreply@resend.dev';
+        const settings: any = {};
+        settingsData?.forEach(row => {
+            if (row.key === 'admin_email') settings.admin_email = row.value;
+            if (row.key === 'admin_bcc_email') settings.admin_bcc_email = row.value;
+        });
+
+        const adminEmail = settings.admin_email;
+        const adminBccEmail = settings.admin_bcc_email;
+
+        results.checks.db_admin_email = adminEmail || 'NULL';
+        results.checks.db_admin_bcc = adminBccEmail || 'NULL';
+
+        // 4. Attempt Validation Send (Mirroring apply/route.ts)
+        if (apiKey) {
+            const resend = new Resend(apiKey);
+            const senderEmail = fromEmailEnv || 'noreply@resend.dev';
+
+            // EXACT FORMAT used in production
+            const fromHeader = `神言学事務局 <${senderEmail}>`;
+
+            results.checks.final_from_header = fromHeader;
+
             const { data, error } = await resend.emails.send({
-                from: `Debug Test <${sender}>`,
-                to: ['delivered@resend.dev'], // Always succeeds if config is correct
-                subject: 'Debug Route Test',
-                html: '<p>If you see this, basic sending works.</p>'
+                from: fromHeader,
+                to: ['delivered@resend.dev'], // Safe test address
+                cc: adminEmail ? [adminEmail] : undefined,
+                bcc: adminBccEmail ? [adminBccEmail] : undefined,
+                subject: 'Production Logic Trace Test',
+                html: `<p>Tracing production logic...</p><p>From: ${fromHeader}</p><p>CC: ${adminEmail}</p><p>BCC: ${adminBccEmail}</p>`
             });
 
             if (error) {
@@ -49,11 +67,12 @@ export async function GET(request: Request) {
             } else {
                 results.email_attempt = { success: true, data };
             }
-        } catch (e: any) {
-            results.email_attempt = { success: false, error_thrown: e.message };
+        } else {
+            results.email_attempt = { success: false, error: 'No API Key' };
         }
-    } else {
-        results.email_attempt = { success: false, error: 'No API Key' };
+
+    } catch (e: any) {
+        results.email_attempt = { success: false, error_thrown: e.message, stack: e.stack };
     }
 
     return NextResponse.json(results, { status: 200 });
