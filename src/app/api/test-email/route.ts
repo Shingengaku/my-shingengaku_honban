@@ -65,7 +65,18 @@ export async function GET(request: Request) {
             if (error) {
                 results.email_attempt = { success: false, error };
             } else {
-                results.email_attempt = { success: true, data };
+                // Auto-check status after short delay to catch immediate bounces (Suppression)
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                let statusDetails = null;
+                try {
+                    if (data && data.id) {
+                        statusDetails = await resend.emails.get(data.id);
+                    }
+                } catch (statusErr: any) {
+                    statusDetails = { error: statusErr.message };
+                }
+
+                results.email_attempt = { success: true, data, immediate_status: statusDetails };
             }
         } else {
             results.email_attempt = { success: false, error: 'No API Key' };
