@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { resend } from '@/lib/resend';
+import { processEmailTemplate, DEFAULT_EMAIL_TEMPLATE, DEFAULT_EMAIL_TEMPLATE_GENERAL } from '@/lib/emailTemplate';
 
 // 型定義
 interface ApplyRequest {
@@ -98,11 +99,16 @@ export async function POST(request: Request) {
         }
 
         // 設定データを整形
-        const settings: Partial<AppSettings> = {};
+        const settings: Partial<AppSettings> & {
+            email_template?: any,
+            email_template_general?: any
+        } = {};
         settingsData?.forEach(row => {
             if (row.key === 'payment_links') settings.payment_links = row.value;
             if (row.key === 'admin_email') settings.admin_email = row.value;
             if (row.key === 'admin_bcc_email') settings.admin_bcc_email = row.value;
+            if (row.key === 'email_template') settings.email_template = row.value;
+            if (row.key === 'email_template_general') settings.email_template_general = row.value;
         });
 
         const paymentLinks = settings.payment_links || [];
@@ -138,13 +144,23 @@ export async function POST(request: Request) {
             remarks += '【要確認】商品マスタに対象の商品のお申し込みがありません。\n';
         }
         if (!term_id) {
-            if (no_introducer) {
-                remarks += '紹介者: なし\n';
-            } else if (introducer) {
-                remarks += `紹介者: ${introducer}\n`;
-                tags.push('ご紹介');
-            } else {
-                remarks += '紹介者: 未入力\n';
+            // General only remarks (if needed) or just skip specific messages?
+            // Existing logic had messages about "No introducer" or "Unentered". 
+            // We can keep specific messages for General, but TAG logic should be universal if introducer exists.
+        }
+
+        // Introduction Tag Logic (Universal)
+        if (introducer) {
+            remarks += `紹介者: ${introducer}\n`;
+            tags.push('ご紹介');
+        } else {
+            if (!term_id) {
+                // Only log "None" or "Unentered" for General, as Students don't have the field usually.
+                if (no_introducer) {
+                    remarks += '紹介者: なし\n';
+                } else {
+                    remarks += '紹介者: 未入力\n';
+                }
             }
         }
 
@@ -180,47 +196,44 @@ export async function POST(request: Request) {
         }
 
         // 5. メール送信
-        const emailSubject = matchedProduct
-            ? '【神言学】お申込み受付・決済のご案内'
-            : '【神言学】お申込み受付のお知らせ';
-
         const displayVenue = venueDisplayMap[venue] || venue;
         const displaySocialVenue = venueDisplayMap[social_venue] || social_venue;
 
-        let emailContent = `
-${name} 様
+        let template;
+        if (matchedProduct) {
+            // DBの設定があっても、subjectがなければデフォルトを使う（空のJSON対策）
+            const dbTemplate = settings.email_template;
+            template = (dbTemplate && dbTemplate.subject) ? dbTemplate : DEFAULT_EMAIL_TEMPLATE;
+        } else {
+            const dbTemplate = settings.email_template_general;
+            template = (dbTemplate && dbTemplate.subject) ? dbTemplate : DEFAULT_EMAIL_TEMPLATE_GENERAL;
+        }
 
-神言学講座へのお申込みありがとうございます。
-以下の内容で受付いたしました。
-
---------------------------------
-お名前: ${name}
-判定属性: ${rankName}
-参加会場: ${displayVenue}
-懇親会: ${displaySocialVenue}
---------------------------------
-`;
-
-        if (matchedProduct && paymentUrl) {
-            emailContent += `
+        const paymentLinkSection = (matchedProduct && paymentUrl) ? `
 合計金額: ${totalAmount.toLocaleString()} 円
 
 引き続き、以下のリンクより決済のお手続きをお願いいたします。
 
 ▼ 決済リンク
 ${paymentUrl}
-`;
-        } else {
-            emailContent += `
+` : '';
 
-現在、お客様の条件に合致する自動決済案内が見つかりませんでした（または事務局確認が必要です）。
-事務局より別途、正式なご案内メールをお送りいたしますので、今しばらくお待ちください。
-`;
-        }
+        const vars = {
+            name: name,
+            rank: rankName,
+            venue: displayVenue,
+            social_venue: displaySocialVenue,
+            amount: totalAmount.toLocaleString(),
+            payment_link_section: paymentLinkSection
+        };
+
+        const emailSubject = template.subject;
+        const emailContent = processEmailTemplate(template.body, vars);
 
         try {
+            const fromEmail = process.env.FROM_EMAIL || 'noreply@resend.dev';
             await resend.emails.send({
-                from: '神言学事務局 <noreply@resend.dev>',
+                from: `神言学事務局 <${fromEmail}>`,
                 to: [email],
                 cc: adminEmail ? [adminEmail] : undefined,
                 bcc: adminBccEmail ? [adminBccEmail] : undefined,
