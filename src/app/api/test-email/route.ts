@@ -75,5 +75,21 @@ export async function GET(request: Request) {
         results.email_attempt = { success: false, error_thrown: e.message, stack: e.stack };
     }
 
+
+    // 5. (Optional) Check Status of specific Email ID
+    const url = new URL(request.url);
+    const checkId = url.searchParams.get('check_email_id');
+
+    if (checkId && apiKey) {
+        const resend = new Resend(apiKey);
+        try {
+            // Get email details to see status (delivered, bounced, etc.)
+            const emailStatus = await resend.emails.get(checkId);
+            results.check_id_status = emailStatus;
+        } catch (e: any) {
+            results.check_id_status = { error: e.message };
+        }
+    }
+
     return NextResponse.json(results, { status: 200 });
 }
