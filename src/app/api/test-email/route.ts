@@ -55,11 +55,11 @@ export async function GET(request: Request) {
 
             const { data, error } = await resend.emails.send({
                 from: fromHeader,
-                to: ['delivered@resend.dev'], // Safe test address
+                to: ['t.matsumoto@f-o-dreams.com'], // Targeted test
                 cc: adminEmail ? [adminEmail] : undefined,
                 bcc: adminBccEmail ? [adminBccEmail] : undefined,
-                subject: 'Production Logic Trace Test',
-                html: `<p>Tracing production logic...</p><p>From: ${fromHeader}</p><p>CC: ${adminEmail}</p><p>BCC: ${adminBccEmail}</p>`
+                subject: '【テスト】神言学システムメール到達確認',
+                html: `<p>このメールが届けば、システムからの送信は正常です。</p><p>宛先: t.matsumoto@f-o-dreams.com</p><p>From: ${fromHeader}</p>`
             });
 
             if (error) {
