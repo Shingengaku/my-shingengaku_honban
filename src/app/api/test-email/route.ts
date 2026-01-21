@@ -7,28 +7,49 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
     const results: any = {
+        version: 'v3-diagnostic-status-check',
         checks: {},
-        email_attempt: null
+        email_attempt: null,
+        check_id_status: null
     };
 
     // 1. Check API Key presence
     const apiKey = process.env.RESEND_API_KEY;
     results.checks.resend_api_key_configured = !!apiKey;
-    results.checks.resend_api_key_prefix = apiKey ? apiKey.substring(0, 3) : 'NONE';
 
+    const url = new URL(request.url);
+    const checkId = url.searchParams.get('check_email_id');
+
+    // MODE A: Check Status Only (No Email Sent)
+    if (checkId) {
+        if (apiKey) {
+            const resend = new Resend(apiKey);
+            try {
+                const emailStatus = await resend.emails.get(checkId);
+                results.check_id_status = emailStatus;
+                results.message = 'Status check completed. No new email sent.';
+            } catch (e: any) {
+                results.check_id_status = { error: e.message };
+            }
+        } else {
+            results.check_id_status = { error: 'No API Key configured' };
+        }
+        return NextResponse.json(results, { status: 200 });
+    }
+
+    // MODE B: Send Test Email & Auto-check
     // 2. Check From Email
     const fromEmailEnv = process.env.FROM_EMAIL;
     results.checks.from_email_env = fromEmailEnv || 'MISSING';
 
     try {
-        // 3. Fetch Settings (Exact logic from apply/route.ts)
+        // 3. Fetch Settings
         const { data: settingsData, error: settingsError } = await supabaseAdmin
             .from('app_settings')
             .select('*');
 
         if (settingsError) {
             results.checks.db_error = settingsError;
-            throw new Error(`DB Error: ${settingsError.message}`);
         }
 
         const settings: any = {};
@@ -43,19 +64,16 @@ export async function GET(request: Request) {
         results.checks.db_admin_email = adminEmail || 'NULL';
         results.checks.db_admin_bcc = adminBccEmail || 'NULL';
 
-        // 4. Attempt Validation Send (Mirroring apply/route.ts)
+        // 4. Attempt Validation Send
         if (apiKey) {
             const resend = new Resend(apiKey);
             const senderEmail = fromEmailEnv || 'noreply@resend.dev';
-
-            // EXACT FORMAT used in production
             const fromHeader = `神言学事務局 <${senderEmail}>`;
-
             results.checks.final_from_header = fromHeader;
 
             const { data, error } = await resend.emails.send({
                 from: fromHeader,
-                to: ['t.matsumoto@f-o-dreams.com'], // Targeted test
+                to: ['t.matsumoto@f-o-dreams.com'],
                 cc: adminEmail ? [adminEmail] : undefined,
                 bcc: adminBccEmail ? [adminBccEmail] : undefined,
                 subject: '【テスト】神言学システムメール到達確認',
@@ -65,7 +83,7 @@ export async function GET(request: Request) {
             if (error) {
                 results.email_attempt = { success: false, error };
             } else {
-                // Auto-check status after short delay to catch immediate bounces (Suppression)
+                // Auto-check status
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 let statusDetails = null;
                 try {
@@ -84,22 +102,6 @@ export async function GET(request: Request) {
 
     } catch (e: any) {
         results.email_attempt = { success: false, error_thrown: e.message, stack: e.stack };
-    }
-
-
-    // 5. (Optional) Check Status of specific Email ID
-    const url = new URL(request.url);
-    const checkId = url.searchParams.get('check_email_id');
-
-    if (checkId && apiKey) {
-        const resend = new Resend(apiKey);
-        try {
-            // Get email details to see status (delivered, bounced, etc.)
-            const emailStatus = await resend.emails.get(checkId);
-            results.check_id_status = emailStatus;
-        } catch (e: any) {
-            results.check_id_status = { error: e.message };
-        }
     }
 
     return NextResponse.json(results, { status: 200 });
