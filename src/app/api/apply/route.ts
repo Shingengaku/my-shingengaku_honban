@@ -240,11 +240,18 @@ ${paymentUrl}
                 subject: emailSubject,
                 text: emailContent,
             });
-        } catch (emailError) {
+        } catch (emailError: any) {
             console.error('Email send error:', emailError);
+            // DEBUG: Return error to client to see what's happening
+            return NextResponse.json({
+                success: true,
+                message: 'Application received but email failed',
+                email_error: emailError.message,
+                email_error_full: emailError
+            });
         }
 
-        return NextResponse.json({ success: true, message: 'Application received' });
+        return NextResponse.json({ success: true, message: 'Application received', email_sent: true });
 
     } catch (e) {
         console.error('Unexpected error:', e);
