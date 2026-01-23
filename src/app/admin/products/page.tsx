@@ -53,6 +53,9 @@ interface Rank {
 
 // 並び替え可能な行コンポーネント
 // 複数選択用のヘルパーコンポーネント
+// 複数選択用のヘルパーコンポーネント (修正版: detailsタグを使用せず、確実な制御を行う)
+import { useRef } from 'react';
+
 function MultiSelectVenue({
     value,
     options,
@@ -62,9 +65,25 @@ function MultiSelectVenue({
     options: Venue[],
     onChange: (val: string) => void
 }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
     // 値は "東京・大阪" や "参加しない" のような文字列です
     const selectedValues = value ? value.split('・').filter(s => s) : [];
     const notParticipating = "参加しない";
+
+    // 外側クリックで閉じる処理
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>, optionName: string) => {
         const checked = e.target.checked;
@@ -89,44 +108,51 @@ function MultiSelectVenue({
         // 重複を削除して結合
         const unique = Array.from(new Set(newSelected));
         onChange(unique.join('・'));
+        // チェックボックス操作時は閉じない (意図的にここでの setIsOpen(false) は行わない)
     };
 
     return (
-        <details className="relative">
-            <summary className="cursor-pointer list-none flex items-center justify-between border rounded px-2 py-1 bg-white text-xs min-h-[26px]">
+        <div className="relative" ref={containerRef}>
+            <div
+                className="cursor-pointer flex items-center justify-between border rounded px-2 py-1 bg-white text-xs min-h-[26px]"
+                onClick={() => setIsOpen(!isOpen)}
+            >
                 <span className="truncate max-w-[100px] block" title={value}>
                     {value || <span className="text-gray-400">(選択)</span>}
                 </span>
                 <span className="text-[8px] text-gray-500 ml-1">▼</span>
-            </summary>
-            <div className="absolute top-full left-0 z-50 mt-1 w-48 bg-white border rounded shadow-lg p-2 max-h-60 overflow-y-auto">
-                <div className="space-y-1">
-                    {options.map(opt => (
-                        <label key={opt.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+            </div>
+
+            {isOpen && (
+                <div className="absolute top-full left-0 z-50 mt-1 w-48 bg-white border rounded shadow-lg p-2 max-h-60 overflow-y-auto">
+                    <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
+                        {options.map(opt => (
+                            <label key={opt.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                                <input
+                                    type="checkbox"
+                                    value={opt.name}
+                                    checked={selectedValues.includes(opt.name)}
+                                    onChange={(e) => handleChange(e, opt.name)}
+                                    className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                                />
+                                <span className="text-sm text-gray-700">{opt.name}</span>
+                            </label>
+                        ))}
+                        <div className="border-t my-1"></div>
+                        <label className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
                             <input
                                 type="checkbox"
-                                value={opt.name}
-                                checked={selectedValues.includes(opt.name)}
-                                onChange={(e) => handleChange(e, opt.name)}
-                                className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                                value={notParticipating}
+                                checked={selectedValues.includes(notParticipating)}
+                                onChange={(e) => handleChange(e, notParticipating)}
+                                className="rounded text-red-600 focus:ring-red-500 h-4 w-4"
                             />
-                            <span className="text-sm text-gray-700">{opt.name}</span>
+                            <span className="text-sm text-red-600 font-bold">{notParticipating}</span>
                         </label>
-                    ))}
-                    <div className="border-t my-1"></div>
-                    <label className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                        <input
-                            type="checkbox"
-                            value={notParticipating}
-                            checked={selectedValues.includes(notParticipating)}
-                            onChange={(e) => handleChange(e, notParticipating)}
-                            className="rounded text-red-600 focus:ring-red-500 h-4 w-4"
-                        />
-                        <span className="text-sm text-red-600 font-bold">{notParticipating}</span>
-                    </label>
+                    </div>
                 </div>
-            </div>
-        </details>
+            )}
+        </div>
     );
 }
 
