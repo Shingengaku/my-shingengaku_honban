@@ -821,6 +821,28 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleDeleteApp = async (id: string) => {
+        if (!confirm('【警告】本当にこのお申込みデータを削除しますか？\n※この操作は取り消せません。\n※誤って削除した場合、復元することはできません。')) return;
+
+        try {
+            const res = await fetch('/api/admin/applications/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id }),
+            });
+
+            if (res.ok) {
+                alert('データを削除しました');
+                fetchApplications();
+            } else {
+                alert('削除に失敗しました');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('エラーが発生しました');
+        }
+    };
+
     const filteredApps = apps.filter(app => {
         // Status Filter
         if (filter !== 'all' && app.payment_status !== filter) return false;
@@ -1305,6 +1327,11 @@ export default function AdminDashboard() {
                                             <div className="flex gap-2">
                                                 <button onClick={() => handleResend(app.id)} className="text-gray-500 hover:text-gray-900 text-xs text-left">✉ 再送</button>
                                                 <button onClick={() => handlePreviewEmail(app.id)} className="text-blue-500 hover:text-blue-900 text-xs text-left">👁 閲覧</button>
+                                            </div>
+                                            <div className="pt-1 border-t border-gray-100 mt-1">
+                                                <button onClick={() => handleDeleteApp(app.id)} className="text-red-500 hover:text-red-700 text-xs text-left font-bold flex items-center">
+                                                    <span className="mr-1">🗑</span> 完全に削除
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
