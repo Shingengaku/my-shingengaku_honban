@@ -36,8 +36,33 @@ export async function POST(request: Request) {
 
             const {
                 member_generation,
+                updated_at,
                 ...appUpdates
             } = updates;
+
+            // 楽観的ロック (Optimistic Locking) check
+            if (updated_at) {
+                const { data: currentApp, error: fetchError } = await supabaseAdmin
+                    .from('applications')
+                    .select('updated_at')
+                    .eq('id', id)
+                    .single();
+
+                if (fetchError || !currentApp) {
+                    // レコードが見つからない場合は別のエラーかもしれませんが、ここでは続行させます（updateで失敗するはず）
+                    // あるいは厳密にエラーにするか。
+                } else {
+                    const dbTime = new Date(currentApp.updated_at).getTime();
+                    const reqTime = new Date(updated_at).getTime();
+
+                    // 許容誤差を考慮する必要があるか？ 通常はISO文字列完全一致を期待。
+                    // しかし、JSのDate変換でミリ秒の扱いが異なる場合があるため、1秒未満の誤差は許容しても良いかも。
+                    // ここでは厳密一致（文字列比較）または getTime() 比較で、1000ms以上の差があればアウトにする。
+                    if (Math.abs(dbTime - reqTime) > 1000) {
+                        return NextResponse.json({ error: 'Conflict: Data has been modified by another user.', code: 'CONFLICT' }, { status: 409 });
+                    }
+                }
+            }
 
             console.log('App updates to apply:', appUpdates);
 

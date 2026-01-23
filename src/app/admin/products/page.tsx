@@ -194,7 +194,12 @@ function SortableRow({
                 <span className="text-gray-300 group-hover:text-gray-500 font-bold text-lg">⋮⋮</span>
             </td>
             <td className="p-2 align-top">
-                <input className="w-full border rounded px-2 py-1" value={item.name} onChange={(e) => updateItem(index, { name: e.target.value })} />
+                <input
+                    className="w-full border rounded px-2 py-1 bg-gray-100 text-gray-500 cursor-not-allowed"
+                    value={item.name}
+                    readOnly
+                    title="商品名は変更できません。変更したい場合は削除して新規追加してください。"
+                />
             </td>
             <td className="p-2 align-top">
                 <input
@@ -651,6 +656,7 @@ export default function ProductMasterPage() {
                             <li>商品名、コード、金額等を設定します。</li>
                             <li><strong>リスト左端の「⋮⋮」をドラッグ</strong>して並び順を変更できます。</li>
                             <li>会場はドロップダウンから<strong>複数選択可能</strong>です。「参加しない」を選択すると他の会場は解除されます。</li>
+                            <li className="text-red-600 font-bold">※商品名は変更できません。変更したい場合は削除して新規追加してください（過去データへの影響を防ぐため）。</li>
                         </ul>
                     </div>
 

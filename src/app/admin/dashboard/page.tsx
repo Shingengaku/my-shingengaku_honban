@@ -35,6 +35,7 @@ interface Application {
     };
     payment_key?: string; // バックエンドで生成または派生
     is_duplicate_confirmed?: boolean;
+    updated_at: string;
 }
 
 interface PaymentLinkItem {
@@ -701,13 +702,18 @@ export default function AdminDashboard() {
             const res = await fetch('/api/admin/applications/edit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
+                body: JSON.stringify({ ...payload, updated_at: editingApp.updated_at }), // updated_atを追加
             });
             if (res.ok) {
                 alert('更新しました');
                 setShowModal(false);
                 setEditingApp(null);
                 fetchApplications(); // Reload to see changes
+            } else if (res.status === 409) {
+                alert('エラー: データが別の管理者によって更新されています。\nページをリロードして最新のデータを表示します。');
+                setShowModal(false);
+                setEditingApp(null);
+                fetchApplications();
             } else {
                 const data = await res.json();
                 alert(`更新に失敗しました: ${data.error || '不明なエラー'} ${data.details || ''}`);
