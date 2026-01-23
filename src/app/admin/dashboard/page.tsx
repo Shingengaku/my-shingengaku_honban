@@ -165,6 +165,9 @@ export default function AdminDashboard() {
     const [ranks, setRanks] = useState<{ id: number, name: string }[]>([]);
     const [applicationActive, setApplicationActive] = useState(true); // 申込受付ステータス
 
+    // ソート機能の状態
+    const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+
     // 定数 (UIフォールバック、libをミラーリング)
     const DEFAULT_TEMPLATE = {
         subject: '【神言学】お申込み受付・決済のご案内',
@@ -366,13 +369,10 @@ export default function AdminDashboard() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    payment_links,
                     email_template: emailTemplate,
                     email_template_general: emailTemplateGeneral,
                     email_template_resend: emailTemplateResend,
                     email_template_forgot_pass: emailTemplateForgotPass,
-                    email_template_forgot_pass: emailTemplateForgotPass,
-                    product_name_master: productNameMaster,
                     admin_email: adminEmail,
                     admin_bcc_email: adminBccEmail,
                     application_active: applicationActive
@@ -884,6 +884,80 @@ export default function AdminDashboard() {
         return true;
     });
 
+    // ソート処理
+    const sortedApps = useMemo(() => {
+        let sortableApps = [...filteredApps];
+        if (sortConfig !== null) {
+            sortableApps.sort((a, b) => {
+                let aValue: any = '';
+                let bValue: any = '';
+
+                switch (sortConfig.key) {
+                    case 'created_at':
+                        aValue = new Date(a.created_at).getTime();
+                        bValue = new Date(b.created_at).getTime();
+                        break;
+                    case 'payment_status':
+                        // ステータスの優先度定義 (未決済 > 決済済 > キャンセル)
+                        const statusOrder: Record<string, number> = { 'unpaid': 1, 'paid': 2, 'cancelled': 3 };
+                        aValue = statusOrder[a.payment_status] || 99;
+                        bValue = statusOrder[b.payment_status] || 99;
+                        break;
+                    case 'name':
+                        aValue = a.members?.furigana || a.input_furigana || '';
+                        bValue = b.members?.furigana || b.input_furigana || '';
+                        break;
+                    case 'rank':
+                        // ランクのソート順 (特進 > リピーター > 初年度 > 幹部 > ゲスト)
+                        const rankOrder: Record<string, number> = {
+                            '特進コース': 1, 'リピーター': 2, '初年度': 3, '経営幹部コース': 4, 'ゲスト': 5
+                        };
+                        const rNameA = a.applied_rank_name || a.members?.ranks?.name || 'ゲスト';
+                        const rNameB = b.applied_rank_name || b.members?.ranks?.name || 'ゲスト';
+                        aValue = rankOrder[rNameA] || 99;
+                        bValue = rankOrder[rNameB] || 99;
+                        break;
+                    case 'generation':
+                        aValue = a.members?.generation || 9999;
+                        bValue = b.members?.generation || 9999;
+                        break;
+                    case 'total_amount':
+                        aValue = a.total_amount;
+                        bValue = b.total_amount;
+                        break;
+                    default:
+                        // デフォルトで文字列比較
+                        aValue = (a as any)[sortConfig.key];
+                        bValue = (b as any)[sortConfig.key];
+                }
+
+                if (aValue < bValue) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (aValue > bValue) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableApps;
+    }, [filteredApps, sortConfig]);
+
+    const requestSort = (key: string) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const getSortIcon = (name: string) => {
+        if (!sortConfig || sortConfig.key !== name) {
+            return <span className="text-gray-300 ml-1">⇅</span>;
+        }
+        return <span className="text-indigo-600 ml-1">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>;
+    };
+
     // Options for Filters
     const rankOptions = ranks.map(r => ({ label: r.name, value: r.name }));
 
@@ -1068,29 +1142,59 @@ export default function AdminDashboard() {
                                 <input
                                     type="checkbox"
                                     onChange={(e) => {
-                                        if (e.target.checked) setSelectedIds(new Set(filteredApps.map(a => a.id)));
+                                        if (e.target.checked) setSelectedIds(new Set(sortedApps.map(a => a.id)));
                                         else setSelectedIds(new Set());
                                     }}
-                                    checked={filteredApps.length > 0 && selectedIds.size === filteredApps.length}
+                                    checked={sortedApps.length > 0 && selectedIds.size === sortedApps.length}
                                 />
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">申込日時</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状態</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">名前 / Email</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">属性 / 備考</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">期</th>
+                            <th
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                onClick={() => requestSort('created_at')}
+                            >
+                                申込日時 {getSortIcon('created_at')}
+                            </th>
+                            <th
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                onClick={() => requestSort('payment_status')}
+                            >
+                                状態 {getSortIcon('payment_status')}
+                            </th>
+                            <th
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                onClick={() => requestSort('name')}
+                            >
+                                名前 / Email {getSortIcon('name')}
+                            </th>
+                            <th
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                onClick={() => requestSort('rank')}
+                            >
+                                属性 / 備考 {getSortIcon('rank')}
+                            </th>
+                            <th
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                onClick={() => requestSort('generation')}
+                            >
+                                期 {getSortIcon('generation')}
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">会場 / 懇親会</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">金額 / 商品名</th>
+                            <th
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                onClick={() => requestSort('total_amount')}
+                            >
+                                金額 / 商品名 {getSortIcon('total_amount')}
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {loading ? (
-                            <tr><td colSpan={7} className="px-6 py-4 text-center">Loading...</td></tr>
-                        ) : filteredApps.length === 0 ? (
-                            <tr><td colSpan={7} className="px-6 py-4 text-center">データがありません</td></tr>
+                            <tr><td colSpan={9} className="px-6 py-4 text-center">Loading...</td></tr>
+                        ) : sortedApps.length === 0 ? (
+                            <tr><td colSpan={9} className="px-6 py-4 text-center">データがありません</td></tr>
                         ) : (
-                            filteredApps.map((app) => {
+                            sortedApps.map((app) => {
                                 const rankName = app.applied_rank_name || app.members?.ranks?.name || '一般';
                                 const gen = app.members?.generation ? `${app.members.generation}期` : '';
                                 const furigana = app.members?.furigana || app.input_furigana;
