@@ -12,7 +12,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'トークンまたはパスワードが不足しています' }, { status: 400 });
         }
 
-        // Find user by token
+        // トークンでユーザーを検索
         const { data: user, error } = await supabaseAdmin
             .from('admin_users')
             .select('id, reset_token_expires')
@@ -23,17 +23,17 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: '無効なリンクです' }, { status: 400 });
         }
 
-        // Check expiration
+        // 有効期限を確認
         if (new Date(user.reset_token_expires) < new Date()) {
             return NextResponse.json({ error: 'リンクの有効期限が切れています' }, { status: 400 });
         }
 
-        // Hash new password
+        // 新しいパスワードをハッシュ化
         const shasum = crypto.createHash('sha256');
         shasum.update(password.trim());
         const hashedPassword = shasum.digest('hex');
 
-        // Update password and clear token
+        // パスワードを更新し、トークンをクリア
         const { error: updateError } = await supabaseAdmin
             .from('admin_users')
             .update({

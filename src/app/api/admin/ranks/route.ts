@@ -24,10 +24,10 @@ export async function POST(request: Request) {
         const { name, base_fee, sort_order } = body;
 
         if (!name || base_fee === undefined || sort_order === undefined) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+            return NextResponse.json({ error: '必須フィールドが不足しています' }, { status: 400 });
         }
 
-        // Check for duplicate name
+        // 重複名の確認
         const { data: existing } = await supabaseAdmin
             .from('ranks')
             .select('id')
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
         return NextResponse.json(data);
     } catch (e) {
         console.error('Error creating rank:', e);
-        return NextResponse.json({ error: 'Failed to create rank' }, { status: 500 });
+        return NextResponse.json({ error: 'ランクの作成に失敗しました' }, { status: 500 });
     }
 }
 
@@ -58,7 +58,7 @@ export async function PUT(request: Request) {
         const body = await request.json();
         const { id, name, base_fee, sort_order } = body;
 
-        if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+        if (!id) return NextResponse.json({ error: 'IDは必須です' }, { status: 400 });
 
         const { data, error } = await supabaseAdmin
             .from('ranks')
@@ -72,7 +72,7 @@ export async function PUT(request: Request) {
         return NextResponse.json(data);
     } catch (e) {
         console.error('Error updating rank:', e);
-        return NextResponse.json({ error: 'Failed to update rank' }, { status: 500 });
+        return NextResponse.json({ error: 'ランクの更新に失敗しました' }, { status: 500 });
     }
 }
 
@@ -81,7 +81,7 @@ export async function DELETE(request: Request) {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
 
-        if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+        if (!id) return NextResponse.json({ error: 'IDは必須です' }, { status: 400 });
 
         const { error } = await supabaseAdmin
             .from('ranks')
@@ -93,6 +93,6 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ success: true });
     } catch (e) {
         console.error('Error deleting rank:', e);
-        return NextResponse.json({ error: 'Failed to delete rank' }, { status: 500 });
+        return NextResponse.json({ error: 'ランクの削除に失敗しました' }, { status: 500 });
     }
 }

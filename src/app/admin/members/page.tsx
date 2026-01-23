@@ -27,12 +27,12 @@ interface Member {
 export default function MembersPage() {
     const [members, setMembers] = useState<Member[]>([]);
     const [ranks, setRanks] = useState<Rank[]>([]);
-    const [terms, setTerms] = useState<Term[]>([]); // Added terms state
+    const [terms, setTerms] = useState<Term[]>([]); // 期の状態を追加
     const [loading, setLoading] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [editingMember, setEditingMember] = useState<Member | null>(null);
 
-    // Form State
+    // フォーム状態
     const [formData, setFormData] = useState({
         name: '',
         furigana: '',
@@ -45,10 +45,10 @@ export default function MembersPage() {
     const [importPreview, setImportPreview] = useState<{ adds: any[], updates: any[], errors: string[] } | null>(null);
     const [importFile, setImportFile] = useState<File | null>(null);
 
-    // Search State
+    // 検索状態
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Filtered Members
+    // フィルターされたメンバー
     const filteredMembers = members.filter(member => {
         if (!searchQuery) return true;
         const q = searchQuery.toLowerCase();
@@ -140,7 +140,7 @@ export default function MembersPage() {
         }
     };
 
-    /* ... handleDelete ... */
+    /* ... 削除処理 ... */
     const handleDelete = async (id: string) => {
         if (!confirm('本当に削除しますか？\nこの操作は取り消せません。')) return;
 
@@ -159,26 +159,26 @@ export default function MembersPage() {
         }
     };
 
-    /* ... handleFileSelect (simplified or updated later) ... */
-    // Skipping complex import logic update for now to minimize diff complexity
-    // Just keeping it as placeholder or needing separate update if logic changes drasticly.
-    // Actually, let's keep it but just fix compile errors for now.
-    // The import logic uses generation, we should probably update it to term_id.
+    /* ... ファイル選択処理（簡略化または後で更新） ... */
+    // 差分の複雑さを最小限に抑えるため、今のところ複雑なインポートロジックの更新はスキップします
+    // プレースホルダーとして保持するか、ロジックが大幅に変更される場合は別の更新が必要です。
+    // 実際には、とりあえずコンパイルエラーを修正して保持しましょう。
+    // インポートロジックはgenerationを使用していますが、term_idに更新する必要があります。
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
         e.target.value = '';
         setImportFile(file);
 
-        // ... simplified parse logic ...
-        // Note: Full CSV import logic update might be needed separately if format changes.
-        // For now, assuming CSV still might have "期".
-        // It's safer to defer import logic fixes if user didn't explicitly ask to fix import of new format.
-        // But "term_id" is required for create.
+        // ... 簡略化された解析ロジック ...
+        // 注: フォーマットが変更された場合、完全なCSVインポートロジックの更新が別途必要になる場合があります。
+        // 今のところ、CSVにはまだ「期」が含まれている可能性があると仮定します。
+        // ユーザーが新しいフォーマットのインポート修正を明示的に要求していない場合、インポートロジックの修正は延期する方が安全です。
+        // しかし、作成には "term_id" が必要です。
 
-        // Let's just do client side preview update
+        // クライアント側のプレビュー更新のみを行う
         const text = await file.text();
-        // Remove BOM
+        // BOMを削除
         const content = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
         const lines = content.split(/\r?\n/).filter(line => line.trim() !== '');
 
@@ -196,7 +196,7 @@ export default function MembersPage() {
 
         const adds: any[] = [];
         const updates: any[] = [];
-        // ... simple preview ... 
+        // ... 簡易プレビュー ... 
         const currentEmails = new Set(members.map(m => m.email));
         for (let i = 1; i < lines.length; i++) {
             const cols = lines[i].split(',').map(c => c.trim());
@@ -209,7 +209,7 @@ export default function MembersPage() {
         setImportPreview({ adds, updates, errors: [] });
     };
 
-    /* ... executeImport ... */
+    /* ... インポート実行 ... */
     const executeImport = async () => {
         if (!importFile) return;
         const formData = new FormData();
@@ -217,8 +217,8 @@ export default function MembersPage() {
         formData.append('mode', importMode);
 
         setLoading(true);
-        // Note: The backend import logic also needs update to handle term_id!
-        // We should update that in a separate step.
+        // 注: バックエンドのインポートロジックもterm_idを処理するために更新が必要です！
+        // 別のステップで更新する必要があります。
 
         fetch('/api/admin/members/import', { method: 'POST', body: formData })
             .then(res => res.json())
@@ -286,8 +286,8 @@ export default function MembersPage() {
                             CSVエクスポート
                         </button>
 
-                        {/* Import Hidden for now or kept as is? User might need it. */}
-                        {/* We keep it but simplified */}
+                        {/* インポートは今のところ非表示にしますか？ユーザーが必要とするかもしれません。 */}
+                        {/* 簡略化して保持します */}
                         <label className="cursor-pointer px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm flex items-center">
                             CSVインポート
                             <input
@@ -354,12 +354,12 @@ export default function MembersPage() {
                 </table>
             </div>
 
-            {/* Import Preview Modal ... (same as before or slightly update) */}
+            {/* インポートプレビューモーダル ... (以前と同じか、わずかに更新) */}
             {importPreview && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
                     <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl">
                         <h3 className="text-lg font-bold mb-4">インポート内容の確認</h3>
-                        {/* ... header ... */}
+                        {/* ... ヘッダー ... */}
                         <div className="mt-6 flex justify-end space-x-3">
                             <button
                                 onClick={() => { setImportPreview(null); setImportFile(null); }}
@@ -426,7 +426,7 @@ export default function MembersPage() {
                                     </select>
                                 </div>
                                 <div>
-                                    {/* Updated: Term Dropdown */}
+                                    {/* 更新: 期のドロップダウン */}
                                     <label className="block text-sm font-medium text-gray-700">期</label>
                                     <select
                                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"

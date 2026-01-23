@@ -7,6 +7,6 @@ export function getPaymentKey(rankName: string, venue: string, social_venue: str
     if (social_venue === 'fukuoka') socialStr = '懇親会福岡のみ';
     if (social_venue === 'both') socialStr = '懇親会両方';
 
-    // Example: 【一般】東京講演参加/懇親会東京のみ
+    // 例: 【一般】東京講演参加/懇親会東京のみ
     return `【${rankName}】${venueStr}/${socialStr}`;
 }

@@ -11,7 +11,7 @@ function parseCSV(text: string) {
     const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
     const mappedHeaders = headers.map(h => {
         if (h === '会場名' || h === '名前' || h === 'Name') return 'name';
-        if (h === 'タイプ' || h === 'type') return 'type'; // lecture or social
+        if (h === 'タイプ' || h === 'type') return 'type'; // 講義(lecture) または 懇親会(social)
         return h;
     });
 
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
                 continue;
             }
             if (!row.type) {
-                row.type = 'lecture'; // Default
+                row.type = 'lecture'; // デフォルト
             }
 
             upsertData.push({

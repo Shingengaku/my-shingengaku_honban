@@ -2,8 +2,8 @@
 const fs = require('fs');
 const { marked } = require('marked');
 
-// Configure marked to handle potential issues or add flavor if needed
-// For now default is fine.
+// 潜在的な問題を処理するために marked を設定するか、必要に応じて機能を追加します
+// 今のところデフォルトで問題ありません。
 
 const inputFile = 'src/MANUAL.md';
 const outputFile = 'src/MANUAL.html';
@@ -30,11 +30,11 @@ const fullHtml = `
         max-width: 900px;
         margin: 0 auto;
         padding: 40px;
-        color: #374151; /* Gray 700 */
-        background-color: #fbf6e5; /* Walkthrough Artifact Cream Background */
+        color: #374151; /* グレー 700 */
+        background-color: #fbf6e5; /* ウォークスルーアーティファクトのクリーム色背景 */
     }
     h1, h2, h3, h4, h5, h6 {
-        color: #111827; /* Gray 900 */
+        color: #111827; /* グレー 900 */
         margin-top: 2em;
         margin-bottom: 0.8em;
         font-weight: 700;
@@ -57,19 +57,19 @@ const fullHtml = `
     
     strong { font-weight: 600; color: #111827; }
 
-    /* Tables - Walkthrough Style */
+    /* テーブル - ウォークスルースタイル */
     table {
         border-collapse: collapse;
         width: 100%;
         margin: 2em 0;
-        background-color: #fcfcfc; /* Slightly off-white for table content */
-        border: 1px solid #d1d5db; /* Gray 300 */
+        background-color: #fcfcfc; /* テーブル内容用のわずかにオフホワイト */
+        border: 1px solid #d1d5db; /* グレー 300 */
         border-radius: 6px;
         overflow: hidden;
     }
     th {
-        background-color: #e5e7eb; /* Gray 200 header */
-        color: #1f2937; /* Gray 800 */
+        background-color: #e5e7eb; /* グレー 200 ヘッダー */
+        color: #1f2937; /* グレー 800 */
         font-weight: 600;
         text-align: left;
         padding: 12px 16px;
@@ -78,14 +78,14 @@ const fullHtml = `
     td {
         padding: 12px 16px;
         border-bottom: 1px solid #e5e7eb;
-        color: #4b5563; /* Gray 600 */
+        color: #4b5563; /* グレー 600 */
     }
     tr:last-child td { border-bottom: none; }
     tr:hover { background-color: #f3f4f6; }
 
-    /* Code blocks */
+    /* コードブロック */
     pre {
-        background-color: #1f2937; /* Dark bg */
+        background-color: #1f2937; /* 暗い背景 */
         color: #f3f4f6;
         padding: 1.5em;
         border-radius: 8px;
@@ -110,7 +110,7 @@ const fullHtml = `
         padding: 0;
     }
 
-    /* Links */
+    /* リンク */
     a { 
         color: #2563eb; 
         text-decoration: none; 
@@ -118,22 +118,22 @@ const fullHtml = `
     }
     a:hover { text-decoration: underline; }
 
-    /* Lists */
+    /* リスト */
     ul, ol { 
         padding-left: 1.5em; 
         margin-bottom: 1.5em; 
     }
     li { margin-bottom: 0.5em; }
 
-    /* Alerts / Blockquotes */
+    /* アラート / 引用 */
     blockquote {
-        background-color: #fffbeb; /* Light yellow alert bg */
-        border-left: 4px solid #f59e0b; /* Amber border */
+        background-color: #fffbeb; /* 明るい黄色のアラート背景 */
+        border-left: 4px solid #f59e0b; /* 琥珀色の枠線 */
         padding: 1em;
         margin: 1.5em 0;
-        color: #92400e; /* Amber text */
+        color: #92400e; /* 琥珀色のテキスト */
         border-radius: 0 4px 4px 0;
-        font-style: normal; /* Override italic */
+        font-style: normal; /* 斜体を上書き */
     }
 </style>
 </head>

@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import crypto from 'crypto';
 
-// GET: List users
+// GET: ユーザー一覧
 export async function GET() {
     try {
         const { data, error } = await supabaseAdmin
@@ -17,26 +17,26 @@ export async function GET() {
 
         return NextResponse.json(data);
     } catch (e) {
-        return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+        return NextResponse.json({ error: '内部エラー' }, { status: 500 });
     }
 }
 
-// POST: Create user
+// POST: ユーザー作成
 export async function POST(request: Request) {
     try {
         const body = await request.json();
         const { username, password, email } = body;
 
         if (!username || !password) {
-            return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
+            return NextResponse.json({ error: 'ユーザー名とパスワードは必須です' }, { status: 400 });
         }
 
-        // Hash password
+        // パスワードをハッシュ化
         const shasum = crypto.createHash('sha256');
         shasum.update(password.trim());
         const hashedPassword = shasum.digest('hex');
 
-        // Insert
+        // 挿入
         const { error } = await supabaseAdmin
             .from('admin_users')
             .insert({
@@ -46,8 +46,8 @@ export async function POST(request: Request) {
             });
 
         if (error) {
-            if (error.code === '23505') { // Unique violation
-                return NextResponse.json({ error: 'Username already exists' }, { status: 409 });
+            if (error.code === '23505') { // 一意性制約違反
+                return NextResponse.json({ error: 'ユーザー名は既に存在します' }, { status: 409 });
             }
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
@@ -55,21 +55,21 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true });
 
     } catch (e) {
-        return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+        return NextResponse.json({ error: '内部エラー' }, { status: 500 });
     }
 }
 
-// DELETE: Delete user
+// DELETE: ユーザー削除
 export async function DELETE(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
 
-        if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
+        if (!id) return NextResponse.json({ error: 'IDが必要です' }, { status: 400 });
 
-        // Basic check: Don't allow deleting the last user? 
-        // Or preventing deleting 'admin' if requested?
-        // For simplicity, just delete.
+        // 基本チェック: 最後のユーザーを削除できないようにする?
+        // または、リクエストされた場合に 'admin' の削除を防ぐ?
+        // 簡単にするため、単に削除します。
 
         const { error } = await supabaseAdmin
             .from('admin_users')
@@ -82,6 +82,6 @@ export async function DELETE(request: Request) {
 
         return NextResponse.json({ success: true });
     } catch (e) {
-        return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+        return NextResponse.json({ error: '内部エラー' }, { status: 500 });
     }
 }

@@ -84,7 +84,7 @@ export default function VenueMasterPage() {
         try {
             const res = await fetch('/api/admin/venues');
             if (res.ok) {
-                // API sorts by sort_order
+                // APIはsort_orderでソートします
                 setVenues(await res.json());
             }
         } catch (e) {
@@ -104,7 +104,7 @@ export default function VenueMasterPage() {
             return;
         }
 
-        // Calculate sort_order: max + 10
+        // sort_orderを計算: 最大値 + 10
         const typeVenues = venues.filter(v => v.type === type);
         const maxSort = typeVenues.length > 0 ? Math.max(...typeVenues.map(v => v.sort_order)) : 0;
         const nextSort = maxSort + 10;
@@ -158,9 +158,9 @@ export default function VenueMasterPage() {
         if (!over) return;
         if (active.id === over.id) return;
 
-        // Extract items of this type
-        // Note: We need to manipulate the FULL venues list based on relative movement within the subset
-        // But DndKit works on IDs.
+        // このタイプのアイテムを抽出
+        // 注: サブセット内の相対的な移動に基づいて、完全な会場リストを操作する必要があります
+        // しかしDndKitはIDで動作します。
 
         setVenues((items) => {
             const oldIndex = items.findIndex((item) => item.id === active.id);
@@ -172,7 +172,7 @@ export default function VenueMasterPage() {
     const handleSaveOrder = async () => {
         setSaving(true);
         try {
-            // Recalculate sort_order for ALL venues based on current array order
+            // 現在の配列順序に基づいて、すべての会場のsort_orderを再計算します
             const itemsToSave = venues.map((v, index) => ({
                 id: v.id,
                 sort_order: (index + 1) * 10
@@ -222,7 +222,7 @@ export default function VenueMasterPage() {
         formData.append('file', file);
 
         setLoading(true);
-        // Note: Use created API
+        // 注: 作成されたAPIを使用
         try {
             const res = await fetch('/api/admin/venues/import', { method: 'POST', body: formData });
             const data = await res.json();
@@ -242,9 +242,9 @@ export default function VenueMasterPage() {
     const lectureVenues = venues.filter(v => v.type === 'lecture');
     const socialVenues = venues.filter(v => v.type === 'social');
 
-    // DndContext needs ids.
-    // We have two lists. We should use `DndContext` separately or manage ID namespace carefully?
-    // IDs are unique in DB, so it's fine.
+    // DndContextにはIDが必要です。
+    // 2つのリストがあります。`DndContext`を別々に使用するか、ID名前空間を慎重に管理する必要がありますか？
+    // IDはDB内で一意なので問題ありません。
 
     return (
         <div className="min-h-screen bg-gray-100 p-8">

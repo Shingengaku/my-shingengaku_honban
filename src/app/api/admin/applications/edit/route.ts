@@ -24,13 +24,14 @@ export async function POST(request: Request) {
 
         if (type === 'update') {
             // Extract special fields
-            // remarks: strictly speaking, we suspect this column might not exist yet. 
-            // If the user hasn't added it, this update will fail. 
-            // We will Try to update it, but if it fails, we might fallback? 
-            // For now, let's include it. If it fails, the user needs to add the column.
-            // Wait, to be safe and "fix the error", let's assume standard columns first.
+            // 特殊フィールドを抽出
+            // 備考: 厳密に言えば、このカラムはまだ存在しない可能性があります。
+            // ユーザーが追加していない場合、この更新は失敗します。
+            // 更新を試みますが、失敗した場合はフォールバックする可能性があります？
+            // 今のところ、含めてみます。失敗した場合、ユーザーはカラムを追加する必要があります。
+            // 待ってください、安全を期して「エラーを修正」するために、まずは標準カラムを想定しましょう。
 
-            // Actually, let's just destructure strictly to control what goes to 'applications'
+            // 実際には、'applications' に渡すものを制御するために厳密に分割代入しましょう
             console.log('Received updates:', updates);
 
             const {
@@ -57,18 +58,18 @@ export async function POST(request: Request) {
 
                 console.error('Application update error:', appError);
 
-                // Check for missing column error (Postgres code 42703)
-                // Message format: column "remarks" of relation "applications" does not exist
+                // カラム欠落エラーの確認 (Postgresコード 42703)
+                // メッセージ形式: column "remarks" of relation "applications" does not exist
                 const isMissingColumn = appError.code === '42703';
                 let missingCol = null;
 
                 if (isMissingColumn) {
-                    // Search for any key in currentUpdates that appears in the error message
-                    // Postgres usually quotes column names: column "foo" ...
+                    // エラーメッセージに含まれる currentUpdates のキーを検索
+                    // Postgresは通常、カラム名を引用符で囲みます: column "foo" ...
                     missingCol = Object.keys(currentUpdates).find(key =>
                         appError.message.includes(`"${key}"`) ||
                         appError.message.includes(`'${key}'`) ||
-                        appError.message.includes(key) // Fallback for unquoted
+                        appError.message.includes(key) // 引用符なしのフォールバック
                     );
                 }
 
@@ -77,14 +78,14 @@ export async function POST(request: Request) {
                     delete currentUpdates[missingCol];
                     attempt++;
                 } else {
-                    // Not a missing column error, or couldn't parse column name, or column not in payload
+                    // カラム欠落エラーではない、またはカラム名を解析できなかった、またはカラムがペイロードにない場合
                     console.error('Application Update Error details:', { code: appError.code, message: appError.message, details: appError.details });
                     throw appError;
                 }
             }
 
-            // Update member details (Generation & Furigana) if provided
-            // We need to fetch the matched_member_id first
+            // メンバー詳細（期とふりがな）が提供されている場合は更新
+            // まず matched_member_id を取得する必要があります
             const { data: appData, error: fetchError } = await supabaseAdmin
                 .from('applications')
                 .select('matched_member_id, input_name, input_furigana, input_email') // Fetch inputs too
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
 
             let targetMemberId = appData?.matched_member_id;
 
-            // IF no member is matched but we need to save generation, CREATE a member.
+            // メンバーが一致しないが期を保存する必要がある場合、メンバーを作成します。
             if (!targetMemberId && member_generation !== undefined && member_generation !== null) {
                 console.log('No matched member, attempting to create new member for Term storage...');
                 const name = appUpdates.input_name || appData?.input_name;
@@ -138,7 +139,7 @@ export async function POST(request: Request) {
                     memberUpdates.generation = member_generation;
                 }
 
-                // Sync Furigana if changed in Application
+                // アプリケーションで変更された場合、ふりがなを同期
                 if (appUpdates.input_furigana) {
                     memberUpdates.furigana = appUpdates.input_furigana;
                 }

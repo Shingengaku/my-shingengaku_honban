@@ -34,7 +34,7 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { name, furigana, email, rank_id, term_id } = body;
 
-        // Validation
+        // バリデーション
         if (!name || !furigana || !email || !rank_id || !term_id) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }

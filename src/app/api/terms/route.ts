@@ -10,7 +10,7 @@ export async function GET() {
             .from('terms')
             .select('*')
             .order('sort_order', { ascending: true })
-            .order('id', { ascending: true }); // Fallback
+            .order('id', { ascending: true }); // フォールバック
 
         if (error) {
             console.error('Error fetching terms:', error);

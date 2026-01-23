@@ -2,9 +2,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import crypto from 'crypto';
-import { Resend } from 'resend';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { resend } from '@/lib/resend';
+import { processEmailTemplate, DEFAULT_EMAIL_TEMPLATE_FORGOT_PASS } from '@/lib/emailTemplate';
 
 export async function POST(request: Request) {
     try {
@@ -15,7 +14,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'メールアドレスを入力してください' }, { status: 400 });
         }
 
-        // Check user
+        // ユーザーを確認
         const { data: user } = await supabaseAdmin
             .from('admin_users')
             .select('id, username')
@@ -23,16 +22,16 @@ export async function POST(request: Request) {
             .single();
 
         if (!user) {
-            // Security: Don't reveal if user exists, but for this admin system, friendly error might be okay?
-            // "If the email is registered, we sent a link." is standard.
+            // セキュリティ: ユーザーが存在するかどうかを明かしませんが、この管理システムでは親切なエラーでも問題ないでしょうか?
+            // "メールアドレスが登録されている場合、リンクを送信しました。" が標準です。
             return NextResponse.json({ success: true, message: 'メールを送信しました（登録がない場合は届きません）' });
         }
 
-        // Generate Token
+        // トークン生成
         const token = crypto.randomBytes(32).toString('hex');
         const expires = new Date(Date.now() + 1000 * 60 * 30); // 30 minutes
 
-        // Save Token
+        // トークン保存
         const { error: updateError } = await supabaseAdmin
             .from('admin_users')
             .update({
@@ -46,23 +45,31 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'トークンの保存に失敗しました' }, { status: 500 });
         }
 
-        // Send Email
-        // Assuming localhost:3000 for now, but should ideally use headers or env for base URL.
+        // メール送信
         const origin = request.headers.get('origin') || 'http://localhost:3000';
         const resetLink = `${origin}/admin/reset-password?token=${token}`;
 
-        await resend.emails.send({
-            from: '神言学システム <admin@resend.dev>', // Depending on Resend setup
-            to: email,
-            subject: '【神言学】パスワードリセットのご案内',
-            html: `
-                <p>${user.username} 様</p>
-                <p>パスワードリセットのリクエストを受け付けました。</p>
-                <p>以下のリンクをクリックして、新しいパスワードを設定してください。</p>
-                <p><a href="${resetLink}">${resetLink}</a></p>
-                <p>※リンクの有効期限は30分です。</p>
-            `,
-        });
+        // テンプレート取得
+        const { data: settingsData } = await supabaseAdmin.from('app_settings').select('*');
+        const template = settingsData?.find(r => r.key === 'email_template_forgot_pass')?.value || DEFAULT_EMAIL_TEMPLATE_FORGOT_PASS;
+
+        const vars = {
+            username: user.username,
+            reset_link: resetLink
+        };
+
+        const emailSubject = template.subject;
+        const emailContent = processEmailTemplate(template.body, vars);
+
+        if (process.env.RESEND_API_KEY) {
+            const fromEmail = process.env.FROM_EMAIL || 'noreply@resend.dev';
+            await resend.emails.send({
+                from: `神言学システム <${fromEmail}>`,
+                to: email,
+                subject: emailSubject,
+                text: emailContent,
+            });
+        }
 
         return NextResponse.json({ success: true, message: 'メールを送信しました' });
 

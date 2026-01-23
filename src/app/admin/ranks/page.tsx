@@ -125,14 +125,14 @@ export default function RanksPage() {
     };
 
     const handleSaveItem = async () => {
-        // Add or Update Logic (without sort_order manipulation here, just save)
-        // If new, sort_order should be max + 10 (handled by API or trigger? API currently handles CRUD basic)
-        // Our POST API expects 'sort_order'. We should calc it here or API should handle.
-        // Let's pass a safe value or existing value.
+        // ロジックを追加または更新（ここではsort_order操作なし、保存のみ）
+        // 新規の場合、sort_orderは最大値+10である必要があります（APIまたはトリガーで処理？APIは現在CRUDの基本のみを処理します）
+        // POST APIは 'sort_order' を期待しています。ここで計算するか、APIが処理する必要があります。
+        // ここでは安全な値または既存の値を渡しましょう。
 
         let sortOrder = editingRank?.sort_order;
         if (sortOrder === undefined) {
-            // New item, append to bottom
+            // 新規アイテム、末尾に追加
             const max = ranks.length > 0 ? Math.max(...ranks.map(r => r.sort_order)) : 0;
             sortOrder = max + 10;
         }

@@ -60,7 +60,7 @@ export async function GET() {
     const social_venue = app.social_venue || 'none';
 
     const generation = parseInt(app.members?.terms?.name || '0');
-    // Flatten members structure for frontend
+    // フロントエンド向けにメンバー構造をフラット化
     const members = app.members ? { ...app.members, generation } : null;
 
     return {

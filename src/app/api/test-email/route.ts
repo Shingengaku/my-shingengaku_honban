@@ -13,14 +13,14 @@ export async function GET(request: Request) {
         check_id_status: null
     };
 
-    // 1. Check API Key presence
+    // 1. APIキーの存在確認
     const apiKey = process.env.RESEND_API_KEY;
     results.checks.resend_api_key_configured = !!apiKey;
 
     const url = new URL(request.url);
     const checkId = url.searchParams.get('check_email_id');
 
-    // MODE A: Check Status Only (No Email Sent)
+    // モードA: ステータス確認のみ（メール送信なし）
     if (checkId) {
         if (apiKey) {
             const resend = new Resend(apiKey);
@@ -37,13 +37,13 @@ export async function GET(request: Request) {
         return NextResponse.json(results, { status: 200 });
     }
 
-    // MODE B: Send Test Email & Auto-check
-    // 2. Check From Email
+    // モードB: テストメール送信と自動チェック
+    // 2. 送信元メールアドレスの確認
     const fromEmailEnv = process.env.FROM_EMAIL;
     results.checks.from_email_env = fromEmailEnv || 'MISSING';
 
     try {
-        // 3. Fetch Settings
+        // 3. 設定の取得
         const { data: settingsData, error: settingsError } = await supabaseAdmin
             .from('app_settings')
             .select('*');
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
         results.checks.db_admin_email = adminEmail || 'NULL';
         results.checks.db_admin_bcc = adminBccEmail || 'NULL';
 
-        // 4. Attempt Validation Send
+        // 4. 検証用メール送信の試行
         if (apiKey) {
             const resend = new Resend(apiKey);
             const senderEmail = fromEmailEnv || 'noreply@resend.dev';
@@ -83,7 +83,7 @@ export async function GET(request: Request) {
             if (error) {
                 results.email_attempt = { success: false, error };
             } else {
-                // Auto-check status
+                // ステータスの自動チェック
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 let statusDetails = null;
                 try {

@@ -1,19 +1,17 @@
 import type { NextConfig } from "next";
 
-// @ts-expect-error NextConfig types might not include eslint yet in some versions
+// @ts-expect-error NextConfigの型にはまだeslintが含まれていないバージョンがある可能性があります
 const nextConfig: NextConfig = {
-  /* config options here */
+  /* 設定オプションをここに記述 */
   experimental: {},
   eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has ESLint errors.
+    // 警告: プロジェクトにESLintエラーがあっても本番ビルドを成功させます。
     ignoreDuringBuilds: true,
   },
   typescript: {
-    // !! WARN !!
-    // Dangerously allow production builds to successfully complete even if
-    // your project has type errors.
-    // !! WARN !!
+    // !! 警告 !!
+    // プロジェクトに型エラーがあっても本番ビルドを成功させます。
+    // !! 警告 !!
     ignoreBuildErrors: true,
   },
 };

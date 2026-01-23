@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
-// Load .env.local
+// .env.local を読み込む
 const envPath = path.resolve(process.cwd(), '.env.local');
 let supabaseUrl = '';
 let supabaseKey = '';

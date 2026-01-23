@@ -8,9 +8,9 @@ interface ApplyRequest {
     name: string;
     furigana: string;
     email: string;
-    venue: string; // 'tokyo', 'fukuoka',, 'both', 'none'
-    social_venue: string; // 'none', 'tokyo', 'fukuoka', 'both'
-    term_id?: string; // Optional for non-students
+    venue: string; // 'tokyo'（東京）, 'fukuoka'（福岡）, 'both'（両方）, 'none'（なし）
+    social_venue: string; // 'none'（なし）, 'tokyo'（東京）, 'fukuoka'（福岡）, 'both'（両方）
+    term_id?: string; // 非受講生の場合は任意
     introducer?: string;
     no_introducer?: boolean;
 }
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
 
         // 3. 商品マッチング
         // 条件: 講義会場 AND 懇親会会場 AND 対象属性
-        // マッチしない場合は決済リンクなし (manual_handling)
+        // マッチしない場合は決済リンクなし (手動対応)
         let matchedProduct: PaymentLinkItem | null = null;
 
         // 一般の場合、rank_idがない商品を探す、または一般用のrank_idがあればそれを使う
@@ -144,18 +144,18 @@ export async function POST(request: Request) {
             remarks += '【要確認】商品マスタに対象の商品のお申し込みがありません。\n';
         }
         if (!term_id) {
-            // General only remarks (if needed) or just skip specific messages?
-            // Existing logic had messages about "No introducer" or "Unentered". 
-            // We can keep specific messages for General, but TAG logic should be universal if introducer exists.
+            // 一般参加者のみの備考（必要な場合）または特定のメッセージをスキップするか？
+            // 既存のロジックには「紹介者なし」または「未入力」に関するメッセージが含まれていました。
+            // 一般参加者向けの特定のメッセージは維持できますが、紹介者が存在する場合、タグロジックは共通であるべきです。
         }
 
-        // Introduction Tag Logic (Universal)
+        // 紹介タグロジック（共通）
         if (introducer) {
             remarks += `紹介者: ${introducer}\n`;
             tags.push('ご紹介');
         } else {
             if (!term_id) {
-                // Only log "None" or "Unentered" for General, as Students don't have the field usually.
+                // 受講生はこのフィールドを持たないことが多いため、一般参加者の場合のみ「なし」または「未入力」を記録します。
                 if (no_introducer) {
                     remarks += '紹介者: なし\n';
                 } else {
@@ -232,7 +232,16 @@ ${paymentUrl}
 
         try {
             const fromEmail = process.env.FROM_EMAIL || 'noreply@resend.dev';
-            await resend.emails.send({
+            const apiKey = process.env.RESEND_API_KEY;
+            console.log('Attempting to send email:', {
+                to: email,
+                from: fromEmail,
+                hasApiKey: !!apiKey,
+                adminEmail,
+                adminBccEmail
+            });
+
+            const emailResponse = await resend.emails.send({
                 from: `神言学事務局 <${fromEmail}>`,
                 to: [email],
                 cc: adminEmail ? [adminEmail] : undefined,
@@ -240,14 +249,15 @@ ${paymentUrl}
                 subject: emailSubject,
                 text: emailContent,
             });
+            console.log('Email sent successfully:', emailResponse);
         } catch (emailError: any) {
             console.error('Email send error:', emailError);
-            // DEBUG: Return error to client to see what's happening
+            // デバッグ: 何が起きているか確認するためにクライアントにエラーを返します
             return NextResponse.json({
                 success: true,
                 message: 'Application received but email failed',
                 email_error: emailError.message,
-                email_error_full: emailError
+                email_error_full: JSON.stringify(emailError, Object.getOwnPropertyNames(emailError))
             });
         }
 

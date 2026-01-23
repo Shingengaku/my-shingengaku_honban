@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 
-// Load .env.local manually
+// .env.local を手動でロード
 try {
     const envPath = path.resolve(process.cwd(), '.env.local');
     const envFile = fs.readFileSync(envPath, 'utf8');
@@ -12,17 +12,17 @@ try {
             process.env[key.trim()] = values.join('=').trim();
         }
     });
-    console.log('Loaded .env.local');
+    console.log('.env.local をロードしました');
 } catch (e) {
-    console.warn('Could not load .env.local', e);
+    console.warn('.env.local をロードできませんでした', e);
 }
 
 import { supabaseAdmin } from '../lib/supabaseAdmin';
 
 async function main() {
-    console.log('--- Starting Test ---');
+    console.log('--- テスト開始 ---');
 
-    // 1. Get a target application
+    // 1. ターゲットの申込を取得
     const { data: app, error } = await supabaseAdmin
         .from('applications')
         .select('*, members(*)')
@@ -31,7 +31,7 @@ async function main() {
         .single();
 
     if (error || !app) {
-        console.error('Failed to get app:', error);
+        console.error('アプリの取得に失敗しました:', error);
         return;
     }
 
@@ -44,11 +44,11 @@ async function main() {
     const newCC = 'test-cc-' + Date.now() + '@example.com';
     const newGen = 999;
 
-    // 2. Call API (simulate fetch)
-    // We can't easily call localhost:3000 from here without fetch polyfill or node-fetch usually, 
-    // but modern Node has global fetch.
+    // 2. API呼び出し (fetchをシミュレート)
+    // 通常、ここから localhost:3000 を呼び出すには fetch ポリフィルや node-fetch が必要ですが、
+    // 最新の Node にはグローバル fetch があります。
 
-    console.log(`Sending update request... CC=${newCC}, Gen=${newGen}`);
+    console.log(`更新リクエスト送信中... CC=${newCC}, Gen=${newGen}`);
 
     const payload = {
         id: targetId,
@@ -70,8 +70,8 @@ async function main() {
         console.error('API Call Failed:', e);
     }
 
-    // 3. Verify
-    console.log('--- Verifying ---');
+    // 3. 検証
+    console.log('--- 検証中 ---');
     const { data: updatedApp } = await supabaseAdmin
         .from('applications')
         .select('*, members(*)')

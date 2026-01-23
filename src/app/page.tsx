@@ -34,7 +34,7 @@ export default function Home() {
   const [selectedVenues, setSelectedVenues] = useState<string[]>([]);
   const [selectedSocialVenues, setSelectedSocialVenues] = useState<string[]>([]);
 
-  /* ... popup state ... */
+  /* ... ポップアップ状態 ... */
   const [infoText, setInfoText] = useState('');
   const [showInfoModal, setShowInfoModal] = useState(false);
 
@@ -77,7 +77,7 @@ export default function Home() {
     setLoading(true);
     setError('');
 
-    // Validation
+    // バリデーション
     // 受講生の場合のみ Term ID 必須
     if (isStudent && !formData.term_id) {
       setError('期を選択してください');
@@ -85,9 +85,9 @@ export default function Home() {
       return;
     }
 
-    // Validation: at least one must be selected (including none)
-    // Validation: at least one social option must be selected if venues are selected
-    // Note: User can select "None" for social.
+    // バリデーション: 少なくとも1つは選択する必要があります（「なし」を含む）
+    // バリデーション: 会場が選択されている場合、少なくとも1つの懇親会オプションを選択する必要があります
+    // 注: ユーザーは懇親会で「なし」を選択できます。
     if (selectedSocialVenues.length === 0) {
       setError('懇親会の参加有無（または「参加しません」）を選択してください');
       setLoading(false);
@@ -139,7 +139,7 @@ export default function Home() {
         newVenues = [];
       }
     } else {
-      // Normal venue
+      // 通常の会場
       if (checked) {
         newVenues = newVenues.filter(v => v !== 'none' && v !== '参加しない');
         newVenues.push(val);
@@ -148,44 +148,44 @@ export default function Home() {
       }
     }
 
-    // De-dupe
+    // 重複排除
     newVenues = Array.from(new Set(newVenues));
     setSelectedVenues(newVenues);
     setFormData({ ...formData, venue: newVenues.join('・') });
 
-    // Reset Social Venues if Lecture Venues change?
-    // User asked for exclusive control.
-    // If I uncheck "Tokyo", "Tokyo Social" should be unchecked.
-    // Let's filter selectedSocialVenues based on newVenues.
-    // Logic: Keep social venue ONLY if its corresponding lecture venue is still selected.
-    // or if "Participate None" is selected for social.
+    // 講義会場が変更された場合、懇親会会場をリセットしますか？
+    // ユーザーは排他的制御を求めました。
+    // 「東京」のチェックを外した場合、「懇親会東京のみ」のチェックも外れるべきです。
+    // newVenuesに基づいてselectedSocialVenuesをフィルタリングしましょう。
+    // ロジック: 対応する講義会場がまだ選択されている場合のみ、懇親会会場を維持します。
+    // または、懇親会で「参加しない」が選択されている場合。
 
-    // Only if none is selected for lecture, clear social?
-    // Or if "Tokyo" removed, remove "Tokyo Social".
+    // 講義で「なし」が選択された場合のみ、懇親会をクリアしますか？
+    // または、「東京」が削除された場合、「懇親会東京のみ」を削除します。
     if (newVenues.includes('参加しない') || newVenues.includes('none')) {
-      setSelectedSocialVenues(['参加しない']); // Auto select "None" for social?
+      setSelectedSocialVenues(['参加しない']); // 懇親会に「参加しない」を自動選択
     } else {
-      // Filter out social venues that don't match any selected lecture venue
-      // Simplified logic: If social venue name contains lecture venue name.
+      // 講義会場が選択されていないすべての懇親会会場を除外します
+      // 単純化されたロジック: 懇親会会場名に講義会場名が含まれている場合。
       setSelectedSocialVenues(prev => {
-        // If Lecture Venue is selected (not empty), force remove "Participate None" from Social?
-        // User request: "When checking other options (Lecture) while 'None' is checked, clear 'Social None' too."
-        // This implies if we are in this block (not "Lecture None"), we should ensure "Social None" is removed if it was auto-selected?
-        // Actually, if "Lecture None" is NOT selected, we should filter out "Social None" if it exists?
-        // Wait, user might want to select "Lecture: Tokyo" and "Social: None".
-        // But the request says: "When 'Participate None' (Lecture) is checked, and then I check other options (Lecture), 'Participate None' (Social) should be unchecked."
-        // This happens when transitioning from [None] to [Tokyo].
-        // In that case, `prev` might contain `['参加しない']`.
-        // We should filter it out here.
+        // 講義会場が選択されている（空でない）場合、懇親会の「参加しない」を強制的に削除しますか？
+        // ユーザーのリクエスト: 「講義で『参加しない』をチェックし、その後（講義の）他のオプションをチェックした場合、懇親会の『参加しない』もチェックを外れるべきです。」
+        // これは、（「講義なし」ではなく）このブロックにいる場合、自動選択された「懇親会なし」が削除されることを保証する必要があることを意味しますか？
+        // 実際には、「講義なし」が選択されていない場合、存在する場合は「懇親会なし」を除外する必要がありますか？
+        // 待ってください、ユーザーは「講義: 東京」と「懇親会: なし」を選択したい場合があります。
+        // しかしリクエストには次のようにあります: 「講義で『参加しない』がチェックされ、その後私が（講義の）他のオプションをチェックした場合、懇親会の『参加しない』はチェックが外れるべきです。」
+        // これは [なし] から [東京] に移行するときに発生します。
+        // その場合、`prev` には `['参加しない']` が含まれる可能性があります。
+        // ここでそれを除外する必要があります。
 
         return prev.filter(sv => {
-          if (sv === '参加しない' || sv === 'none') return false; // Force remove "Social None" when normal venues are active?
-          // Wait, if I want to select "Tokyo" and "Social None", I can't?
-          // The user says "When I check others... uncheck Social None".
-          // Maybe just when transitions?
-          // But `prev` is the old state.
-          // If I explicitly remove '参加しない' here, I force the user to re-select '参加しない' if they really want it.
-          // Given the prompt, this seems safer.
+          if (sv === '参加しない' || sv === 'none') return false; // 通常の会場がアクティブな場合、「懇親会なし」を強制的に削除しますか？
+          // 待ってください、「東京」と「懇親会なし」を選択したい場合、それができませんか？
+          // ユーザーは「他をチェックしたら... 懇親会なしのチェックを外す」と言っています。
+          // トランジション時だけでしょうか？
+          // しかし `prev` は古い状態です。
+          // ここで明示的に '参加しない' を削除する場合、ユーザーが本当にそれを望むなら、再度 '参加しない' を選択させることになります。
+          // プロンプトを考慮すると、これの方が安全そうです。
           return newVenues.some(lv => sv.includes(lv));
         });
       });
@@ -423,7 +423,7 @@ export default function Home() {
                 </>
               ) : (
                 <>
-                  {/* Fallback if master is empty */}
+                  {/* マスタが空の場合のフォールバック */}
                   <label className="flex items-center">
                     <input
                       type="checkbox"
@@ -472,21 +472,21 @@ export default function Home() {
               {socialMaster.length > 0 ? (
                 <>
                   {socialMaster.map(s => {
-                    // Logic: Is this social venue selectable?
+                    // ロジック: この懇親会会場は選択可能ですか？
                     let isDisabled = false;
 
                     if (selectedVenues.length === 0) {
-                      // Case 1: No venue selected -> All enabled
+                      // ケース 1: 会場が選択されていない -> すべて有効
                       isDisabled = false;
                     } else if (selectedVenues.includes('参加しない') && selectedVenues.length === 1) {
-                      // Case 2: Only "Participate None" selected -> Only "Participate None" allowed
+                      // ケース 2: 「参加しない」のみ選択 -> 「参加しない」のみ許可
                       isDisabled = s.name !== '参加しません';
                     } else {
-                      // Case 3: Specific venues selected
+                      // ケース 3: 特定の会場が選択されている
                       if (s.name === '参加しません') {
-                        isDisabled = false; // Always allow "None"
+                        isDisabled = false; // 「なし」は常に許可
                       } else {
-                        // Check correspondence (e.g., "Tokyo" selected -> "Tokyo Social" enabled)
+                        // 対応を確認 (例: 「東京」が選択 -> 「懇親会東京のみ」有効)
                         isDisabled = !selectedVenues.some(lv => s.name.includes(lv));
                       }
                     }
@@ -507,7 +507,7 @@ export default function Home() {
                 </>
               ) : (
                 <>
-                  {/* Fallback */}
+                  {/* フォールバック */}
                   <label className={`flex items-center ${(selectedVenues.length > 0 && !selectedVenues.includes('東京')) ? 'opacity-50 cursor-not-allowed' : ''}`}>
                     <input
                       type="checkbox"
@@ -567,7 +567,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Info Popup */}
+      {/* お知らせポップアップ */}
       {showInfoModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50 px-4">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full relative">

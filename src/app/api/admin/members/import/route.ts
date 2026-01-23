@@ -2,21 +2,21 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-// Helper to parse CSV manually regarding quotes and commas
+// 引用符とカンマに関してCSVを手動で解析するヘルパー
 function parseCSV(text: string) {
-    // Remove BOM if present
+    // BOMがあれば削除
     const cleanText = text.replace(/^\uFEFF/, '');
     const lines = cleanText.split(/\r?\n/).filter(line => line.trim() !== '');
 
     if (lines.length === 0) return { headers: [], records: [] };
 
-    // Simple parser that splits by comma, removing surrounding quotes
-    // Note: This does not handle commas INSIDE quotes correctly. 
-    // For robust CSV parsing, a library is recommended, but this suffices for simple lists.
+    // カンマで分割し、囲みの引用符を削除する単純なパーサー
+    // 注: 引用符内のカンマは正しく処理されません。
+    // 堅牢なCSV解析にはライブラリが推奨されますが、単純なリストにはこれで十分です。
     const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
 
-    // Map header names to keys
-    // Expected: 氏名, ふりがな, メールアドレス, ランク(属性), 期
+    // ヘッダー名をキーにマップ
+    // 期待値: 氏名, ふりがな, メールアドレス, ランク(属性), 期
     const keyMap: Record<string, string> = {
         '氏名': 'name',
         '名前': 'name',
@@ -36,14 +36,14 @@ function parseCSV(text: string) {
     const records = [];
     for (let i = 1; i < lines.length; i++) {
         const line = lines[i];
-        // Split and clean values
+        // 値を分割してクリーニング
         const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
 
-        // Allow empty lines at end
+        // 末尾の空行を許可
         if (values.length === 1 && values[0] === '') continue;
 
         if (values.length < mappedHeaders.length) {
-            // Not enough columns
+            // 列数不足
             records.push({ _error: `列数不足 (項目数: ${values.length}, ヘッダー数: ${mappedHeaders.length})`, _raw: line });
             continue;
         }
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
 
         const errors = [];
 
-        // Check required headers
+        // 必須ヘッダーを確認
         if (!headers.includes('name')) {
             errors.push('エラー: 「氏名」列が見つかりません。CSVの1行目を確認してください。(文字化けの可能性もあります)');
         }
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'データ行が見つかりません' }, { status: 400 });
         }
 
-        // 1. Fetch Ranks and Terms
+        // 1. ランクと期を取得
         const [ranksRes, termsRes] = await Promise.all([
             supabaseAdmin.from('ranks').select('id, name'),
             supabaseAdmin.from('terms').select('id, name')
@@ -107,17 +107,17 @@ export async function POST(request: Request) {
 
         const termMap = new Map<string, number>();
         termsRes.data?.forEach(t => termMap.set(t.name, t.id));
-        // Add normalization support (e.g. "1" -> "1期") if needed, or rely on exact match.
-        // Also support "1" matching "1期" partially?
-        // Let's create a normalized map for numeric values too
+        // 正規化サポートを追加（例: "1" -> "1期"）が必要か、完全一致に依存するか。
+        // "1" が "1期" に部分一致することもサポートしますか？
+        // 数値の正規化マップも作成しましょう
         termsRes.data?.forEach(t => {
             const numDetail = t.name.match(/\d+/);
             if (numDetail) {
-                termMap.set(numDetail[0], t.id); // "1" -> id of "1期"
+                termMap.set(numDetail[0], t.id); // "1" -> "1期" のID
             }
         });
 
-        // 2. Prepare Match data
+        // 2. マッチングデータの準備
         const upsertData = [];
 
         for (const row of records) {
@@ -135,30 +135,30 @@ export async function POST(request: Request) {
 
             let rankId = rankMap.get(rank_name);
             if (!rankId) {
-                // Try fallback to default if enabled, or warn
+                // 有効な場合はデフォルトへのフォールバックを試みるか、警告します
                 if (ranksRes.data && ranksRes.data.length > 0) {
-                    // For now, if missing, use first rank? or Error?
-                    // Existing logic warned and used first.
+                    // 今のところ、欠落している場合は最初のランクを使用しますか？それともエラー？
+                    // 既存のロジックは警告して最初を使用していました。
                     rankId = ranksRes.data[0].id;
                     errors.push(`警告: 属性 "${rank_name}" が不明なため、既定の "${ranksRes.data[0].name}" を設定しました (メール: ${email})`);
                 }
             }
 
-            // Term parsing
+            // 期の解析
             let termId: number | null = null;
             if (generation) {
-                // Try exact match
+                // 完全一致を試行
                 termId = termMap.get(generation) || null;
-                // Try "X期" format if generation is just number
+                // generationが数値のみの場合、"X期" 形式を試行
                 if (!termId && /^\d+$/.test(generation)) {
                     termId = termMap.get(`${generation}期`) || null;
                 }
             }
-            // If still null, default to first term? or allow null?
-            // members table `term_id` might be nullable? Schema says int.
-            // Let's default to first term if not found
+            // まだnullの場合、最初の期をデフォルトにしますか？それともnullを許可しますか？
+            // membersテーブルの `term_id` はnullableの可能性があります？スキーマはintと言っています。
+            // 見つからない場合は最初の期をデフォルトにしましょう
             if (!termId && termsRes.data && termsRes.data.length > 0) {
-                // Maybe check if generation was provided but not found
+                // generationが提供されたが見つからなかった場合を確認
                 if (generation) {
                     errors.push(`警告: 期 "${generation}" が不明なため、既定の "${termsRes.data[0].name}" を設定しました`);
                 }
@@ -174,9 +174,9 @@ export async function POST(request: Request) {
             });
         }
 
-        // 3. Upsert to Members
+        // 3. メンバーへのUpsert
         if (upsertData.length > 0) {
-            // Deduplicate by email within the batch
+            // バッチ内でメールアドレスによる重複排除
             const uniqueUpserts = Array.from(
                 new Map(upsertData.map(item => [item.email, item])).values()
             );
@@ -190,7 +190,7 @@ export async function POST(request: Request) {
 
             if (upsertError) throw upsertError;
 
-            // Warn about skipped duplicates if count differs
+            // スキップされた重複がある場合、カウントが異なれば警告
             if (uniqueUpserts.length < upsertData.length) {
                 const diff = upsertData.length - uniqueUpserts.length;
                 errors.push(`情報: ファイル内で重複しているメールアドレスが ${diff} 件あり、最後のデータで上書きされました。`);
@@ -205,7 +205,7 @@ export async function POST(request: Request) {
 
     } catch (e) {
         console.error('Import error:', e);
-        // Supabase error objects are often plain objects with a message property, not instances of Error
+        // Supabaseエラーオブジェクトは、Errorのインスタンスではなく、messageプロパティを持つプレーンオブジェクトであることがよくあります
         const errorMessage = e instanceof Error ? e.message : (typeof e === 'object' ? JSON.stringify(e) : String(e));
         return NextResponse.json({ error: `システムエラー詳細: ${errorMessage}` }, { status: 500 });
     }

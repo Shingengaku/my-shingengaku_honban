@@ -51,8 +51,8 @@ interface Rank {
     name: string;
 }
 
-// Sortable Row Component
-// Helper component for Multi-Select
+// 並び替え可能な行コンポーネント
+// 複数選択用のヘルパーコンポーネント
 function MultiSelectVenue({
     value,
     options,
@@ -62,7 +62,7 @@ function MultiSelectVenue({
     options: Venue[],
     onChange: (val: string) => void
 }) {
-    // value is string like "東京・大阪" or "参加しない"
+    // 値は "東京・大阪" や "参加しない" のような文字列です
     const selectedValues = value ? value.split('・').filter(s => s) : [];
     const notParticipating = "参加しない";
 
@@ -72,13 +72,13 @@ function MultiSelectVenue({
 
         if (optionName === notParticipating) {
             if (checked) {
-                newSelected = [notParticipating]; // Exclusive
+                newSelected = [notParticipating]; // 排他制御
             } else {
                 newSelected = newSelected.filter(v => v !== notParticipating);
             }
         } else {
             if (checked) {
-                // If checking a normal venue, remove 'notParticipating'
+                // 通常の会場を選択した場合、'参加しない' を削除します
                 newSelected = newSelected.filter(v => v !== notParticipating);
                 newSelected.push(optionName);
             } else {
@@ -86,7 +86,7 @@ function MultiSelectVenue({
             }
         }
 
-        // Remove duplicates and join
+        // 重複を削除して結合
         const unique = Array.from(new Set(newSelected));
         onChange(unique.join('・'));
     };
@@ -155,7 +155,7 @@ function SortableRow({
         setNodeRef,
         transform,
         transition,
-    } = useSortable({ id: id }); // Using name (or key) as ID. Must be unique.
+    } = useSortable({ id: id }); // 名前（またはキー）をIDとして使用します。一意である必要があります。
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -204,7 +204,7 @@ function SortableRow({
                         } else if (!val) {
                             newSocial = '';
                         } else {
-                            // If user had "参加しない" selected in social, and changes lecture to valid venues, clear social
+                            // ユーザーが懇親会で「参加しない」を選択しており、講義を有効な会場に変更した場合、懇親会をクリアします
                             if (newSocial === '参加しない') {
                                 newSocial = '';
                             }
@@ -220,7 +220,7 @@ function SortableRow({
             <td className="p-2 align-top">
                 <MultiSelectVenue
                     value={item.venue_social || ''}
-                    options={getSocialOptions(item.venue_lecture || '')} // This logic needs to support multi lecture
+                    options={getSocialOptions(item.venue_lecture || '')} // このロジックは複数講義会場をサポートする必要があります
                     onChange={(val) => updateItem(index, { venue_social: val })}
                 />
             </td>
@@ -286,7 +286,7 @@ export default function ProductMasterPage() {
                     setRanks(await ranksRes.json());
                 }
 
-                // Load Master
+                // マスタ読み込み
                 const loadedMaster = settings.product_name_master || { names: [], venues: [], socials: [] };
                 const venueMaster = settings.venue_master || { lecture_venues: [], social_venues: [] };
 
@@ -298,7 +298,7 @@ export default function ProductMasterPage() {
                     social_venues: Array.isArray(venueMaster.social_venues) ? venueMaster.social_venues : []
                 });
 
-                // Load Payment Links
+                // 支払いリンク読み込み
                 let linksArr: PaymentLinkItem[] = [];
                 const val = settings.payment_links;
 
@@ -307,7 +307,7 @@ export default function ProductMasterPage() {
                         name: item.name || '',
                         lecture_fee: String(item.lecture_fee || 0),
                         social_fee: String(item.social_fee || 0),
-                        key: item.key || '', // will be synced with name
+                        key: item.key || '', // 名前と同期されます
                         url: item.url || '',
                         venue_lecture: item.venue_lecture || '',
                         venue_social: item.venue_social || '',
@@ -315,7 +315,7 @@ export default function ProductMasterPage() {
                         product_code: item.product_code || ''
                     }));
                 } else if (val) {
-                    // Old Format Support
+                    // 旧フォーマットサポート
                     linksArr = Object.entries(val).map(([key, value]) => ({
                         name: key,
                         lecture_fee: '0',
@@ -348,7 +348,7 @@ export default function ProductMasterPage() {
         const name = newItem.name?.trim();
         if (!name) return;
 
-        // Check duplicates
+        // 重複チェック
         if (paymentLinks.some(p => p.key === name)) {
             alert('既に同じ商品名が存在します');
             return;
@@ -387,7 +387,7 @@ export default function ProductMasterPage() {
                 updatedItem.key = updates.name;
             }
 
-            // Auto-gen URL when code changes
+            // コード変更時にURLを自動生成
             if (updates.product_code !== undefined) {
                 updatedItem.url = generateUrl(updates.product_code);
             }
@@ -400,10 +400,10 @@ export default function ProductMasterPage() {
     const handleSave = async () => {
         if (!confirm('変更を保存しますか？')) return;
         try {
-            // 1. Prepare Payment Links
+            // 1. 支払いリンクを準備
             const saveLinks = paymentLinks.map(item => ({
                 name: item.name,
-                key: item.name, // Ensure key matches name
+                key: item.name, // キーが名前と一致することを確認
                 url: item.url,
                 lecture_fee: Number(item.lecture_fee),
                 social_fee: Number(item.social_fee),
@@ -413,10 +413,10 @@ export default function ProductMasterPage() {
                 product_code: item.product_code
             }));
 
-            // 2. Prepare Product Master Names (Sync with keys and ORDER)
+            // 2. 商品マスタ名を準備 (キーと順序を同期)
             const saveMaster = {
                 ...master,
-                names: saveLinks.map(l => l.name) // Order is preserved here!
+                names: saveLinks.map(l => l.name) // ここで順序が保持されます！
             };
 
             const payload = {
@@ -447,7 +447,7 @@ export default function ProductMasterPage() {
         const socialVenues = venueList.filter(v => v.type === 'social');
         //const notParticipating = "参加しない"; // Handled in Component now
 
-        // If no lecture selected, maybe return all? or none? none.
+        // 講義が選択されていない場合、おそらくすべて返すべき？それともなし？ なしで。
 
         let targetNames: string[] = [];
         if (lectureVenueName.includes('・')) {
@@ -456,26 +456,21 @@ export default function ProductMasterPage() {
             targetNames = [lectureVenueName];
         }
 
-        // Logic: Return social venues that match ANY of the selected lecture venues?
-        // Or strictly match?
-        // Usually, if I select "Tokyo", I want "Tokyo Social".
-        // If I select "Tokyo" and "Osaka", I want "Tokyo Social" and "Osaka Social".
-        // Assuming social venue names align with lecture names roughly?
-        // Current logic was: check if social venue name matches or is part of split string.
-        // Let's broaden: Return ALL social venues? The user can filter.
-        // Creating a strict filter might be annoying if names mismatch.
-        // But the previous requests asked for "Exclusive control".
-        // "三か市内を選ぶと登録された会場は選択できない" -> "参加しない" Logic handles this.
-        // "Choose Tokyo -> Cannot choose Fukuoka Social"? 
-        // Let's filter by name inclusion.
+        // ロジック: 選択された講義会場のいずれかに一致する懇親会会場を返しますか？ (例: "東京"講義 -> "東京"懇親会)
+        // 現在のロジック: 講義会場名が含まれる、または文字列の一部であるものを確認します。
+        // 広げましょう: すべての懇親会会場を返しますか？ ユーザーがフィルタリングできます。
+        // 厳密なフィルタを作成すると、名前が不一致の場合に面倒になる可能性があります。
+        // しかし、以前のリクエストでは「排他制御」が求められました。
+        // 「参加しないを選ぶと登録された会場は選択できない」 -> "参加しない" ロジックがこれを処理します。
+        // 「東京を選ぶ -> 福岡の懇親会を選べない」?
+        // 名前の包含でフィルタリングしましょう。
 
-        // Filter social venues that have same name as one of the lecture targets
-        // Or contained in it.
-        // This relies on naming convention. "Tokyo" lecture -> "Tokyo" social.
+        // 講義ターゲットの1つと同じ名前を持つ、またはそれに含まれる懇親会会場をフィルタリングします。
+        // これは命名規則に依存しています。「東京」講義 -> 「東京」懇親会。
 
         return socialVenues.filter(sv => {
-            // If social venue name is exactly in target list
-            // Or if social venue name contains one of the targets? (e.g. "Tokyo Social" contains "Tokyo")
+            // 懇親会会場名がターゲットリストに完全に含まれている場合
+            // または、懇親会会場名がターゲットの1つを含んでいる場合 (例: "東京懇親会" は "東京" を含む)
             return targetNames.some(tn => sv.name.includes(tn) || tn.includes(sv.name));
         });
     };
@@ -485,7 +480,7 @@ export default function ProductMasterPage() {
 
         if (over && active.id !== over.id) {
             setPaymentLinks((items) => {
-                const oldIndex = items.findIndex((item) => item.name === active.id); // Using name as ID
+                const oldIndex = items.findIndex((item) => item.name === active.id); // 名前をIDとして使用
                 const newIndex = items.findIndex((item) => item.name === over.id);
                 return arrayMove(items, oldIndex, newIndex);
             });
@@ -496,14 +491,14 @@ export default function ProductMasterPage() {
         const headers = [
             '商品名', '商品コード', 'URL', '属性ID',
             '講義会場', '懇親会会場', '受講料', '懇親会費'
-            // Exclude redundant generated keys/urls from import perspective, but useful for export
+            // インポートの観点からは冗長な生成されたキー/URLを除外しますが、エクスポートには役立ちます
         ];
-        // Note: Exporting internal Rank ID might be hard for user to edit? 
-        // Maybe export Rank Name? It's better, but for Import we need to map back.
-        // Let's export Rank Name as well for reference? 
-        // Or just keep it simple: Export ID. 
-        // The user request is "Export/Import". 
-        // Let's Export raw values.
+        // 注: 内部のランクIDをエクスポートすると、ユーザーが編集するのが難しいかもしれません
+        // ランク名をエクスポートした方が良いでしょうか？その方が良いですが、インポートのためにマップし直す必要があります。
+        // 参考のためにランク名もエクスポートしましょうか？
+        // それともシンプルに: IDをエクスポートします。
+        // ユーザーのリクエストは「エクスポート/インポート」です。
+        // 生の値をエクスポートしましょう。
 
         const rows = paymentLinks.map(p => [
             p.name, p.product_code || '', p.url, p.rank_id || '',
@@ -538,7 +533,7 @@ export default function ProductMasterPage() {
         if (lines.length < 2) return;
 
         const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-        // Mapping
+        // マッピング
         const headerMap: Record<string, string> = {
             '商品名': 'name', '商品コード': 'product_code', 'URL': 'url',
             '属性ID': 'rank_id', '講義会場': 'venue_lecture', '懇親会会場': 'venue_social',
@@ -571,8 +566,8 @@ export default function ProductMasterPage() {
             });
         }
 
-        // Merge logic: Update if name exists, Append if not
-        // We do this locally.
+        // マージロジック: 名前が存在する場合は更新、存在しない場合は追加
+        // ローカルで行います。
         const merged = [...paymentLinks];
         let addedCount = 0;
         let updatedCount = 0;
@@ -765,7 +760,7 @@ export default function ProductMasterPage() {
                             >
                                 <tbody className="divide-y">
                                     <SortableContext
-                                        items={paymentLinks.map(p => p.key)} // Using Key/Name as ID
+                                        items={paymentLinks.map(p => p.key)} // キー/名前をIDとして使用
                                         strategy={verticalListSortingStrategy}
                                     >
                                         {loading ? (
@@ -775,7 +770,7 @@ export default function ProductMasterPage() {
                                         ) : (
                                             paymentLinks.map((item, idx) => (
                                                 <SortableRow
-                                                    key={item.key} // Unique Key
+                                                    key={item.key} // 一意なキー
                                                     id={item.key}
                                                     item={item}
                                                     index={idx}

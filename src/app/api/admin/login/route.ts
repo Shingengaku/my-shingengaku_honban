@@ -11,12 +11,12 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'ユーザーIDとパスワードを入力してください' }, { status: 400 });
         }
 
-        // Hash the input password
+        // 入力パスワードをハッシュ化
         const shasum = crypto.createHash('sha256');
         shasum.update(password.trim());
         const hashedPassword = shasum.digest('hex');
 
-        // Check against DB
+        // DBと照合
         const { data: user, error } = await supabaseAdmin
             .from('admin_users')
             .select('*')
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
         if (user.password_hash === hashedPassword) {
             const response = NextResponse.json({ success: true });
 
-            // Set session cookie
+            // セッションクッキーを設定
             response.cookies.set('admin_session', user.username, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',

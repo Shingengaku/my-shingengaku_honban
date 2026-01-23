@@ -2,29 +2,29 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-// GET: Fetch all terms (admin view)
+// GET: 全ての期を取得 (管理者用)
 export async function GET() {
     try {
         const { data, error } = await supabaseAdmin
             .from('terms')
             .select('*')
             .order('sort_order', { ascending: true })
-            .order('id', { ascending: true }); // Fallback
+            .order('id', { ascending: true }); // フォールバック
 
         if (error) throw error;
         return NextResponse.json(data);
     } catch (e) {
-        return NextResponse.json({ error: 'Failed to fetch terms' }, { status: 500 });
+        return NextResponse.json({ error: '期の取得に失敗しました' }, { status: 500 });
     }
 }
 
-// POST: Create a new term
+// POST: 新しい期を作成
 export async function POST(request: Request) {
     try {
         const body = await request.json();
         const { name } = body;
 
-        if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+        if (!name) return NextResponse.json({ error: '名前は必須です' }, { status: 400 });
 
         // Get max sort_order to append at the end
         const { data: maxOrderData } = await supabaseAdmin
@@ -49,13 +49,14 @@ export async function POST(request: Request) {
     }
 }
 
-// DELETE: Delete a term
+// DELETE: 期を削除
 export async function DELETE(request: Request) {
+
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
 
-        if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+        if (!id) return NextResponse.json({ error: 'IDは必須です' }, { status: 400 });
 
         const { error } = await supabaseAdmin
             .from('terms')
@@ -65,6 +66,6 @@ export async function DELETE(request: Request) {
         if (error) throw error;
         return NextResponse.json({ success: true });
     } catch (e) {
-        return NextResponse.json({ error: 'Failed to delete term' }, { status: 500 });
+        return NextResponse.json({ error: '期の削除に失敗しました' }, { status: 500 });
     }
 }

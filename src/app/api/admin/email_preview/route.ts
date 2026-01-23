@@ -7,7 +7,7 @@ export async function POST(request: Request) {
     try {
         const { id } = await request.json();
 
-        // 1. Get Application Data
+        // 1. 申込データを取得
         const { data: app, error } = await supabaseAdmin
             .from('applications')
             .select('*, members(*)')
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
         }
 
 
-        // 2. Get Settings (for payment links & email template)
+        // 2. 設定を取得 (決済リンク & メールテンプレート用)
         const { data: settingsData } = await supabaseAdmin.from('app_settings').select('*');
         const paymentLinks = settingsData?.find(r => r.key === 'payment_links')?.value || {};
         const emailTemplate = settingsData?.find(r => r.key === 'email_template')?.value || DEFAULT_EMAIL_TEMPLATE;
@@ -33,17 +33,25 @@ export async function POST(request: Request) {
         // @ts-ignore
         const social_venue = app.social_venue || 'none';
 
-        const paymentKey = getPaymentKey(rankName, venue, social_venue);
-        const linkKeyAmount = totalAmount.toString();
-        const paymentLink = paymentLinks[paymentKey] ?? paymentLinks[linkKeyAmount] ?? paymentLinks['default'] ?? null;
+        // 3. 支払いリンク情報
+        let paymentLink = null;
+        if (Array.isArray(paymentLinks)) {
+            paymentLink = paymentLinks.find((p: any) =>
+                (Number(p.lecture_fee) + Number(p.social_fee)) === app.total_amount &&
+                p.venue_lecture === app.venue &&
+                p.venue_social === app.social_venue
+            );
+        }
 
-        // 3. Construct Email Content
+        const paymentUrl = paymentLink?.url || null;
+
+        // 3. メール内容の構築
         const venueStr = venue === 'both' ? '東京・福岡 両会場' : (venue === 'tokyo' ? '東京会場' : '福岡会場');
         const socialVenueStr = social_venue === 'none' ? '参加しない' : (social_venue === 'both' ? '両方参加' : (social_venue === 'tokyo' ? '東京のみ参加' : '福岡のみ参加'));
 
         let paymentLinkSection = '';
-        if (paymentLink && totalAmount > 0) {
-            paymentLinkSection = `引き続き、以下のリンクより決済のお手続きをお願いいたします。\n\n▼ 決済リンク\n${paymentLink}`;
+        if (paymentUrl) {
+            paymentLinkSection = `引き続き、以下のリンクより決済のお手続きをお願いいたします。\n\n▼ 決済リンク\n${paymentUrl}`;
         } else {
             paymentLinkSection = `本お申込みの費用は発生しません（または当日支払いです）。\n当日会場でお待ちしております。`;
         }
@@ -61,17 +69,16 @@ export async function POST(request: Request) {
 
         const adminBccEmail = settingsData?.find(r => r.key === 'admin_bcc_email')?.value || null;
 
-        // Merge Admin and App-specific CC/BCC
-        // NEW LOGIC: Individual setting overrides Global. No merging.
-        // If app.cc_email is NOT NULL, use it (even if empty string).
-        // If app.cc_email IS NULL, fall back to adminEmail.
+        // 管理者とアプリ固有のCC/BCCをマージ
+        // 新ロジック: 個別設定がグローバル設定を上書きします。マージはしません。
+        // app.cc_email が NULL でない場合、それを使用します（空文字列の場合も含む）。
+        // app.cc_email が NULL の場合、adminEmail にフォールバックします。
         const ccList = app.cc_email !== null ? app.cc_email : adminEmail;
         const bccList = app.bcc_email !== null ? app.bcc_email : adminBccEmail;
 
         return NextResponse.json({
             subject: emailTemplate.subject,
             content,
-            paymentKey,
             email: app.input_email,
             cc: ccList || undefined,
             bcc: bccList || undefined

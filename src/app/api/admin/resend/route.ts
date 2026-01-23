@@ -2,13 +2,13 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { resend } from '@/lib/resend';
-import { getPaymentKey } from '@/lib/payment';
+import { processEmailTemplate, DEFAULT_EMAIL_TEMPLATE_RESEND } from '@/lib/emailTemplate';
 
 export async function POST(request: Request) {
     try {
-        const { id } = await request.json();
+        const { id, subject: customSubject, body: customBody } = await request.json();
 
-        // 1. Get Application Data
+        // 1. 申込データ取得
         const { data: app, error } = await supabaseAdmin
             .from('applications')
             .select('*, members(*)')
@@ -19,74 +19,80 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Application not found' }, { status: 404 });
         }
 
-        // 2. Get Settings (for payment links)
-        const { data: settingsData } = await supabaseAdmin.from('app_settings').select('*');
-        const paymentLinks = settingsData?.find(r => r.key === 'payment_links')?.value || {};
+        // 2. 設定取得
+        const { data: settingsData } = await supabaseAdmin
+            .from('app_settings')
+            .select('*');
 
-        const totalAmount: number = app.total_amount;
-        const name = app.input_name;
-        const email = app.input_email;
-        const rankName = app.applied_rank_name;
-        // @ts-ignore
-        const venue = app.venue;
-        // @ts-ignore
-        const social_venue = app.social_venue || 'none'; // Fallback
+        const settings: any = {};
+        settingsData?.forEach(row => {
+            if (row.key === 'payment_links') settings.payment_links = row.value;
+            if (row.key === 'admin_email') settings.admin_email = row.value;
+            if (row.key === 'admin_bcc_email') settings.admin_bcc_email = row.value;
+            if (row.key === 'email_template_resend') settings.email_template_resend = row.value;
+        });
 
-        const paymentKey = getPaymentKey(rankName, venue, social_venue);
-        const linkKeyAmount = totalAmount.toString();
-        const paymentLink = paymentLinks[paymentKey] ?? paymentLinks[linkKeyAmount] ?? paymentLinks['default'] ?? null;
+        const paymentLinks = settings.payment_links || [];
+        const adminEmail = settings.admin_email;
+        const adminBccEmail = settings.admin_bcc_email;
 
-        // 3. Construct Email
-        const emailSubject = paymentLink
-            ? '【神言学】【再送】お申込み受付・決済のご案内'
-            : '【神言学】【再送】お申込み完了のお知らせ';
+        // 3. 支払いリンク情報
+        let paymentLink = null;
+        if (Array.isArray(paymentLinks)) {
+            paymentLink = paymentLinks.find((p: any) =>
+                (Number(p.lecture_fee) + Number(p.social_fee)) === app.total_amount &&
+                p.venue_lecture === app.venue &&
+                p.venue_social === app.social_venue
+            );
+        }
 
-        let emailContent = `
-${name} 様
+        const paymentUrl = paymentLink?.url || '';
 
-(本メールは管理者による再送です)
+        // テンプレート選択
+        const template = settings.email_template_resend || DEFAULT_EMAIL_TEMPLATE_RESEND;
 
-神言学講座へのお申込みありがとうございます。
-以下の内容で受付いたしました。
+        const venueDisplayMap: Record<string, string> = {
+            'tokyo': '東京',
+            'fukuoka': '福岡',
+            'both': '両方参加',
+            'none': '参加しません'
+        };
 
---------------------------------
-お名前: ${name}
-判定属性: ${rankName}
-参加会場: ${venue === 'both' ? '東京・福岡 両会場' : (venue === 'tokyo' ? '東京会場' : '福岡会場')}
-懇親会: ${social_venue === 'none' ? '参加しない' : (social_venue === 'both' ? '両方参加' : (social_venue === 'tokyo' ? '東京のみ参加' : '福岡のみ参加'))}
-合計金額: ${totalAmount.toLocaleString()} 円
---------------------------------
-`;
+        const displayVenue = venueDisplayMap[app.venue] || app.venue;
+        const displaySocialVenue = venueDisplayMap[app.social_venue] || app.social_venue;
 
-        if (paymentLink && totalAmount > 0) {
-            emailContent += `
+        const paymentLinkSection = paymentUrl ? `
+合計金額: ${app.total_amount.toLocaleString()} 円
 
 引き続き、以下のリンクより決済のお手続きをお願いいたします。
 
 ▼ 決済リンク
-${paymentLink}
-`;
-        } else {
-            emailContent += `
+${paymentUrl}
+` : '';
 
-本お申込みの費用は発生しません（または当日支払いです）。
-当日会場でお待ちしております。
-`;
-        }
+        const vars = {
+            name: app.input_name,
+            rank: app.applied_rank_name || '一般',
+            venue: displayVenue,
+            social_venue: displaySocialVenue,
+            amount: app.total_amount.toLocaleString(),
+            payment_link_section: paymentLinkSection
+        };
 
-        const adminEmail = settingsData?.find(r => r.key === 'admin_email')?.value || null;
-        const adminBccEmail = settingsData?.find(r => r.key === 'admin_bcc_email')?.value || null;
+        const emailSubject = customSubject || template.subject;
+        const emailContent = customBody || processEmailTemplate(template.body, vars);
 
-        // Override logic: Use App Individual if NOT NULL, else default to Global
+        // CC/BCC ロジック
         const effectiveCC = app.cc_email !== null ? app.cc_email : adminEmail;
         const effectiveBCC = app.bcc_email !== null ? app.bcc_email : adminBccEmail;
 
         const cc = [effectiveCC].filter(Boolean);
         const bcc = [effectiveBCC].filter(Boolean);
 
+        const fromEmail = process.env.FROM_EMAIL || 'noreply@resend.dev';
         await resend.emails.send({
-            from: '神言学事務局 <noreply@resend.dev>',
-            to: [email],
+            from: `神言学事務局 <${fromEmail}>`,
+            to: [app.input_email],
             cc: cc.length > 0 ? cc : undefined,
             bcc: bcc.length > 0 ? bcc : undefined,
             subject: emailSubject,

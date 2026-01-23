@@ -6,7 +6,7 @@ export async function GET() {
     const { data, error } = await supabaseAdmin.from('app_settings').select('*');
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Convert array to object
+    // 配列をオブジェクトに変換
     const settings: any = {};
     data?.forEach(row => {
         settings[row.key] = row.value;
@@ -34,6 +34,21 @@ export async function POST(request: Request) {
         if (body.email_template) {
             updates.push(
                 supabaseAdmin.from('app_settings').upsert({ key: 'email_template', value: body.email_template })
+            );
+        }
+        if (body.email_template_general) {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'email_template_general', value: body.email_template_general })
+            );
+        }
+        if (body.email_template_resend) {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'email_template_resend', value: body.email_template_resend })
+            );
+        }
+        if (body.email_template_forgot_pass) {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'email_template_forgot_pass', value: body.email_template_forgot_pass })
             );
         }
         if (body.product_name_master) {

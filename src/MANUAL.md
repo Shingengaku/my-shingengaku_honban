@@ -138,7 +138,7 @@ npm install
       created_at timestamptz default now(),
       input_name text, input_furigana text, input_email text, total_amount integer,
       payment_status text check (payment_status in ('unpaid', 'paid', 'cancelled')),
-      payment_key text, venue text, social_venue text, applied_rank_name text,
+      payment_key text, venue text, social_venue text, applied_rank_name text, attend_social boolean default false,
       environment text, remarks text, matched_member_id integer references members(id),
       tags text[], is_duplicate_confirmed boolean default false, cc_email text, bcc_email text
     );
@@ -198,12 +198,16 @@ npm install
     | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 先ほど控えた **本番用(Prod)の anon public キー** |
     | `SUPABASE_SERVICE_ROLE_KEY` | 先ほど控えた **本番用(Prod)の service_role secret キー** |
     | `RESEND_API_KEY` | `re_` から始まる **ResendのAPIキー** (開発時と同じでOK) |
+    | `FROM_EMAIL` | 本番環境で使用するメールアドレス (例: `info@your-domain.com` または `noreply@resend.dev`) |
 
     *   ※入力間違いがないかよく確認してください。
 
 3.  **デプロイ実行**:
     *   すべての変数を追加したら、下の **「Deploy」** ボタンを押します。
-    *   花吹雪が舞ったら成功です！ 表示された画像のリンクをクリックすると、あなたのシステムが世界中に公開されています。
+    *   花吹雪が舞ったら成功です！
+    *   **本番URLの場所**:
+        *   完了画面の **「Visit」** ボタン、またはプレビュー画像をクリックすると開きます。
+        *   後から確認する場合は、Vercelダッシュボードのプロジェクト名の下に `https://shingengaku-app.vercel.app` のようなURLが表示されています（これが本番URLです）。
 
 **3. 管理者ユーザーの作成 (最初だけやる作業)**
 *   公開された本番サイトにはまだ誰も登録されていません。
@@ -213,7 +217,62 @@ npm install
     ```
     (※ハッシュ化ツールなどで `password123` をSHA-256変換した文字を入れてください)
 
+    (※ハッシュ化ツールなどで `password123` をSHA-256変換した文字を入れてください)
+
 ---
+
+### 手順8.5: 本番環境でのメール設定 (Resendドメイン認証)
+
+本番環境で一般のお客様（`gmail.com` など）へ確実にメールを届けるためには、**独自ドメインの認証**が必要になります。
+（これを行わないと、自分自身のアドレス以外にはメールが送信できないか、迷惑メール扱いになる可能性があります）
+
+1.  **ドメインの所有確認 (Verify Domain)**:
+    *   [Resendダッシュボード](https://resend.com/domains) の「Domains」タブを開きます。
+    *   「Add Domain」を押し、あなたが持っているドメイン（例: `shingengaku.com`）を入力します。
+    *   地域は `us-east-1` (デフォルト) でOKです。
+
+2.  **DNSレコードの設定**:
+    *   表示された **MX**, **TXT (SPF/DKIM)**, **CNAME** などのレコードを、あなたのドメイン管理画面（お名前.com、Xserver、Google Domainsなど）に追加します。
+    *   追加後、Resend画面の「Verify DNS Records」を押して、ステータスが **「Verified」** になるのを待ちます（最大24〜48時間かかることがあります）。
+
+    > [!TIP]
+    > **Xserver (エックスサーバー) での具体的な入力ガイド (shingengaku.com の場合)**
+    > 
+    > Xserverの「DNSレコード追加」画面で、Resendに表示された3つのレコードを順番に追加します。
+    > **※重要: Xserverの「ホスト名」欄には、ドメイン名 (`.shingengaku.com`) を含めずに、サブドメイン部分だけを入力します。**
+    > 
+    > **① MXレコード (バウンスメール対策)**
+    > *   **ホスト名**: Resend画面の **Name** に表示されている文字を入力します。
+    >     *   例: `bounces` と表示されていたら `bounces`
+    >     *   例: `send` と表示されていたら `send`
+    >     *   ※ドメイン名 (`.shingengaku.com`) は含めません。
+    > *   **種別**: `MX` を選択します。
+    > *   **内容**: Resend画面の **Value** を入力（コピペ）します。
+    >     *   例: `feedback-smtp.us-east-1.amazonses.com`
+    > *   **優先度**: `10`
+    > 
+    > **② TXTレコード (SPF: なりすまし防止)**
+    > *   **ホスト名**: Resend画面の **Name** に表示されている文字を入力します。
+    >     *   例: `bounces` または `send` など
+    >     *   ※ドメイン名 (`.shingengaku.com`) は含めません。
+    > *   **種別**: `TXT` を選択します。
+    > *   **内容**: Resend画面の **Value** を入力（コピペ）します。
+    >     *   例: `"v=spf1 include:amazonses.com ~all"`
+    > *   **優先度**: `0` (そのまま)
+    > 
+    > **③ TXTレコード (DKIM: 電子署名)**
+    > *   **ホスト名**: `resend._domainkey` (または `smtp._domainkey`) のように入力します。
+    >     *   (Resend表示: `resend._domainkey.shingengaku.com` → ドメイン部分を除いて `resend._domainkey` だけ入れる)
+    > *   **種別**: `TXT` を選択します。
+    > *   **内容**: `p=` から始まる長い文字列をすべてコピペします。
+    > *   **優先度**: `0` (そのまま)
+
+3.  **Vercel環境変数の更新**:
+    *   認証が完了したら、Vercelのプロジェクト設定画面（Settings -> Environment Variables）に行きます。
+    *   `FROM_EMAIL` というキーを追加（編集）し、値を認証済みドメインのアドレス（例: `info@shingengaku.com`）に変更します。
+    *   **重要**: 環境変数を変更した後は、Vercelの「Deployments」タブから最新のデプロイの「Redeploy」を行うか、次回のコード更新時に反映されます。
+
+    *   **重要**: 環境変数を変更した後は、Vercelの「Deployments」タブから最新のデプロイの「Redeploy」を行うか、次回のコード更新時に反映されます。
 
 ### 手順9: プログラムの修正が発生した場合の対応手順
 
@@ -253,6 +312,31 @@ npm install
 
 > [!WARNING]
 > 本番用データベースを触るときは、間違ってデータを消さないように細心の注意を払ってください。
+
+### 手順10: トラブルシューティング (メールが届かない場合など)
+
+「申込みはできたのにメールが来ない」という場合、以下の順番で確認してください。
+
+**1. Resendダッシュボードを見る**
+*   [ResendのEmails画面](https://resend.com/emails) を見ます。
+*   ここに送ったはずのメールが表示されていますか？
+    *   **表示あり + Statusが `Delivered`**: Resendは送信に成功しています。受信側の迷惑メールフォルダを確認してください。
+    *   **表示あり + Statusが `Bounced`**: 宛先不明などで弾かれました。DNS設定 (MXレコード) が正しいか再確認してください。
+    *   **表示なし**: プログラムからResendへの送信リクエスト自体が失敗しています。次の「Vercelログ」を見てください。
+
+**2. Vercelのログを見る**
+*   Vercelダッシュボードでプロジェクトを開き、**「Logs」** タブを開きます。
+*   申込みを行った時間のログを探します。赤文字でエラー (`Error: ...` や `500`) が出ていませんか？
+    *   `Missing API Key`: 環境変数 `RESEND_API_KEY` が設定されていません。
+    *   `Unauthorized`: APIキーが間違っています。
+
+**3. Sandbox制限の疑い (一番多い原因)**
+*   ドメイン認証が完了する前、または `FROM_EMAIL` を設定していない場合、Resendは「Sandboxモード」で動きます。
+*   **Sandboxモードの制限**: **「Resendに登録した自分自身のアドレス」にしかメールを送れません。**
+*   解決策:
+    1.  手順8.5に従ってドメイン (`shingengaku.com` 等) を認証する。
+    2.  Vercelの環境変数 `FROM_EMAIL` に認証済みドメインのアドレス (`info@shingengaku.com` 等) を設定する。
+    3.  これで誰にでも送れるようになります。
 
 ---
 

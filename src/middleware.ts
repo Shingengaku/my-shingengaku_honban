@@ -2,10 +2,9 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-    // Check if the path starts with /admin
+    // パスが /admin で始まるか確認
     if (request.nextUrl.pathname.startsWith('/admin')) {
-
-        // Allow access to login page and authentication API
+        // ログインページと認証APIへのアクセスを許可
         if (
             request.nextUrl.pathname === '/admin/login' ||
             request.nextUrl.pathname.startsWith('/api/admin/login')
@@ -13,11 +12,11 @@ export function middleware(request: NextRequest) {
             return NextResponse.next();
         }
 
-        // Check for admin_session cookie
+        // admin_session クッキーを確認
         const adminSession = request.cookies.get('admin_session');
 
         if (!adminSession) {
-            // Redirect to login if no session
+            // セッションがない場合はログインへリダイレクト
             return NextResponse.redirect(new URL('/admin/login', request.url));
         }
     }
