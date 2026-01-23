@@ -86,6 +86,11 @@ export async function POST(request: Request) {
                 supabaseAdmin.from('app_settings').upsert({ key: 'application_text', value: body.application_text })
             );
         }
+        if (typeof body.application_active !== 'undefined') {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'application_active', value: body.application_active })
+            );
+        }
 
 
         await Promise.all(updates);

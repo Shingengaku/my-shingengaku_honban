@@ -6,16 +6,21 @@ export async function GET() {
     const { data, error } = await supabaseAdmin
         .from('app_settings')
         .select('*')
-        .eq('key', 'application_text')
-        .single();
+        .in('key', ['application_text', 'application_active']);
 
-    // It's possible the key doesn't exist yet, which is not an error
-    if (error && error.code !== 'PGRST116') {
+    if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Convert array to object
+    const settingsMap: any = {};
+    data?.forEach(row => {
+        settingsMap[row.key] = row.value;
+    });
+
     const settings = {
-        application_text: data?.value || ''
+        application_text: settingsMap.application_text || '',
+        application_active: settingsMap.application_active !== false // Default to true if not set or explicitly true
     };
 
     return NextResponse.json(settings);
