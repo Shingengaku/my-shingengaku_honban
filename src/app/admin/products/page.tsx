@@ -344,7 +344,54 @@ export default function ProductMasterPage() {
         return `${urlPrefix}${code}${urlSuffix}`;
     };
 
-    const handleAddItem = () => {
+    const executeSave = async (linksToSave: PaymentLinkItem[], silent = false) => {
+        try {
+            // 1. 支払いリンクを準備
+            const saveLinks = linksToSave.map(item => ({
+                name: item.name,
+                key: item.name, // キーが名前と一致することを確認
+                url: item.url,
+                lecture_fee: Number(item.lecture_fee),
+                social_fee: Number(item.social_fee),
+                venue_lecture: item.venue_lecture,
+                venue_social: item.venue_social,
+                rank_id: item.rank_id,
+                product_code: item.product_code
+            }));
+
+            // 2. 商品マスタ名を準備 (キーと順序を同期)
+            const saveMaster = {
+                ...master,
+                names: saveLinks.map(l => l.name) // ここで順序が保持されます！
+            };
+
+            const payload = {
+                product_name_master: saveMaster,
+                payment_links: saveLinks
+            };
+
+            const res = await fetch('/api/admin/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...payload, url_prefix: urlPrefix, url_suffix: urlSuffix })
+            });
+
+            if (res.ok) {
+                if (!silent) alert('保存しました');
+                fetchSettings(); // Reload to confirm
+                return true;
+            } else {
+                alert('保存に失敗しました');
+                return false;
+            }
+        } catch (e) {
+            console.error(e);
+            alert('エラーが発生しました');
+            return false;
+        }
+    };
+
+    const handleAddItem = async () => {
         const name = newItem.name?.trim();
         if (!name) return;
 
@@ -366,8 +413,16 @@ export default function ProductMasterPage() {
             product_code: newItem.product_code
         };
 
-        setPaymentLinks([...paymentLinks, addedItem]);
-        setNewItem({ name: '', url: '', lecture_fee: '0', social_fee: '0', venue_lecture: '', venue_social: '', rank_id: '', product_code: '' });
+        const newLinks = [...paymentLinks, addedItem];
+        setPaymentLinks(newLinks);
+
+        // 即時保存実行
+        // ※ UI上のフィードバックのため、silent=false（アラート出す）にします
+        const success = await executeSave(newLinks, false);
+
+        if (success) {
+            setNewItem({ name: '', url: '', lecture_fee: '0', social_fee: '0', venue_lecture: '', venue_social: '', rank_id: '', product_code: '' });
+        }
     };
 
     const handleDelete = (index: number) => {
@@ -399,47 +454,7 @@ export default function ProductMasterPage() {
 
     const handleSave = async () => {
         if (!confirm('変更を保存しますか？')) return;
-        try {
-            // 1. 支払いリンクを準備
-            const saveLinks = paymentLinks.map(item => ({
-                name: item.name,
-                key: item.name, // キーが名前と一致することを確認
-                url: item.url,
-                lecture_fee: Number(item.lecture_fee),
-                social_fee: Number(item.social_fee),
-                venue_lecture: item.venue_lecture,
-                venue_social: item.venue_social,
-                rank_id: item.rank_id,
-                product_code: item.product_code
-            }));
-
-            // 2. 商品マスタ名を準備 (キーと順序を同期)
-            const saveMaster = {
-                ...master,
-                names: saveLinks.map(l => l.name) // ここで順序が保持されます！
-            };
-
-            const payload = {
-                product_name_master: saveMaster,
-                payment_links: saveLinks
-            };
-
-            const res = await fetch('/api/admin/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...payload, url_prefix: urlPrefix, url_suffix: urlSuffix })
-            });
-
-            if (res.ok) {
-                alert('保存しました');
-                fetchSettings(); // Reload to confirm
-            } else {
-                alert('保存に失敗しました');
-            }
-        } catch (e) {
-            console.error(e);
-            alert('エラーが発生しました');
-        }
+        await executeSave(paymentLinks);
     };
 
     const getSocialOptions = (lectureVenueName: string) => {
