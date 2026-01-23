@@ -112,8 +112,9 @@ export async function POST(request: Request) {
         });
 
         const paymentLinks = settings.payment_links || [];
-        const adminEmail = settings.admin_email;
-        const adminBccEmail = settings.admin_bcc_email;
+        // 管理者メールの設定 (DB設定優先、なければ環境変数)
+        const adminEmail = settings.admin_email || process.env.ADMIN_EMAIL;
+        const adminBccEmail = settings.admin_bcc_email || process.env.ADMIN_BCC_EMAIL;
 
         // 3. 商品マッチング
         // 条件: 講義会場 AND 懇親会会場 AND 対象属性
@@ -210,8 +211,6 @@ export async function POST(request: Request) {
         }
 
         const paymentLinkSection = (matchedProduct && paymentUrl) ? `
-合計金額: ${totalAmount.toLocaleString()} 円
-
 引き続き、以下のリンクより決済のお手続きをお願いいたします。
 
 ▼ 決済リンク
