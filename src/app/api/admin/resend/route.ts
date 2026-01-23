@@ -33,8 +33,8 @@ export async function POST(request: Request) {
         });
 
         const paymentLinks = settings.payment_links || [];
-        const adminEmail = settings.admin_email;
-        const adminBccEmail = settings.admin_bcc_email;
+        const adminEmail = settings.admin_email || process.env.ADMIN_EMAIL;
+        const adminBccEmail = settings.admin_bcc_email || process.env.ADMIN_BCC_EMAIL;
 
         // 3. 支払いリンク情報
         let paymentLink = null;
@@ -61,14 +61,8 @@ export async function POST(request: Request) {
         const displayVenue = venueDisplayMap[app.venue] || app.venue;
         const displaySocialVenue = venueDisplayMap[app.social_venue] || app.social_venue;
 
-        const paymentLinkSection = paymentUrl ? `
-合計金額: ${app.total_amount.toLocaleString()} 円
-
-引き続き、以下のリンクより決済のお手続きをお願いいたします。
-
-▼ 決済リンク
-${paymentUrl}
-` : '';
+        // 修正: 案内文と合計金額を削除し、URLのみにする
+        const paymentLinkSection = paymentUrl ? paymentUrl : '';
 
         const vars = {
             name: app.input_name,
@@ -83,6 +77,7 @@ ${paymentUrl}
         const emailContent = customBody || processEmailTemplate(template.body, vars);
 
         // CC/BCC ロジック
+        // app.cc_email が null の場合は adminEmail を使用 (未設定なら undefined)
         const effectiveCC = app.cc_email !== null ? app.cc_email : adminEmail;
         const effectiveBCC = app.bcc_email !== null ? app.bcc_email : adminBccEmail;
 

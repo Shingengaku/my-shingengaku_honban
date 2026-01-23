@@ -51,9 +51,9 @@ export async function POST(request: Request) {
 
         let paymentLinkSection = '';
         if (paymentUrl) {
-            paymentLinkSection = `引き続き、以下のリンクより決済のお手続きをお願いいたします。\n\n▼ 決済リンク\n${paymentUrl}`;
+            paymentLinkSection = paymentUrl; // 純粋にURLのみ
         } else {
-            paymentLinkSection = `本お申込みの費用は発生しません（または当日支払いです）。\n当日会場でお待ちしております。`;
+            paymentLinkSection = `本お申込みの費用は発生しません（または当日支払いです）。`;
         }
 
         const content = processEmailTemplate(emailTemplate.body, {
@@ -65,9 +65,8 @@ export async function POST(request: Request) {
             payment_link_section: paymentLinkSection
         });
 
-        const adminEmail = settingsData?.find(r => r.key === 'admin_email')?.value || null;
-
-        const adminBccEmail = settingsData?.find(r => r.key === 'admin_bcc_email')?.value || null;
+        const adminEmail = settingsData?.find(r => r.key === 'admin_email')?.value || process.env.ADMIN_EMAIL;
+        const adminBccEmail = settingsData?.find(r => r.key === 'admin_bcc_email')?.value || process.env.ADMIN_BCC_EMAIL;
 
         // 管理者とアプリ固有のCC/BCCをマージ
         // 新ロジック: 個別設定がグローバル設定を上書きします。マージはしません。
