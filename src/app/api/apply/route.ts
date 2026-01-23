@@ -210,12 +210,7 @@ export async function POST(request: Request) {
             template = (dbTemplate && dbTemplate.subject) ? dbTemplate : DEFAULT_EMAIL_TEMPLATE_GENERAL;
         }
 
-        const paymentLinkSection = (matchedProduct && paymentUrl) ? `
-引き続き、以下のリンクより決済のお手続きをお願いいたします。
-
-▼ 決済リンク
-${paymentUrl}
-` : '';
+        const paymentLinkSection = (matchedProduct && paymentUrl) ? paymentUrl : '';
 
         const vars = {
             name: name,
