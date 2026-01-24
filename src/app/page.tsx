@@ -30,6 +30,11 @@ export default function Home() {
   // 会場マスタ用
   const [venueMaster, setVenueMaster] = useState<{ name: string, type: string }[]>([]);
   const [socialMaster, setSocialMaster] = useState<{ name: string, type: string }[]>([]);
+  const [onlineOptions, setOnlineOptions] = useState<{ name: string, type: string }[]>([]);
+
+  // 参加タイプ
+  const [participationType, setParticipationType] = useState<'venue' | 'online'>('venue');
+  const [selectedOnlineOption, setSelectedOnlineOption] = useState<string>('');
 
   const [terms, setTerms] = useState<Term[]>([]);
 
@@ -44,10 +49,11 @@ export default function Home() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const [settingsRes, termsRes, venuesRes] = await Promise.all([
+        const [settingsRes, termsRes, venuesRes, onlineRes] = await Promise.all([
           fetch('/api/settings', { cache: 'no-store' }),
           fetch('/api/terms', { cache: 'no-store' }),
-          fetch('/api/venues', { cache: 'no-store' })
+          fetch('/api/venues', { cache: 'no-store' }),
+          fetch('/api/online-options', { cache: 'no-store' })
         ]);
 
         if (settingsRes.ok) {
@@ -66,6 +72,10 @@ export default function Home() {
           const vData = await venuesRes.json();
           setVenueMaster(vData.filter((v: any) => v.type === 'lecture'));
           setSocialMaster(vData.filter((v: any) => v.type === 'social'));
+        }
+        if (onlineRes.ok) {
+          const oData = await onlineRes.json();
+          setOnlineOptions(oData);
         }
       } catch (e) {
         console.error('Failed to load settings or terms');
@@ -91,17 +101,32 @@ export default function Home() {
       return;
     }
 
-    // バリデーション: 少なくとも1つは選択する必要があります（「なし」を含む）
-    // バリデーション: 会場が選択されている場合、少なくとも1つの懇親会オプションを選択する必要があります
-    // 注: ユーザーは懇親会で「なし」を選択できます。
-    if (selectedSocialVenues.length === 0) {
-      setError('懇親会の参加有無（または「参加しません」）を選択してください');
-      setLoading(false);
-      return;
-    }
+    let finalVenue = '';
+    let finalSocialVenue = '';
 
-    const finalSocialVenue = selectedSocialVenues.join('・');
-    const finalVenue = selectedVenues.join('・');
+    if (participationType === 'venue') {
+      if (selectedSocialVenues.length === 0) {
+        setError('懇親会の参加有無（または「参加しません」）を選択してください');
+        setLoading(false);
+        return;
+      }
+      finalVenue = selectedVenues.join('・');
+      finalSocialVenue = selectedSocialVenues.join('・');
+      if (!finalVenue) { // 会場選択チェック
+        setError('会場を選択してください');
+        setLoading(false);
+        return;
+      }
+    } else {
+      // オンラインの場合
+      if (!selectedOnlineOption) {
+        setError('オンライン視聴の種類を選択してください');
+        setLoading(false);
+        return;
+      }
+      finalVenue = selectedOnlineOption;
+      finalSocialVenue = 'none'; // オンラインは懇親会なし
+    }
 
     try {
       const payload = {
@@ -109,9 +134,11 @@ export default function Home() {
         venue: finalVenue,
         social_venue: finalSocialVenue,
         introducer: !isStudent ? introducer : undefined,
+        introducer: !isStudent ? introducer : undefined,
         no_introducer: !isStudent ? noIntroducer : undefined,
         // 一般の場合は term_id を空にする
         term_id: isStudent ? formData.term_id : undefined,
+        participation_type: participationType,
       };
 
       const res = await fetch('/api/apply', {
@@ -424,154 +451,198 @@ export default function Home() {
               </div>
             )}
 
-            <div>
-              <span className="block text-sm font-medium text-gray-700 mb-2">
-                参加会場
+            {/* 参加タイプ選択 */}
+            <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-lg">
+              <span className="block text-sm font-bold text-gray-700 mb-2">
+                参加タイプ
                 <span className="text-red-500 ml-1">*必須</span>
               </span>
-              <div className="space-y-2">
-                {venueMaster.length > 0 ? (
-                  <>
-                    {venueMaster.map((v) => (
-                      <label key={v.name} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          name="venue"
-                          value={v.name}
-                          checked={selectedVenues.includes(v.name)}
-                          onChange={(e) => handleVenueChange(v.name, e.target.checked)}
-                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        />
-                        <span className="ml-2 text-gray-700">{v.name}</span>
-                      </label>
-                    ))}
-                  </>
-                ) : (
-                  <>
-                    {/* マスタが空の場合のフォールバック */}
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        value="東京"
-                        checked={selectedVenues.includes('東京')}
-                        onChange={(e) => handleVenueChange('東京', e.target.checked)}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                      />
-                      <span className="ml-2 text-gray-700">東京</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        value="福岡"
-                        checked={selectedVenues.includes('福岡')}
-                        onChange={(e) => handleVenueChange('福岡', e.target.checked)}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                      />
-                      <span className="ml-2 text-gray-700">福岡</span>
-                    </label>
-                  </>
-                )}
-
-                <label className="flex items-center">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <label className={`flex p-3 border rounded-md cursor-pointer transition-colors ${participationType === 'venue' ? 'bg-white border-indigo-500 ring-2 ring-indigo-200' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
                   <input
-                    type="checkbox"
-                    value="参加しない"
-                    checked={selectedVenues.includes('参加しない')}
-                    onChange={(e) => handleVenueChange('参加しない', e.target.checked)}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    type="radio"
+                    name="participationType"
+                    value="venue"
+                    checked={participationType === 'venue'}
+                    onChange={() => setParticipationType('venue')}
+                    className="mt-0.5 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
                   />
-                  <span className="ml-2 text-gray-700">参加しません</span>
+                  <div className="ml-2">
+                    <span className="block text-sm font-bold text-gray-900">会場参加</span>
+                    <span className="block text-xs text-gray-500">現地会場にて講義を受講します</span>
+                  </div>
                 </label>
-                {(selectedVenues.length > 1 && !selectedVenues.includes('参加しない')) && (
-                  <p className="text-xs text-blue-600 ml-6">※複数会場に参加される場合は、全て選択してください。</p>
-                )}
+                <label className={`flex p-3 border rounded-md cursor-pointer transition-colors ${participationType === 'online' ? 'bg-white border-indigo-500 ring-2 ring-indigo-200' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+                  <input
+                    type="radio"
+                    name="participationType"
+                    value="online"
+                    checked={participationType === 'online'}
+                    onChange={() => setParticipationType('online')}
+                    className="mt-0.5 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  />
+                  <div className="ml-2">
+                    <span className="block text-sm font-bold text-gray-900">オンライン参加</span>
+                    <span className="block text-xs text-gray-500">LIVE配信または録画を視聴します</span>
+                  </div>
+                </label>
               </div>
             </div>
 
-            <div>
-              <span className="block text-sm font-medium text-gray-700 mb-2">
-                懇親会
-                <span className="text-red-500 ml-1">*必須</span>
-              </span>
-              <div className="space-y-2 pl-4">
-                {socialMaster.length > 0 ? (
-                  <>
-                    {socialMaster.map(s => {
-                      // ロジック: この懇親会会場は選択可能ですか？
-                      let isDisabled = false;
-
-                      if (selectedVenues.length === 0) {
-                        // ケース 1: 会場が選択されていない -> すべて有効
-                        isDisabled = false;
-                      } else if (selectedVenues.includes('参加しない') && selectedVenues.length === 1) {
-                        // ケース 2: 「参加しない」のみ選択 -> 「参加しない」のみ許可
-                        isDisabled = s.name !== '参加しません';
-                      } else {
-                        // ケース 3: 特定の会場が選択されている
-                        if (s.name === '参加しません') {
-                          isDisabled = false; // 「なし」は常に許可
-                        } else {
-                          // 対応を確認 (例: 「東京」が選択 -> 「懇親会東京のみ」有効)
-                          isDisabled = !selectedVenues.some(lv => s.name.includes(lv));
-                        }
-                      }
-
-                      return (
-                        <label key={s.name} className={`flex items-center ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+            {/* 会場選択 (参加タイプが会場の場合) */}
+            {participationType === 'venue' && (
+              <div className="animate-fade-in">
+                <span className="block text-sm font-medium text-gray-700 mb-2">
+                  会場選択
+                  <span className="text-red-500 ml-1">*必須</span>
+                </span>
+                <div className="space-y-2">
+                  {venueMaster.length > 0 ? (
+                    <>
+                      {venueMaster.map((v) => (
+                        <label key={v.name} className="flex items-center">
                           <input
                             type="checkbox"
-                            checked={selectedSocialVenues.includes(s.name)}
-                            disabled={isDisabled}
-                            onChange={(e) => handleSocialChange(s.name, e.target.checked)}
+                            name="venue"
+                            value={v.name}
+                            checked={selectedVenues.includes(v.name)}
+                            onChange={(e) => handleVenueChange(v.name, e.target.checked)}
                             className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                           />
-                          <span className="ml-2 text-gray-700">{s.name}</span>
+                          <span className="ml-2 text-gray-700">{v.name}</span>
                         </label>
-                      );
-                    })}
-                  </>
-                ) : (
-                  <>
-                    {/* フォールバック */}
-                    <label className={`flex items-center ${(selectedVenues.length > 0 && !selectedVenues.includes('東京')) ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                      <input
-                        type="checkbox"
-                        checked={selectedSocialVenues.includes('東京懇親会')}
-                        disabled={selectedVenues.length > 0 && !selectedVenues.includes('東京')}
-                        onChange={(e) => handleSocialChange('東京懇親会', e.target.checked)}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                      />
-                      <span className="ml-2 text-gray-700">東京懇親会</span>
-                    </label>
-                    <label className={`flex items-center ${(selectedVenues.length > 0 && !selectedVenues.includes('福岡')) ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                      <input
-                        type="checkbox"
-                        checked={selectedSocialVenues.includes('福岡懇親会')}
-                        disabled={selectedVenues.length > 0 && !selectedVenues.includes('福岡')}
-                        onChange={(e) => handleSocialChange('福岡懇親会', e.target.checked)}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                      />
-                      <span className="ml-2 text-gray-700">福岡懇親会</span>
-                    </label>
-                  </>
-                )}
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      {/* マスタが空の場合のフォールバック */}
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          value="東京"
+                          checked={selectedVenues.includes('東京')}
+                          onChange={(e) => handleVenueChange('東京', e.target.checked)}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-gray-700">東京</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          value="福岡"
+                          checked={selectedVenues.includes('福岡')}
+                          onChange={(e) => handleVenueChange('福岡', e.target.checked)}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-gray-700">福岡</span>
+                      </label>
+                    </>
+                  )}
 
-                <label className={`flex items-center`}>
-                  <input
-                    type="checkbox"
-                    value="参加しない"
-                    checked={selectedSocialVenues.includes('参加しない')}
-                    onChange={(e) => handleSocialChange('参加しない', e.target.checked)}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
-                  <span className="ml-2 text-gray-700">参加しません</span>
-                </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      value="参加しない"
+                      checked={selectedVenues.includes('参加しない')}
+                      onChange={(e) => handleVenueChange('参加しない', e.target.checked)}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-gray-700">参加しません</span>
+                  </label>
+                  {(selectedVenues.length > 1 && !selectedVenues.includes('参加しない')) && (
+                    <p className="text-xs text-blue-600 ml-6">※複数会場に参加される場合は、全て選択してください。</p>
+                  )}
+                </div>
               </div>
+            )}
 
-              {(selectedVenues.length === 0) && (
-                <p className="text-xs text-red-500 mt-1">※会場を選択してください</p>
-              )}
-            </div>
+            {/* 懇親会 (会場参加のみ表示) */}
+            {participationType === 'venue' && (
+              <div>
+                <span className="block text-sm font-medium text-gray-700 mb-2">
+                  懇親会
+                  <span className="text-red-500 ml-1">*必須</span>
+                </span>
+                <div className="space-y-2 pl-4">
+                  {socialMaster.length > 0 ? (
+                    <>
+                      {socialMaster.map(s => {
+                        // ロジック: この懇親会会場は選択可能ですか？
+                        let isDisabled = false;
+
+                        if (selectedVenues.length === 0) {
+                          // ケース 1: 会場が選択されていない -> すべて有効
+                          isDisabled = false;
+                        } else if (selectedVenues.includes('参加しない') && selectedVenues.length === 1) {
+                          // ケース 2: 「参加しない」のみ選択 -> 「参加しない」のみ許可
+                          isDisabled = s.name !== '参加しません';
+                        } else {
+                          // ケース 3: 特定の会場が選択されている
+                          if (s.name === '参加しません') {
+                            isDisabled = false; // 「なし」は常に許可
+                          } else {
+                            // 対応を確認 (例: 「東京」が選択 -> 「懇親会東京のみ」有効)
+                            isDisabled = !selectedVenues.some(lv => s.name.includes(lv));
+                          }
+                        }
+
+                        return (
+                          <label key={s.name} className={`flex items-center ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                            <input
+                              type="checkbox"
+                              checked={selectedSocialVenues.includes(s.name)}
+                              disabled={isDisabled}
+                              onChange={(e) => handleSocialChange(s.name, e.target.checked)}
+                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                            />
+                            <span className="ml-2 text-gray-700">{s.name}</span>
+                          </label>
+                        );
+                      })}
+                    </>
+                  ) : (
+                    <>
+                      {/* フォールバック */}
+                      <label className={`flex items-center ${(selectedVenues.length > 0 && !selectedVenues.includes('東京')) ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                        <input
+                          type="checkbox"
+                          checked={selectedSocialVenues.includes('東京懇親会')}
+                          disabled={selectedVenues.length > 0 && !selectedVenues.includes('東京')}
+                          onChange={(e) => handleSocialChange('東京懇親会', e.target.checked)}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-gray-700">東京懇親会</span>
+                      </label>
+                      <label className={`flex items-center ${(selectedVenues.length > 0 && !selectedVenues.includes('福岡')) ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                        <input
+                          type="checkbox"
+                          checked={selectedSocialVenues.includes('福岡懇親会')}
+                          disabled={selectedVenues.length > 0 && !selectedVenues.includes('福岡')}
+                          onChange={(e) => handleSocialChange('福岡懇親会', e.target.checked)}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-gray-700">福岡懇親会</span>
+                      </label>
+                    </>
+                  )}
+
+                  <label className={`flex items-center`}>
+                    <input
+                      type="checkbox"
+                      value="参加しない"
+                      checked={selectedSocialVenues.includes('参加しない')}
+                      onChange={(e) => handleSocialChange('参加しない', e.target.checked)}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-gray-700">参加しません</span>
+                  </label>
+                </div>
+
+                {(selectedVenues.length === 0) && (
+                  <p className="text-xs text-red-500 mt-1">※会場を選択してください</p>
+                )}
+              </div>
+            )}
 
             {error && <p className="text-red-500 text-sm">{error}</p>}
 
@@ -594,30 +665,32 @@ export default function Home() {
       </div>
 
       {/* お知らせポップアップ */}
-      {showInfoModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50 px-4">
-          <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full relative">
-            <button
-              onClick={() => setShowInfoModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 font-bold text-xl"
-            >
-              ×
-            </button>
-            <h3 className="text-lg font-bold mb-4 text-gray-900">お知らせ</h3>
-            <div className="whitespace-pre-wrap text-sm text-gray-600 mb-6 max-h-[60vh] overflow-y-auto">
-              {infoText}
-            </div>
-            <div className="text-center">
+      {
+        showInfoModal && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50 px-4">
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full relative">
               <button
                 onClick={() => setShowInfoModal(false)}
-                className="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 font-bold"
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 font-bold text-xl"
               >
-                確認しました
+                ×
               </button>
+              <h3 className="text-lg font-bold mb-4 text-gray-900">お知らせ</h3>
+              <div className="whitespace-pre-wrap text-sm text-gray-600 mb-6 max-h-[60vh] overflow-y-auto">
+                {infoText}
+              </div>
+              <div className="text-center">
+                <button
+                  onClick={() => setShowInfoModal(false)}
+                  className="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 font-bold"
+                >
+                  確認しました
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }

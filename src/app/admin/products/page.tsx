@@ -32,6 +32,7 @@ interface Venue {
     id: number;
     name: string;
     type: 'lecture' | 'social';
+    isOnline?: boolean;
 }
 
 interface PaymentLinkItem {
@@ -135,7 +136,9 @@ function MultiSelectVenue({
                                     onChange={(e) => handleChange(e, opt.name)}
                                     className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4"
                                 />
-                                <span className="text-sm text-gray-700">{opt.name}</span>
+                                <span className={`text-sm ${opt.isOnline ? 'text-blue-800' : 'text-gray-700'}`}>
+                                    {opt.isOnline ? `[Online] ${opt.name}` : opt.name}
+                                </span>
                             </label>
                         ))}
                         <div className="border-t my-1"></div>
@@ -206,7 +209,7 @@ function SortableRow({
                     className="w-full border rounded px-2 py-1 bg-white text-gray-600 font-mono"
                     value={item.product_code || ''}
                     onChange={(e) => updateItem(index, { product_code: e.target.value })}
-                    placeholder="Code"
+                    placeholder="管理コード"
                 />
             </td>
             <td className="p-2 align-top">
@@ -298,20 +301,38 @@ export default function ProductMasterPage() {
     const fetchSettings = async () => {
         setLoading(true);
         try {
-            const [res, venuesRes, ranksRes] = await Promise.all([
+            const [res, venuesRes, ranksRes, onlineRes] = await Promise.all([
                 fetch('/api/admin/settings'),
                 fetch('/api/admin/venues'),
-                fetch('/api/admin/ranks')
+                fetch('/api/admin/ranks'),
+                fetch('/api/admin/online-options')
             ]);
 
             if (res.ok) {
                 const data = await res.json();
                 const settings = data;
 
+                let mergedVenues: Venue[] = [];
+
+                // Venue List
                 if (venuesRes.ok) {
                     const vData = await venuesRes.json();
-                    setVenueList(vData);
+                    mergedVenues = [...vData];
                 }
+
+                // Online Options (merged as 'lecture' type for selection purposes, but distinguished by name)
+                if (onlineRes.ok) {
+                    const oData = await onlineRes.json();
+                    const onlineVenues = oData.map((o: any) => ({
+                        id: 1000 + o.id, // Offset ID to avoid conflict
+                        name: o.name,
+                        type: 'lecture', // Treat as lecture for dropdown
+                        isOnline: true
+                    }));
+                    mergedVenues = [...mergedVenues, ...onlineVenues];
+                }
+
+                setVenueList(mergedVenues);
 
                 if (ranksRes.ok) {
                     setRanks(await ranksRes.json());

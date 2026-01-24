@@ -24,6 +24,7 @@ interface Application {
     cc_email?: string;
     bcc_email?: string;
     tags?: string[]; // タグの文字配列
+    participation_type?: 'venue' | 'online'; // 参加タイプ
     // リレーション
     members?: {
         generation?: number;
@@ -132,6 +133,7 @@ export default function AdminDashboard() {
     // 新しい会場フィルター
     const [filterVenueLecture, setFilterVenueLecture] = useState<Set<string>>(new Set());
     const [filterVenueSocial, setFilterVenueSocial] = useState<Set<string>>(new Set());
+    const [filterParticipationType, setFilterParticipationType] = useState<'all' | 'venue' | 'online'>('all');
 
     // 編集モーダルの状態
     const [editingApp, setEditingApp] = useState<Application | null>(null);
@@ -251,7 +253,13 @@ export default function AdminDashboard() {
             const res = await fetch('/api/admin/applications');
             if (res.ok) {
                 const data = await res.json();
-                setApps(data);
+                // データの整形 (participation_typeの補完など)
+                const formatted = data.map((d: any) => ({
+                    ...d,
+                    // タグから推測する場合のロジック (後方互換性)
+                    participation_type: d.participation_type || (d.venue && ['LIVE視聴', 'アーカイブ視聴'].some((o: string) => d.venue.includes(o)) ? 'online' : 'venue')
+                }));
+                setApps(formatted);
             }
         } catch (e) {
             console.error(e);
@@ -638,7 +646,8 @@ export default function AdminDashboard() {
             payment_key: app.payment_key,
             member_generation: app.members?.generation,
             cc_email: app.cc_email || adminEmail || '',
-            bcc_email: app.bcc_email || adminBccEmail || ''
+            bcc_email: app.bcc_email || adminBccEmail || '',
+            participation_type: app.participation_type
         });
         setShowModal(true);
     };
@@ -696,7 +705,8 @@ export default function AdminDashboard() {
                 member_generation: editForm.member_generation,
                 payment_key: editForm.payment_key, // Include product name
                 cc_email: editForm.cc_email,
-                bcc_email: editForm.bcc_email
+                bcc_email: editForm.bcc_email,
+                participation_type: editForm.participation_type
             };
 
             const res = await fetch('/api/admin/applications/edit', {
@@ -759,8 +769,9 @@ export default function AdminDashboard() {
         });
 
         const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+
         const header = [
-            'ID', '氏名', 'ふりがな', 'メールアドレス', '属性', '期', '会場', '懇親会', '合計金額', '支払状況', '環境', '申込日時', '備考', 'タグ'
+            'ID', '氏名', 'ふりがな', 'メールアドレス', '属性', '期', '会場', '懇親会', '合計金額', '支払状況', '環境', '申込日時', '備考', 'タグ', '参加タイプ'
         ].join(',');
 
         const rows = targetApps.map(app => {
@@ -786,7 +797,8 @@ export default function AdminDashboard() {
                 `"${env}"`,
                 `"${new Date(app.created_at).toLocaleString('ja-JP')}"`,
                 `"${remarks}"`,
-                `"${tags}"`
+                `"${tags}"`,
+                `"${app.participation_type === 'online' ? 'オンライン' : '会場'}"`
             ].join(',');
         });
 
@@ -1218,7 +1230,7 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {loading ? (
-                            <tr><td colSpan={9} className="px-6 py-4 text-center">Loading...</td></tr>
+                            <tr><td colSpan={9} className="px-6 py-4 text-center">読み込み中...</td></tr>
                         ) : sortedApps.length === 0 ? (
                             <tr><td colSpan={9} className="px-6 py-4 text-center">データがありません</td></tr>
                         ) : (
@@ -1306,7 +1318,7 @@ export default function AdminDashboard() {
                                         <td className="px-6 py-4 align-top">
                                             <div className="text-sm text-gray-900">
                                                 <span className="font-bold text-xs text-gray-400 block">講義:</span>
-                                                {app.venue === 'both' ? '東京・福岡' : (app.venue === 'tokyo' ? '東京' : (app.venue === 'fukuoka' ? '福岡' : (app.venue === 'none' ? '参加しない' : '-')))}
+                                                {app.venue === 'both' ? '東京・福岡' : (app.venue === 'tokyo' ? '東京' : (app.venue === 'fukuoka' ? '福岡' : (app.venue === 'none' ? '参加しない' : (app.venue || '-'))))}
                                             </div>
                                             <div className="text-sm text-gray-900 mt-1">
                                                 <span className="font-bold text-xs text-gray-400 block">懇親会:</span>

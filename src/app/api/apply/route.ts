@@ -13,6 +13,7 @@ interface ApplyRequest {
     term_id?: string; // 非受講生の場合は任意
     introducer?: string;
     no_introducer?: boolean;
+    participation_type?: string;
 }
 
 interface PaymentLinkItem {
@@ -42,7 +43,7 @@ const venueDisplayMap: Record<string, string> = {
 export async function POST(request: Request) {
     try {
         const body: ApplyRequest = await request.json();
-        let { name, furigana, email, venue, social_venue, term_id, introducer, no_introducer } = body;
+        let { name, furigana, email, venue, social_venue, term_id, introducer, no_introducer, participation_type } = body;
 
         // 0. データの正規化
         if (name) {
@@ -182,8 +183,10 @@ export async function POST(request: Request) {
                 payment_status: paymentStatus,
                 matched_member_id: memberId,
                 applied_rank_name: rankName,
+
                 remarks: remarks || null,
-                tags: tags
+                tags: tags,
+                participation_type: participation_type || 'venue'
             });
 
         if (insertError) {
