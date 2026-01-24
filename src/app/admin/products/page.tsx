@@ -222,13 +222,19 @@ function SortableRow({
                     onChange={(val) => {
                         let newSocial = item.venue_social;
 
-                        if (val === '参加しない') {
+                        // オンライン判定
+                        const selectedNames = val.split('・');
+                        const isOnline = venueList.some(v => selectedNames.includes(v.name) && v.isOnline);
+
+                        if (isOnline) {
+                            newSocial = 'ー';
+                        } else if (val === '参加しない') {
                             newSocial = '参加しない';
                         } else if (!val) {
                             newSocial = '';
                         } else {
-                            // ユーザーが懇親会で「参加しない」を選択しており、講義を有効な会場に変更した場合、懇親会をクリアします
-                            if (newSocial === '参加しない') {
+                            // ユーザーが懇親会で「参加しない」または「ー」を選択しており、講義を有効な会場に変更した場合、懇親会をクリアします
+                            if (newSocial === '参加しない' || newSocial === 'ー') {
                                 newSocial = '';
                             }
                         }
@@ -754,12 +760,18 @@ export default function ProductMasterPage() {
                                 onChange={(val) => {
                                     let newSocial = newItem.venue_social;
 
-                                    if (val === '参加しない') {
+                                    // オンライン判定: 選択された値にオンライン会場が含まれているか
+                                    const selectedNames = val.split('・');
+                                    const isOnline = venueList.some(v => selectedNames.includes(v.name) && v.isOnline);
+
+                                    if (isOnline) {
+                                        newSocial = 'ー';
+                                    } else if (val === '参加しない') {
                                         newSocial = '参加しない';
                                     } else if (!val) {
                                         newSocial = '';
                                     } else {
-                                        if (newSocial === '参加しない') {
+                                        if (newSocial === '参加しない' || newSocial === 'ー') {
                                             newSocial = '';
                                         }
                                     }
