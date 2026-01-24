@@ -224,16 +224,20 @@ function SortableRow({
 
                         // オンライン判定
                         const selectedNames = val.split('・');
-                        const isOnline = venueList.some(v => selectedNames.includes(v.name) && v.isOnline);
+                        const onlineVenues = venueList.filter(v => v.isOnline).map(v => v.name);
+                        const physicalVenues = venueList.filter(v => !v.isOnline && v.type === 'lecture').map(v => v.name);
 
-                        if (isOnline) {
+                        const hasOnline = selectedNames.some(name => onlineVenues.includes(name));
+                        const hasPhysical = selectedNames.some(name => physicalVenues.includes(name));
+
+                        // オンラインが含まれていて、かつ物理会場が含まれていない場合のみ「ー」にする
+                        if (hasOnline && !hasPhysical) {
                             newSocial = 'ー';
                         } else if (val === '参加しない') {
                             newSocial = '参加しない';
                         } else if (!val) {
                             newSocial = '';
                         } else {
-                            // ユーザーが懇親会で「参加しない」または「ー」を選択しており、講義を有効な会場に変更した場合、懇親会をクリアします
                             if (newSocial === '参加しない' || newSocial === 'ー') {
                                 newSocial = '';
                             }
@@ -762,15 +766,24 @@ export default function ProductMasterPage() {
 
                                     // オンライン判定: 選択された値にオンライン会場が含まれているか
                                     const selectedNames = val.split('・');
-                                    const isOnline = venueList.some(v => selectedNames.includes(v.name) && v.isOnline);
+                                    const onlineVenues = venueList.filter(v => v.isOnline).map(v => v.name);
+                                    const physicalVenues = venueList.filter(v => !v.isOnline && v.type === 'lecture').map(v => v.name);
 
-                                    if (isOnline) {
+                                    const hasOnline = selectedNames.some(name => onlineVenues.includes(name));
+                                    const hasPhysical = selectedNames.some(name => physicalVenues.includes(name));
+
+                                    // オンラインが含まれていて、かつ物理会場が含まれていない場合のみ「ー」にする
+                                    if (hasOnline && !hasPhysical) {
                                         newSocial = 'ー';
                                     } else if (val === '参加しない') {
                                         newSocial = '参加しない';
                                     } else if (!val) {
                                         newSocial = '';
                                     } else {
+                                        // ユーザーが「参加しない」または「ー」を選択していたが、有効な物理会場が追加された場合などはクリアして再選択を促す
+                                        // ただし、物理会場がある場合はその会場に対応する懇親会を選べるようにするため、
+                                        // ここでの強制クリアは「不適切な値が残っている場合」に限るべきですが、
+                                        // シンプルに「参加しない」「ー」から物理ありに変わったときはクリアで良いでしょう。
                                         if (newSocial === '参加しない' || newSocial === 'ー') {
                                             newSocial = '';
                                         }
