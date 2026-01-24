@@ -141,17 +141,6 @@ function MultiSelectVenue({
                                 </span>
                             </label>
                         ))}
-                        <div className="border-t my-1"></div>
-                        <label className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                            <input
-                                type="checkbox"
-                                value={notParticipating}
-                                checked={selectedValues.includes(notParticipating)}
-                                onChange={(e) => handleChange(e, notParticipating)}
-                                className="rounded text-red-600 focus:ring-red-500 h-4 w-4"
-                            />
-                            <span className="text-sm text-red-600 font-bold">{notParticipating}</span>
-                        </label>
                     </div>
                 </div>
             )}
