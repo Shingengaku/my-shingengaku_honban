@@ -55,7 +55,8 @@ export default function OnlineOptionsPage() {
                 setNewItem({ name: '', type: 'live' });
                 fetchOptions();
             } else {
-                alert('追加に失敗しました');
+                const data = await res.json();
+                alert('追加に失敗しました: ' + (data.error || '不明なエラー'));
             }
         } catch (e) {
             alert('エラーが発生しました');

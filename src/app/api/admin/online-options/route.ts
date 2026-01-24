@@ -26,6 +26,7 @@ export async function POST(req: Request) {
             .single();
 
         if (error) {
+            console.error('Error adding online option:', error);
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
