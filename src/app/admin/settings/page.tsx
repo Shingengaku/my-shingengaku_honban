@@ -137,11 +137,14 @@ export default function GlobalSettingsPage() {
                         />
                     </div>
 
-                    <div className="border-t pt-6">
+                    <div className="border-t pt-6 flex gap-4">
+                        <Link href="/admin/dashboard" className="w-1/3 py-3 px-4 border border-gray-300 rounded-md shadow-sm text-center text-gray-700 bg-white hover:bg-gray-50 font-bold block">
+                            閉じる
+                        </Link>
                         <button
                             onClick={handleSave}
                             disabled={saving}
-                            className={`w-full py-3 px-4 border border-transparent rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 font-bold ${saving ? 'opacity-50' : ''}`}
+                            className={`w-2/3 py-3 px-4 border border-transparent rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 font-bold ${saving ? 'opacity-50' : ''}`}
                         >
                             {saving ? '保存中...' : '設定を保存する'}
                         </button>
