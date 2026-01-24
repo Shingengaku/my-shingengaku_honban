@@ -6,7 +6,7 @@ export async function GET() {
     const { data, error } = await supabaseAdmin
         .from('app_settings')
         .select('*')
-        .in('key', ['application_text', 'application_active', 'application_title']);
+        .in('key', ['application_text', 'application_active', 'application_title', 'application_title_size']);
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
@@ -21,7 +21,8 @@ export async function GET() {
     const settings = {
         application_text: settingsMap.application_text || '',
         application_active: settingsMap.application_active !== false, // Default to true if not set or explicitly true
-        application_title: settingsMap.application_title || ''
+        application_title: settingsMap.application_title || '',
+        application_title_size: settingsMap.application_title_size || 'text-3xl' // Default size
     };
 
     return NextResponse.json(settings);

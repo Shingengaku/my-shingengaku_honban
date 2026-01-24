@@ -96,6 +96,11 @@ export async function POST(request: Request) {
                 supabaseAdmin.from('app_settings').upsert({ key: 'application_title', value: body.application_title }, { onConflict: 'key' })
             );
         }
+        if (typeof body.application_title_size !== 'undefined') {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'application_title_size', value: body.application_title_size }, { onConflict: 'key' })
+            );
+        }
 
         await Promise.all(updates);
 

@@ -7,7 +7,8 @@ export default function GlobalSettingsPage() {
     const [settings, setSettings] = useState({
         application_text: '',
         application_active: true,
-        application_title: ''
+        application_title: '',
+        application_title_size: 'text-3xl'
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -31,7 +32,8 @@ export default function GlobalSettingsPage() {
                     setSettings({
                         application_text: data.application_text || '',
                         application_active: data.application_active !== false, // Default to true
-                        application_title: data.application_title || ''
+                        application_title: data.application_title || '',
+                        application_title_size: data.application_title_size || 'text-3xl'
                     });
                 }
             } catch (e) {
@@ -111,13 +113,27 @@ export default function GlobalSettingsPage() {
                     {/* フォームタイトル */}
                     <div>
                         <h2 className="text-lg font-bold text-gray-900 mb-2">申込フォームタイトル</h2>
-                        <input
-                            type="text"
-                            className="w-full p-3 border rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                            placeholder="例：神言学 集中講座 お申込み"
-                            value={settings.application_title || ''}
-                            onChange={(e) => setSettings({ ...settings, application_title: e.target.value })}
-                        />
+                        <div className="flex gap-4">
+                            <input
+                                type="text"
+                                className="flex-1 p-3 border rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                placeholder="例：神言学 集中講座 お申込み"
+                                value={settings.application_title || ''}
+                                onChange={(e) => setSettings({ ...settings, application_title: e.target.value })}
+                            />
+                            <select
+                                className="w-40 p-3 border rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                value={settings.application_title_size || 'text-3xl'}
+                                onChange={(e) => setSettings({ ...settings, application_title_size: e.target.value })}
+                            >
+                                <option value="text-xl">小 (XL)</option>
+                                <option value="text-2xl">中 (2XL)</option>
+                                <option value="text-3xl">標準 (3XL)</option>
+                                <option value="text-4xl">大 (4XL)</option>
+                                <option value="text-5xl">特大 (5XL)</option>
+                            </select>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">※タイトルの文字サイズを選択できます。</p>
                     </div>
 
                     <div className="border-t pt-6"></div>
