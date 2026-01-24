@@ -138,7 +138,6 @@ export default function Home() {
         venue: finalVenue,
         social_venue: finalSocialVenue,
         introducer: !isStudent ? introducer : undefined,
-        introducer: !isStudent ? introducer : undefined,
         no_introducer: !isStudent ? noIntroducer : undefined,
         // 一般の場合は term_id を空にする
         term_id: isStudent ? formData.term_id : undefined,

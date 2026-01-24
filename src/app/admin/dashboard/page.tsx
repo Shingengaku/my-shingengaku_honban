@@ -404,7 +404,7 @@ export default function AdminDashboard() {
 
             if (res.ok) {
                 alert('設定を保存しました');
-                setShowSettingsModal(false);
+                // setShowSettingsModal(false); // 続けて編集できるように閉じない
             } else {
                 alert('保存失敗');
             }
@@ -1909,7 +1909,7 @@ export default function AdminDashboard() {
                                 onClick={() => setShowSettingsModal(false)}
                                 className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400"
                             >
-                                キャンセル
+                                閉じる
                             </button>
                             <button
                                 onClick={saveSettings}
