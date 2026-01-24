@@ -1071,7 +1071,8 @@ export default function AdminDashboard() {
                             <Link href="/admin/venues" className="text-sm px-3 py-1 bg-pink-50 text-pink-700 rounded hover:bg-pink-100">会場マスタ</Link>
                             <Link href="/admin/online-options" className="text-sm px-3 py-1 bg-yellow-50 text-yellow-700 rounded hover:bg-yellow-100">オンライン</Link>
                             <Link href="/admin/terms" className="text-sm px-3 py-1 bg-orange-50 text-orange-700 rounded hover:bg-orange-100">期マスタ</Link>
-                            <Link href="/admin/users" className="text-sm px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">管理者設定</Link>
+                            <Link href="/admin/settings" className="text-sm px-3 py-1 bg-gray-50 text-gray-700 rounded hover:bg-gray-100">全体設定</Link>
+                            <Link href="/admin/users" className="text-sm px-3 py-1 bg-white border text-gray-700 rounded hover:bg-gray-50">管理者管理</Link>
                         </div>
                         <button onClick={fetchApplications} className="text-sm text-blue-600 hover:underline">再読込</button>
                         <button onClick={() => fetchSettings(true)} className="text-sm text-gray-600 hover:text-gray-900 border px-3 py-1 rounded">設定変更</button>
@@ -1898,8 +1899,8 @@ export default function AdminDashboard() {
                                 <Link href="/admin/venues" className="text-blue-600 hover:underline flex items-center">
                                     会場マスタ管理画面へ ↗
                                 </Link>
-                                <Link href="/admin/popup" className="text-blue-600 hover:underline flex items-center">
-                                    申込画面お知らせ設定へ ↗
+                                <Link href="/admin/settings" className="text-blue-600 hover:underline flex items-center">
+                                    申込画面表示設定へ (タイトル・お知らせ) ↗
                                 </Link>
                             </div>
                         </div>
