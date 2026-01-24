@@ -1441,20 +1441,53 @@ export default function AdminDashboard() {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-bold text-gray-700">参加会場 (講義)</label>
+                                        <label className="block text-sm font-bold text-gray-700">参加タイプ</label>
                                         <select
                                             className="border w-full p-2 rounded"
-                                            value={editForm.venue || ''}
+                                            value={editForm.participation_type || 'venue'}
                                             onChange={(e) => {
-                                                setEditForm({ ...editForm, venue: e.target.value, social_venue: '' });
+                                                const newType = e.target.value as 'venue' | 'online';
+                                                setEditForm({
+                                                    ...editForm,
+                                                    participation_type: newType,
+                                                    social_venue: newType === 'online' ? 'none' : editForm.social_venue,
+                                                    venue: '' // Reset venue to force re-selection
+                                                });
                                             }}
                                         >
-                                            <option value="">(選択なし)</option>
-                                            {venueList.filter(v => v.type === 'lecture').map(opt => (
-                                                <option key={opt.id} value={opt.name}>{opt.name}</option>
-                                            ))}
-                                            <option value="参加しない">参加しない</option>
+                                            <option value="venue">会場参加</option>
+                                            <option value="online">オンライン参加</option>
                                         </select>
+                                    </div>
+                                    <div />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700">参加会場 (講義)</label>
+                                        {/* オンラインの場合はテキスト入力（またはオンラインマスタ？）簡易的に自由入力とする */}
+                                        {editForm.participation_type === 'online' ? (
+                                            <input
+                                                className="border w-full p-2 rounded"
+                                                value={editForm.venue || ''}
+                                                placeholder="オンラインオプション名 (例: LIVE視聴)"
+                                                onChange={(e) => setEditForm({ ...editForm, venue: e.target.value })}
+                                            />
+                                        ) : (
+                                            <select
+                                                className="border w-full p-2 rounded"
+                                                value={editForm.venue || ''}
+                                                onChange={(e) => {
+                                                    setEditForm({ ...editForm, venue: e.target.value, social_venue: '' });
+                                                }}
+                                            >
+                                                <option value="">(選択なし)</option>
+                                                {venueList.filter(v => v.type === 'lecture').map(opt => (
+                                                    <option key={opt.id} value={opt.name}>{opt.name}</option>
+                                                ))}
+                                                <option value="参加しない">参加しない</option>
+                                            </select>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700">参加会場 (懇親会)</label>
@@ -1462,7 +1495,7 @@ export default function AdminDashboard() {
                                             className="border w-full p-2 rounded bg-white disabled:bg-gray-100"
                                             value={editForm.social_venue || ''}
                                             onChange={e => setEditForm({ ...editForm, social_venue: e.target.value })}
-                                            disabled={!editForm.venue}
+                                            disabled={!editForm.venue || editForm.participation_type === 'online'}
                                         >
                                             <option value="">(選択なし)</option>
                                             {(() => {
