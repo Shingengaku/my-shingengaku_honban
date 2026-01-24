@@ -45,6 +45,7 @@ export default function Home() {
   /* ... ポップアップ状態 ... */
   const [infoText, setInfoText] = useState('');
   const [pageTitle, setPageTitle] = useState('神言学 集中講座 お申込み');
+  const [pageTitleSize, setPageTitleSize] = useState('text-3xl');
   const [showInfoModal, setShowInfoModal] = useState(false);
 
   useEffect(() => {
@@ -64,6 +65,9 @@ export default function Home() {
           }
           if (data.application_title) {
             setPageTitle(data.application_title);
+          }
+          if (data.application_title_size) {
+            setPageTitleSize(data.application_title_size);
           }
           if (typeof data.application_active !== 'undefined') {
             setIsActive(data.application_active);
