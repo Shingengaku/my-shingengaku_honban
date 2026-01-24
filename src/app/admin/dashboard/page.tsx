@@ -133,6 +133,8 @@ export default function AdminDashboard() {
     // 新しい会場フィルター
     const [filterVenueLecture, setFilterVenueLecture] = useState<Set<string>>(new Set());
     const [filterVenueSocial, setFilterVenueSocial] = useState<Set<string>>(new Set());
+    // オンライン視聴フィルター
+    const [filterOnlineOption, setFilterOnlineOption] = useState<Set<string>>(new Set());
     const [filterParticipationType, setFilterParticipationType] = useState<'all' | 'venue' | 'online'>('all');
 
     // 編集モーダルの状態
@@ -165,6 +167,7 @@ export default function AdminDashboard() {
     });
     const [termMaster, setTermMaster] = useState<number[]>([]);
     const [venueList, setVenueList] = useState<Venue[]>([]);
+    const [onlineOptionMaster, setOnlineOptionMaster] = useState<{ id: string, name: string }[]>([]);
     const [ranks, setRanks] = useState<{ id: number, name: string }[]>([]);
     const [applicationActive, setApplicationActive] = useState(true); // 申込受付ステータス
 
@@ -244,6 +247,7 @@ export default function AdminDashboard() {
     useEffect(() => {
         fetchApplications();
         fetchRanks(); // ランク情報を取得
+        fetchOnlineOptions(); // オンラインマスタ取得
         fetchSettings(false); // 設定をロード（モーダルは開かない）
     }, []);
 
@@ -275,6 +279,16 @@ export default function AdminDashboard() {
             if (res.ok) {
                 const data = await res.json();
                 setRanks(data);
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    const fetchOnlineOptions = async () => {
+        try {
+            const res = await fetch('/api/admin/online-options');
+            if (res.ok) {
+                const data = await res.json();
+                setOnlineOptionMaster(data);
             }
         } catch (e) { console.error(e); }
     };
@@ -921,6 +935,22 @@ export default function AdminDashboard() {
             if (!filterVenueSocial.has(s)) return false;
         }
 
+        // Online Option Filter
+        if (filterOnlineOption.size > 0) {
+            // もし参加タイプがオンライン以外なら、このフィルターで除外すべきか？
+            // -> はい。オンライン視聴タイプを指定している＝オンライン参加者を探しているため。
+            // また、app.venue に視聴タイプ名が入っている前提
+
+            // 参加タイプチェック (補完ロジックに依存)
+            const pType = app.participation_type || (app.venue && ['LIVE視聴', 'アーカイブ視聴'].some((o: string) => app.venue?.includes(o)) ? 'online' : 'venue');
+
+            if (pType !== 'online') return false;
+
+            // 値チェック
+            const v = app.venue || '';
+            if (!filterOnlineOption.has(v)) return false;
+        }
+
         return true;
     });
 
@@ -1025,21 +1055,25 @@ export default function AdminDashboard() {
     ];
     const uniqueVenueSocialOptions = Array.from(new Map(venueSocialOptions.map(item => [item.value, item])).values());
 
+    const uniqueOnlineOptions = onlineOptionMaster.map(o => ({ label: o.name, value: o.name }));
+
 
     return (
         <div className="min-h-screen bg-gray-100 p-8">
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold text-gray-800">神言学 管理ダッシュボード</h1>
-                    <div className="space-x-4">
-                        <Link href="/admin/members" className="text-sm px-3 py-1 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100">受講生マスタ</Link>
-                        <Link href="/admin/ranks" className="text-sm px-3 py-1 bg-teal-50 text-teal-700 rounded hover:bg-teal-100">属性マスタ</Link>
-                        <Link href="/admin/products" className="text-sm px-3 py-1 bg-purple-50 text-purple-700 rounded hover:bg-purple-100">商品マスタ</Link>
-                        <Link href="/admin/venues" className="text-sm px-3 py-1 bg-pink-50 text-pink-700 rounded hover:bg-pink-100">会場マスタ</Link>
-                        <Link href="/admin/online-options" className="text-sm px-3 py-1 bg-yellow-50 text-yellow-700 rounded hover:bg-yellow-100">オンライン</Link>
-                        <Link href="/admin/terms" className="text-sm px-3 py-1 bg-orange-50 text-orange-700 rounded hover:bg-orange-100">期マスタ</Link>
-                        <Link href="/admin/users" className="text-sm px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">管理者設定</Link>
-                        <button onClick={fetchApplications} className="text-sm text-blue-600 hover:underline ml-2">再読込</button>
+                    <div className="flex items-center space-x-2 ml-auto">
+                        <div className="flex space-x-2 mr-4 border-r pr-4 border-gray-300">
+                            <Link href="/admin/members" className="text-sm px-3 py-1 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100">受講生マスタ</Link>
+                            <Link href="/admin/ranks" className="text-sm px-3 py-1 bg-teal-50 text-teal-700 rounded hover:bg-teal-100">属性マスタ</Link>
+                            <Link href="/admin/products" className="text-sm px-3 py-1 bg-purple-50 text-purple-700 rounded hover:bg-purple-100">商品マスタ</Link>
+                            <Link href="/admin/venues" className="text-sm px-3 py-1 bg-pink-50 text-pink-700 rounded hover:bg-pink-100">会場マスタ</Link>
+                            <Link href="/admin/online-options" className="text-sm px-3 py-1 bg-yellow-50 text-yellow-700 rounded hover:bg-yellow-100">オンライン</Link>
+                            <Link href="/admin/terms" className="text-sm px-3 py-1 bg-orange-50 text-orange-700 rounded hover:bg-orange-100">期マスタ</Link>
+                            <Link href="/admin/users" className="text-sm px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">管理者設定</Link>
+                        </div>
+                        <button onClick={fetchApplications} className="text-sm text-blue-600 hover:underline">再読込</button>
                         <button onClick={() => fetchSettings(true)} className="text-sm text-gray-600 hover:text-gray-900 border px-3 py-1 rounded">設定変更</button>
                         <button onClick={handleLogout} className="text-sm text-red-600 hover:bg-red-50 border border-red-200 px-3 py-1 rounded ml-2">ログアウト</button>
                     </div>
@@ -1122,6 +1156,13 @@ export default function AdminDashboard() {
                             selected={filterVenueSocial}
                             onChange={setFilterVenueSocial}
                             width="w-40"
+                        />
+                        <MultiSelect
+                            label="全ての視聴タイプ"
+                            options={uniqueOnlineOptions}
+                            selected={filterOnlineOption}
+                            onChange={setFilterOnlineOption}
+                            width="w-48"
                         />
                     </div>
 

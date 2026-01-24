@@ -1,10 +1,9 @@
 # Vercel (本番環境) 環境変数バックアップ - 完全版
-# 作成日時: 2026-01-24
+# 作成日時: 2026-01-24 (再作成)
 # プロジェクト: Shingengaku-Prod (URL: https://odxnczxbtltccfrizvkb.supabase.co)
 
 # ------------------------------------------------------------------
-# ⚠️ Vercelの "Environment Variables" に以下の5つを登録してください ⚠️
-# これですべて正常に動作します。
+# ⚠️ Vercelの "Environment Variables" に以下の5つが登録されているか確認ください ⚠️
 # ------------------------------------------------------------------
 
 # 1. Supabase URL
@@ -14,10 +13,11 @@ NEXT_PUBLIC_SUPABASE_URL=https://odxnczxbtltccfrizvkb.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9keG5jenhidGx0Y2Nmcml6dmtiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyMDYxODcsImV4cCI6MjA4Mzc4MjE4N30.LiSqLupVBiaAbdtGXU4-XyDZVytQumaincpfdELWASs
 
 # 3. Supabase Service Role Key (Secret)
+# (ユーザー指定の正しいキー)
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9keG5jenhidGx0Y2Nmcml6dmtiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODIwNjE4NywiZXhwIjoyMDgzNzgyMTg3fQ.OsJMZcayGa3i8q9JTffAfwOzz2sSJlHQPW2tcGNYQnM
 
-# 4. Resend (メール送信用) - 元の値
+# 4. Resend (メール送信用)
 FROM_EMAIL=info@shingengaku.com
 
-# 5. Resend API Key (以前のチャットより補完)
+# 5. Resend API Key
 RESEND_API_KEY=re_GvRR54qT_2z1EwBrDNHRZeAzTqWst4oB4

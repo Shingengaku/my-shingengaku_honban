@@ -201,7 +201,12 @@ export async function POST(request: Request) {
 
         // 5. メール送信
         const displayVenue = venueDisplayMap[venue] || venue;
-        const displaySocialVenue = venueDisplayMap[social_venue] || social_venue;
+        let displaySocialVenue = venueDisplayMap[social_venue] || social_venue;
+
+        // オンライン参加の場合は懇親会を「ー」と表記
+        if (participation_type === 'online') {
+            displaySocialVenue = 'ー';
+        }
 
         let template;
         if (matchedProduct) {
