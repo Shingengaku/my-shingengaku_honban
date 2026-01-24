@@ -398,7 +398,7 @@ export default function AdminDashboard() {
                     email_template_forgot_pass: emailTemplateForgotPass,
                     admin_email: adminEmail,
                     admin_bcc_email: adminBccEmail,
-                    application_active: applicationActive
+                    // application_active: applicationActive // Moved to Global Settings
                 })
             });
 
@@ -1704,31 +1704,6 @@ export default function AdminDashboard() {
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
                     <div className="bg-white p-5 rounded-lg shadow-xl w-[800px] max-h-[90vh] overflow-y-auto">
                         <h3 className="text-lg font-bold mb-4">システム設定</h3>
-
-                        <div className="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-100">
-                            <h4 className="font-bold text-gray-700 mb-2">公開ステータス</h4>
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <span className="font-bold text-sm block">申込受付</span>
-                                    <p className="text-xs text-gray-500">
-                                        OFFにすると、一般の申込画面が利用不可になり、受付停止メッセージが表示されます。
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => setApplicationActive(!applicationActive)}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${applicationActive ? 'bg-indigo-600' : 'bg-gray-200'}`}
-                                >
-                                    <span
-                                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${applicationActive ? 'translate-x-6' : 'translate-x-1'}`}
-                                    />
-                                </button>
-                            </div>
-                            <div className="mt-2 text-right">
-                                <span className={`text-sm font-bold ${applicationActive ? 'text-indigo-600' : 'text-red-600'}`}>
-                                    {applicationActive ? '現在: 受付中' : '現在: 停止中'}
-                                </span>
-                            </div>
-                        </div>
 
                         <div className="mb-6">
                             <h4 className="font-bold text-gray-700 mb-2">管理者設定</h4>

@@ -703,7 +703,13 @@ export default function Home() {
               <div className="whitespace-pre-wrap text-sm text-gray-600 mb-6 max-h-[60vh] overflow-y-auto">
                 {infoText}
               </div>
-              <div className="text-center">
+              <div className="text-center flex items-center justify-center gap-4">
+                <button
+                  onClick={() => setShowInfoModal(false)}
+                  className="bg-gray-300 text-gray-800 px-6 py-2 rounded hover:bg-gray-400 font-bold"
+                >
+                  閉じる
+                </button>
                 <button
                   onClick={() => setShowInfoModal(false)}
                   className="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 font-bold"
