@@ -27,8 +27,7 @@ export async function POST(req: Request) {
 
         if (error) {
             console.error('Error adding online option:', error);
-            const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'unknown';
-            return NextResponse.json({ error: `[DB: ${envUrl}] ${error.message}` }, { status: 500 });
+            return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
         return NextResponse.json(data);
