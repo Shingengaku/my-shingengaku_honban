@@ -137,7 +137,7 @@ function MultiSelectVenue({
                                     className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4"
                                 />
                                 <span className={`text-sm ${opt.isOnline ? 'text-blue-800' : 'text-gray-700'}`}>
-                                    {opt.isOnline ? `[Online] ${opt.name}` : opt.name}
+                                    {opt.name}
                                 </span>
                             </label>
                         ))}
