@@ -44,6 +44,7 @@ export default function Home() {
 
   /* ... ポップアップ状態 ... */
   const [infoText, setInfoText] = useState('');
+  const [pageTitle, setPageTitle] = useState('神言学 集中講座 お申込み');
   const [showInfoModal, setShowInfoModal] = useState(false);
 
   useEffect(() => {
@@ -60,6 +61,9 @@ export default function Home() {
           const data = await settingsRes.json();
           if (data.application_text) {
             setInfoText(data.application_text);
+          }
+          if (data.application_title) {
+            setPageTitle(data.application_title);
           }
           if (typeof data.application_active !== 'undefined') {
             setIsActive(data.application_active);
@@ -271,7 +275,7 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-xl mx-auto bg-white p-8 rounded-lg shadow-md">
         <h1 className="text-3xl font-extrabold text-gray-900 text-center mb-8">
-          神言学 集中講座 お申込み
+          {pageTitle}
         </h1>
 
         {infoText && (

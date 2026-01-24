@@ -94,6 +94,12 @@ export async function POST(request: Request) {
                 supabaseAdmin.from('app_settings').upsert({ key: 'application_active', value: body.application_active }, { onConflict: 'key' })
             );
         }
+        if (typeof body.application_title !== 'undefined') {
+            const val = JSON.stringify(body.application_title);
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'application_title', value: val }, { onConflict: 'key' })
+            );
+        }
 
         await Promise.all(updates);
 

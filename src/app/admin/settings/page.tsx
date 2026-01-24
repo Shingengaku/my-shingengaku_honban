@@ -6,7 +6,8 @@ import Link from 'next/link';
 export default function GlobalSettingsPage() {
     const [settings, setSettings] = useState({
         application_text: '',
-        application_active: true
+        application_active: true,
+        application_title: ''
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -29,7 +30,8 @@ export default function GlobalSettingsPage() {
 
                     setSettings({
                         application_text: data.application_text || '',
-                        application_active: data.application_active !== false // Default to true
+                        application_active: data.application_active !== false, // Default to true
+                        application_title: data.application_title || ''
                     });
                 }
             } catch (e) {
@@ -102,6 +104,20 @@ export default function GlobalSettingsPage() {
                             </label>
                         </div>
                         <p className="text-xs text-gray-500 mt-1">※「受付停止」にすると、申込フォームへのアクセス時に停止メッセージが表示され、申し込みができなくなります。</p>
+                    </div>
+
+                    <div className="border-t pt-6"></div>
+
+                    {/* フォームタイトル */}
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900 mb-2">申込フォームタイトル</h2>
+                        <input
+                            type="text"
+                            className="w-full p-3 border rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="例：神言学 集中講座 お申込み"
+                            value={settings.application_title || ''}
+                            onChange={(e) => setSettings({ ...settings, application_title: e.target.value })}
+                        />
                     </div>
 
                     <div className="border-t pt-6"></div>
