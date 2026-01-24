@@ -275,14 +275,8 @@ export default function Home() {
         </h1>
 
         {infoText && (
-          <div className="text-center mb-8">
-            <button
-              type="button"
-              onClick={() => setShowInfoModal(true)}
-              className="px-6 py-2 bg-yellow-500 text-white font-bold rounded-full hover:bg-yellow-600 shadow-md transition-transform transform hover:scale-105"
-            >
-              集中講座詳細はこちら
-            </button>
+          <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-8 text-sm text-blue-700 whitespace-pre-wrap">
+            {infoText}
           </div>
         )}
 
