@@ -118,7 +118,7 @@ function MultiSelectVenue({
                 className="cursor-pointer flex items-center justify-between border rounded px-2 py-1 bg-white text-xs min-h-[26px]"
                 onClick={() => setIsOpen(!isOpen)}
             >
-                <span className="truncate max-w-[100px] block" title={value}>
+                <span className="block text-left" title={value}>
                     {value || <span className="text-gray-400">(選択)</span>}
                 </span>
                 <span className="text-[8px] text-gray-500 ml-1">▼</span>
