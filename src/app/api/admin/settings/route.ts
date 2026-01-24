@@ -82,8 +82,11 @@ export async function POST(request: Request) {
             );
         }
         if (typeof body.application_text !== 'undefined') {
+            // 文字列をJSONBカラムに保存するため、明示的にJSON文字列化する
+            // (単なる文字列だとPostgresが不正なJSONとして拒否する場合があるため)
+            const val = JSON.stringify(body.application_text);
             updates.push(
-                supabaseAdmin.from('app_settings').upsert({ key: 'application_text', value: body.application_text })
+                supabaseAdmin.from('app_settings').upsert({ key: 'application_text', value: val })
             );
         }
         if (typeof body.application_active !== 'undefined') {
