@@ -1036,6 +1036,7 @@ export default function AdminDashboard() {
                         <Link href="/admin/ranks" className="text-sm px-3 py-1 bg-teal-50 text-teal-700 rounded hover:bg-teal-100">属性マスタ</Link>
                         <Link href="/admin/products" className="text-sm px-3 py-1 bg-purple-50 text-purple-700 rounded hover:bg-purple-100">商品マスタ</Link>
                         <Link href="/admin/venues" className="text-sm px-3 py-1 bg-pink-50 text-pink-700 rounded hover:bg-pink-100">会場マスタ</Link>
+                        <Link href="/admin/online-options" className="text-sm px-3 py-1 bg-yellow-50 text-yellow-700 rounded hover:bg-yellow-100">オンライン</Link>
                         <Link href="/admin/terms" className="text-sm px-3 py-1 bg-orange-50 text-orange-700 rounded hover:bg-orange-100">期マスタ</Link>
                         <Link href="/admin/users" className="text-sm px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">管理者設定</Link>
                         <button onClick={fetchApplications} className="text-sm text-blue-600 hover:underline ml-2">再読込</button>
