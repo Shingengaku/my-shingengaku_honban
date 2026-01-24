@@ -63,11 +63,14 @@ async function updateText() {
     // If we pass value as string, does it work? 
     // Let's use JSON.stringify(targetText) to be safe as per my Plan.
 
-    const val = JSON.stringify(targetText);
+    // Supabase JSクライアントがJSONシリアライズを処理するため、
+    // ここで明示的にstringifyすると二重エンコード（""...""）になってしまう可能性があります。
+    // 生の文字列を渡して試みます。
+    const val = targetText;
 
     const { error } = await supabase
         .from('app_settings')
-        .upsert({ key: 'application_text', value: val });
+        .upsert({ key: 'application_text', value: val }, { onConflict: 'key' });
 
     if (error) {
         console.error("Error updating:", error);
