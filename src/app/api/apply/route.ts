@@ -239,7 +239,9 @@ export async function POST(request: Request) {
 
         let template;
         // 0円（無料）の場合のテンプレート判定
-        if (totalAmount === 0) {
+        // 商品マスタに存在し、かつ金額が0円の場合のみ「無料メール」を送る
+        // 商品が存在しない（マッチしない）場合の0円は、事務局確認のため「一般メール」へ
+        if (totalAmount === 0 && matchedProduct) {
             const dbTemplate = settings.email_template_free;
             // 0円用テンプレートがあればそれを使う。なければ一般用、あるいはデフォルトにフォールバック
             if (dbTemplate && dbTemplate.subject) {
