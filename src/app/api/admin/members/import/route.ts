@@ -174,12 +174,18 @@ export async function POST(request: Request) {
             });
         }
 
+        let savedCount = 0;
+        let mergedCount = 0;
+
         // 3. メンバーへの処理 (手動Upsert: メール + 期 の複合キー判定)
         if (upsertData.length > 0) {
             // バッチ内でメール+期による重複排除 (CSV内の最新を優先)
             const uniqueInput = Array.from(
                 new Map(upsertData.map(item => [`${item.email}_${item.term_id}`, item])).values()
             );
+
+            savedCount = uniqueInput.length;
+            mergedCount = upsertData.length - uniqueInput.length;
 
             const emails = uniqueInput.map(u => u.email);
 
@@ -241,21 +247,21 @@ export async function POST(request: Request) {
             }
 
             // スキップされた重複 (CSV内重複)
-            if (uniqueInput.length < upsertData.length) {
-                const diff = upsertData.length - uniqueInput.length;
-                errors.push(`情報: ファイル内で重複しているデータ（同じメールかつ同じ期）が ${diff} 件あり、最後のデータが採用されました。`);
+            if (mergedCount > 0) {
+                errors.unshift(`ℹ️ 重複統合: ${mergedCount} 件のデータが、同じメールアドレス・期のため統合(上書き)されました。`);
             }
         }
 
         return NextResponse.json({
             success: true,
-            count: upsertData.length,
+            count: upsertData.length,      // CSVから読み取れた有効データ数
+            savedCount,                    // 実際にDBへ保存しようとした数
+            mergedCount,                   // 重複により統合された数 (重複排除された数)
             errors
         });
 
     } catch (e) {
         console.error('Import error:', e);
-        // Supabaseエラーオブジェクトは、Errorのインスタンスではなく、messageプロパティを持つプレーンオブジェクトであることがよくあります
         const errorMessage = e instanceof Error ? e.message : (typeof e === 'object' ? JSON.stringify(e) : String(e));
         return NextResponse.json({ error: `システムエラー詳細: ${errorMessage}` }, { status: 500 });
     }
