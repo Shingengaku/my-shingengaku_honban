@@ -156,11 +156,30 @@ export async function POST(request: Request) {
         // 一般の人は rankId が null なので、商品マスタの rank_id も null (または undefined) のものとマッチするはず。
 
         if (Array.isArray(paymentLinks)) {
-            matchedProduct = paymentLinks.find(p =>
-                p.venue_lecture === venue &&
-                p.venue_social === social_venue &&
-                (rankId ? String(p.rank_id) === rankId : !p.rank_id) // rankIdがあれば一致確認、なければ商品側もrank_id無しを探す
-            ) || null;
+            // 検索用の会場名（コード→日本語変換を試みる）
+            const searchVenue = venueDisplayMap[venue] || venue;
+            const searchSocial = venueDisplayMap[social_venue] || social_venue;
+
+            matchedProduct = paymentLinks.find(p => {
+                // 講義会場のマッチ: コード一致 または 日本語名一致
+                // 商品マスタ側が複数選択("東京・大阪")の場合もあるかもしれないが、完全一致で管理されている前提ならこれでOK
+                // もし"東京"が含まれるか？のロジックが必要なら includes を使うが、現状は会場ごとに商品を作っているはず。
+                const venueMatch = (p.venue_lecture === venue) || (p.venue_lecture === searchVenue);
+
+                // 懇親会会場のマッチ
+                let socialMatch = (p.venue_social === social_venue) || (p.venue_social === searchSocial);
+
+                // オンライン参加の特例: 商品側の懇親会が「ー」ならマッチとみなす
+                // (ユーザー入力の social_venue は無視してよい、なぜならオンラインに懇親会はないから)
+                if (participation_type === 'online' && p.venue_social === 'ー') {
+                    socialMatch = true;
+                }
+
+                // ランクのマッチ
+                const rankMatch = (rankId ? String(p.rank_id) === rankId : !p.rank_id);
+
+                return venueMatch && socialMatch && rankMatch;
+            }) || null;
         }
 
         const totalAmount = matchedProduct ? (Number(matchedProduct.lecture_fee) + Number(matchedProduct.social_fee)) : 0;
