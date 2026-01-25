@@ -76,12 +76,49 @@ export async function PUT(request: Request) {
     }
 }
 
+// Helper to check usage
+async function checkUsage(rankId: string) {
+    // 1. Members check
+    const { count, error: countError } = await supabaseAdmin
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+        .eq('rank_id', rankId);
+
+    if (countError) throw countError;
+    if (count && count > 0) return '受講生データに使用されているため削除できません';
+
+    // 2. Product Settings check
+    const { data: settings, error: settingsError } = await supabaseAdmin
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'payment_links')
+        .single();
+
+    if (settingsError && settingsError.code !== 'PGRST116') throw settingsError;
+
+    if (settings?.value && Array.isArray(settings.value)) {
+        const products = settings.value;
+        // rank_id might be string or number in JSON
+        const used = products.some((p: any) => String(p.rank_id) === String(rankId));
+        if (used) return '商品マスタ（決済リンク設定）に使用されているため削除できません';
+    }
+
+    return null; // OK
+}
+
+// Override the DELETE function content logic
 export async function DELETE(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
 
         if (!id) return NextResponse.json({ error: 'IDは必須です' }, { status: 400 });
+
+        // Pre-check usage
+        const usageError = await checkUsage(id);
+        if (usageError) {
+            return NextResponse.json({ error: usageError }, { status: 400 });
+        }
 
         const { error } = await supabaseAdmin
             .from('ranks')
@@ -93,9 +130,9 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ success: true });
     } catch (e: any) {
         console.error('Error deleting rank:', e);
-        // Postgres error code 23503 is foreign_key_violation
         if (e.code === '23503') {
-            return NextResponse.json({ error: 'この属性は既に使用されているため削除できません（受講生データ等に含まれています）' }, { status: 400 });
+            // Fallback for race conditions
+            return NextResponse.json({ error: 'この属性は既に使用されているため削除できません' }, { status: 400 });
         }
         return NextResponse.json({ error: 'ランクの削除に失敗しました' }, { status: 500 });
     }
