@@ -672,18 +672,41 @@ export default function ProductMasterPage() {
     return (
         <div className="min-h-screen bg-gray-100 p-8">
             <div className="max-w-7xl mx-auto">
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex justify-between items-center mb-4">
                     <h1 className="text-2xl font-bold text-gray-800">商品マスタ管理 (決済リンク設定)</h1>
                     <div className="flex gap-4 items-center">
                         <button onClick={handleExport} className="px-3 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 text-sm">CSVエクスポート</button>
                         <label className="cursor-pointer px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm flex items-center">
-                            CSVインポート (編集)
+                            CSVインポート
                             <input type="file" accept=".csv" className="hidden" onChange={handleImport} />
                         </label>
-                        <Link href="/admin/dashboard" className="text-gray-600 hover:text-indigo-600 flex items-center">
-                            ← ダッシュボードに戻る
+                        <Link href="/admin/dashboard" className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">
+                            ← ダッシュボードへ
                         </Link>
                     </div>
+                </div>
+
+                <div className="bg-blue-50 p-4 rounded-md mb-6 text-sm text-blue-900 border border-blue-200">
+                    <details>
+                        <summary className="font-bold cursor-pointer hover:text-blue-700 select-none flex items-center gap-2 outline-none">
+                            <span className="text-xl">💡</span>
+                            <span>決済リンクの自動マッチング仕様について（クリックで開く）</span>
+                        </summary>
+                        <div className="mt-3 space-y-2 pl-4 border-l-2 border-blue-200 animate-fade-in">
+                            <p>お客様のお申し込み内容に基づいて、以下の<strong>3つの条件がすべて完全に一致する</strong>商品（決済リンク）が自動的に選択されます。</p>
+                            <ul className="list-disc pl-5 space-y-1 my-2">
+                                <li><strong>講義会場</strong>: 申し込み時に選択された会場と一致（「参加しない」も会場名として扱われます）</li>
+                                <li><strong>懇親会会場</strong>: 申し込み時に選択された会場と一致（オンライン参加の場合は「ー」）</li>
+                                <li><strong>属性</strong>: 受講生の場合は登録属性、一般参加の場合は「属性なし（空欄）」または「一般」として設定された商品</li>
+                            </ul>
+                            <div className="bg-white p-3 rounded border border-blue-100 mt-2">
+                                <p className="font-bold mb-1 text-xs text-gray-500">注意点</p>
+                                <ul className="list-disc pl-5 text-xs text-gray-700 space-y-1">
+                                    <li>条件に一致する商品が見つからない場合、自動返信メールには決済リンクが記載されず、事務局確認となります。</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </details>
                 </div>
 
                 <div className="bg-white rounded-lg shadow p-6">
