@@ -286,11 +286,18 @@ export async function POST(request: Request) {
                 adminBccEmail
             });
 
+            // 宛先重複の排除
+            // adminEmail (CC) と adminBccEmail (BCC) が同じ場合、BCCからは除外する
+            let finalBcc = adminBccEmail ? [adminBccEmail] : undefined;
+            if (adminEmail && adminBccEmail && adminEmail.toLowerCase() === adminBccEmail.toLowerCase()) {
+                finalBcc = undefined;
+            }
+
             const emailResponse = await resend.emails.send({
                 from: `神言学事務局 <${fromEmail}>`,
                 to: [email],
                 cc: adminEmail ? [adminEmail] : undefined,
-                bcc: adminBccEmail ? [adminBccEmail] : undefined,
+                bcc: finalBcc,
                 subject: emailSubject,
                 text: emailContent,
             });
