@@ -153,9 +153,10 @@ export default function AdminDashboard() {
     // メールテンプレートの状態
     const [emailTemplate, setEmailTemplate] = useState({ subject: '', body: '' }); // マッチした場合
     const [emailTemplateGeneral, setEmailTemplateGeneral] = useState({ subject: '', body: '' });
+    const [emailTemplateFree, setEmailTemplateFree] = useState({ subject: '', body: '' }); // 0円(無料)の場合
     const [emailTemplateResend, setEmailTemplateResend] = useState({ subject: '', body: '' });
     const [emailTemplateForgotPass, setEmailTemplateForgotPass] = useState({ subject: '', body: '' });
-    const [selectedTemplateTab, setSelectedTemplateTab] = useState<'matched' | 'general' | 'resend' | 'forgot'>('matched');
+    const [selectedTemplateTab, setSelectedTemplateTab] = useState<'matched' | 'general' | 'free' | 'resend' | 'forgot'>('matched');
     const [customResendModal, setCustomResendModal] = useState<{ isOpen: boolean, appId: string | null, subject: string, body: string, email: string }>({ isOpen: false, appId: null, subject: '', body: '', email: '' });
 
     const [adminEmail, setAdminEmail] = useState('');
@@ -209,6 +210,24 @@ export default function AdminDashboard() {
 
 現在、お客様の条件に合致する自動決済案内が見つかりませんでした（または事務局確認が必要です）。
 事務局より別途、正式なご案内メールをお送りいたしますので、今しばらくお待ちください。`
+    };
+
+    const DEFAULT_TEMPLATE_FREE = {
+        subject: '【神言学】お申込み受付完了のお知らせ',
+        body: `{{name}} 様
+
+神言学講座へのお申込みありがとうございます。
+以下の内容で受付いたしました。
+
+--------------------------------
+お名前: {{name}}
+判定属性: {{rank}}
+参加会場: {{venue}}
+懇親会: {{social_venue}}
+合計金額: {{amount}} 円
+--------------------------------
+
+当日は会場にてお待ちしております。`
     };
 
     const DEFAULT_TEMPLATE_RESEND = {
@@ -333,6 +352,7 @@ export default function AdminDashboard() {
                 // テンプレートをロード
                 setEmailTemplate(data.email_template || DEFAULT_TEMPLATE);
                 setEmailTemplateGeneral(data.email_template_general || DEFAULT_TEMPLATE_GENERAL);
+                setEmailTemplateFree(data.email_template_free || DEFAULT_TEMPLATE_FREE);
                 setEmailTemplateResend(data.email_template_resend || DEFAULT_TEMPLATE_RESEND);
                 setEmailTemplateForgotPass(data.email_template_forgot_pass || DEFAULT_TEMPLATE_FORGOT_PASS);
 
@@ -394,6 +414,7 @@ export default function AdminDashboard() {
                 body: JSON.stringify({
                     email_template: emailTemplate,
                     email_template_general: emailTemplateGeneral,
+                    email_template_free: emailTemplateFree,
                     email_template_resend: emailTemplateResend,
                     email_template_forgot_pass: emailTemplateForgotPass,
                     admin_email: adminEmail,
@@ -1751,6 +1772,12 @@ export default function AdminDashboard() {
                                     申込受付(一般)
                                 </button>
                                 <button
+                                    className={`px-4 py-2 text-sm font-medium ${selectedTemplateTab === 'free' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                    onClick={() => setSelectedTemplateTab('free')}
+                                >
+                                    0円 (無料)
+                                </button>
+                                <button
                                     className={`px-4 py-2 text-sm font-medium ${selectedTemplateTab === 'resend' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
                                     onClick={() => setSelectedTemplateTab('resend')}
                                 >
@@ -1814,6 +1841,28 @@ export default function AdminDashboard() {
                                         />
                                     </div>
                                     <button onClick={() => setEmailTemplateGeneral(DEFAULT_TEMPLATE_GENERAL)} className="text-xs text-blue-600 hover:underline mt-1">デフォルトに戻す</button>
+                                </>
+                            )}
+
+                            {selectedTemplateTab === 'free' && (
+                                <>
+                                    <div className="mb-2">
+                                        <label className="block text-sm text-gray-600 text-xs">件名 (0円・無料)</label>
+                                        <input
+                                            className="border w-full p-2 rounded"
+                                            value={emailTemplateFree.subject}
+                                            onChange={e => setEmailTemplateFree({ ...emailTemplateFree, subject: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm text-gray-600 text-xs">本文</label>
+                                        <textarea
+                                            className="border w-full p-2 rounded h-60 font-mono text-sm"
+                                            value={emailTemplateFree.body}
+                                            onChange={e => setEmailTemplateFree({ ...emailTemplateFree, body: e.target.value })}
+                                        />
+                                    </div>
+                                    <button onClick={() => setEmailTemplateFree(DEFAULT_TEMPLATE_FREE)} className="text-xs text-blue-600 hover:underline mt-1">デフォルトに戻す</button>
                                 </>
                             )}
 

@@ -102,7 +102,8 @@ export async function POST(request: Request) {
         // 設定データを整形
         const settings: Partial<AppSettings> & {
             email_template?: any,
-            email_template_general?: any
+            email_template_general?: any,
+            email_template_free?: any
         } = {};
         settingsData?.forEach(row => {
             if (row.key === 'payment_links') settings.payment_links = row.value;
@@ -110,6 +111,7 @@ export async function POST(request: Request) {
             if (row.key === 'admin_bcc_email') settings.admin_bcc_email = row.value;
             if (row.key === 'email_template') settings.email_template = row.value;
             if (row.key === 'email_template_general') settings.email_template_general = row.value;
+            if (row.key === 'email_template_free') settings.email_template_free = row.value;
         });
 
         const paymentLinks = settings.payment_links || [];
@@ -209,7 +211,21 @@ export async function POST(request: Request) {
         }
 
         let template;
-        if (matchedProduct) {
+        // 0円（無料）の場合のテンプレート判定
+        if (totalAmount === 0) {
+            const dbTemplate = settings.email_template_free;
+            // 0円用テンプレートがあればそれを使う。なければ一般用、あるいはデフォルトにフォールバック
+            if (dbTemplate && dbTemplate.subject) {
+                template = dbTemplate;
+            } else {
+                // フォールバック: 一般用を使うか、ここ専用のデフォルトを用意するか
+                // 今回は一般用または専用のデフォルト構造へ
+                template = {
+                    subject: '【神言学】お申込み受付完了のお知らせ',
+                    body: `{{name}} 様\n\n神言学講座へのお申込みありがとうございます。\n以下の内容で受付いたしました。\n\n--------------------------------\nお名前: {{name}}\n判定属性: {{rank}}\n参加会場: {{venue}}\n懇親会: {{social_venue}}\n合計金額: {{amount}} 円\n--------------------------------\n\n当日は会場にてお待ちしております。`
+                };
+            }
+        } else if (matchedProduct) {
             // DBの設定があっても、subjectがなければデフォルトを使う（空のJSON対策）
             const dbTemplate = settings.email_template;
             template = (dbTemplate && dbTemplate.subject) ? dbTemplate : DEFAULT_EMAIL_TEMPLATE;

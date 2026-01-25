@@ -46,6 +46,11 @@ export async function POST(request: Request) {
                 supabaseAdmin.from('app_settings').upsert({ key: 'email_template_resend', value: body.email_template_resend }, { onConflict: 'key' })
             );
         }
+        if (body.email_template_free) {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'email_template_free', value: body.email_template_free }, { onConflict: 'key' })
+            );
+        }
         if (body.email_template_forgot_pass) {
             updates.push(
                 supabaseAdmin.from('app_settings').upsert({ key: 'email_template_forgot_pass', value: body.email_template_forgot_pass }, { onConflict: 'key' })
