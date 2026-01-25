@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import crypto from 'crypto';
+import { signSession } from '@/lib/auth';
 
 export async function POST(request: Request) {
     try {
@@ -30,8 +31,11 @@ export async function POST(request: Request) {
         if (user.password_hash === hashedPassword) {
             const response = NextResponse.json({ success: true });
 
+            // 署名付きセッショントークンを生成
+            const sessionToken = await signSession(user.username);
+
             // セッションクッキーを設定
-            response.cookies.set('admin_session', user.username, {
+            response.cookies.set('admin_session', sessionToken, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
