@@ -87,6 +87,33 @@ export async function POST(request: Request) {
                 rankName = member.ranks?.name || '一般';
                 memberId = member.id;
             }
+        } else {
+            // 一般参加者の場合、紹介者の有無で属性を自動決定
+            if (introducer) {
+                rankName = '神言学未受講（ご紹介）';
+            } else {
+                rankName = '神言学未受講（一般）';
+            }
+
+            // 属性IDを取得
+            try {
+                const { data: rankData } = await supabaseAdmin
+                    .from('ranks')
+                    .select('id')
+                    .eq('name', rankName)
+                    .single();
+
+                if (rankData) {
+                    rankId = String(rankData.id);
+                } else {
+                    console.warn(`Rank not found for name: ${rankName}`);
+                    // フォールバック: 一般（何もしない、またはエラー？）
+                    // システム運用上、シードされているはずですが、なければ rankId=null で進みます（既存の一般扱い）
+                    // ただし、rankNameだけは上書きされているのでメールには記載されます。
+                }
+            } catch (e) {
+                console.error('Rank lookup error:', e);
+            }
         }
 
         // 2. 設定取得 (商品マスタ)

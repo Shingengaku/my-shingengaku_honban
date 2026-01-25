@@ -41,24 +41,31 @@ function SortableRow({ rank, onEdit, onDelete }: { rank: Rank, onEdit: (rank: Ra
         transition,
     };
 
+    const isSystemRank = rank.name === '神言学未受講（ご紹介）' || rank.name === '神言学未受講（一般）';
+
     return (
         <tr ref={setNodeRef} style={style} className="bg-white hover:bg-gray-50 group">
             <td className="px-6 py-4 whitespace-nowrap text-center cursor-grab" {...attributes} {...listeners}>
-                <span className="text-gray-400 group-hover:text-gray-600 font-bold text-lg">⋮⋮</span>
+                <span className={`font-bold text-lg ${isSystemRank ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 group-hover:text-gray-600'}`}>⋮⋮</span>
             </td>
             <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm font-medium text-gray-900">{rank.name}</div>
+                <div className="text-sm font-medium text-gray-900">
+                    {rank.name}
+                    {isSystemRank && <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">システム固定</span>}
+                </div>
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <button
-                    onClick={() => onEdit(rank)}
-                    className="text-indigo-600 hover:text-indigo-900 mr-4 bg-indigo-50 px-3 py-1 rounded"
+                    onClick={() => !isSystemRank && onEdit(rank)}
+                    disabled={isSystemRank}
+                    className={`mr-4 px-3 py-1 rounded ${isSystemRank ? 'text-gray-400 bg-gray-100 cursor-not-allowed' : 'text-indigo-600 hover:text-indigo-900 bg-indigo-50'}`}
                 >
                     編集
                 </button>
                 <button
-                    onClick={() => onDelete(rank.id)}
-                    className="text-red-500 hover:text-red-700 bg-red-50 px-3 py-1 rounded"
+                    onClick={() => !isSystemRank && onDelete(rank.id)}
+                    disabled={isSystemRank}
+                    className={`px-3 py-1 rounded ${isSystemRank ? 'text-gray-400 bg-gray-100 cursor-not-allowed' : 'text-red-500 hover:text-red-700 bg-red-50'}`}
                 >
                     削除
                 </button>
