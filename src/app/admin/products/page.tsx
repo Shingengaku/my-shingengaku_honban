@@ -127,6 +127,22 @@ function MultiSelectVenue({
             {isOpen && (
                 <div className="absolute top-full left-0 z-50 mt-1 w-48 bg-white border rounded shadow-lg p-2 max-h-60 overflow-y-auto">
                     <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
+                        {/* 「参加しない」は固定で表示 */}
+                        <label className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                            <input
+                                type="checkbox"
+                                value={notParticipating}
+                                checked={selectedValues.includes(notParticipating)}
+                                onChange={(e) => handleChange(e, notParticipating)}
+                                className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                            />
+                            <span className="text-sm text-gray-700 font-bold">
+                                {notParticipating}
+                            </span>
+                        </label>
+
+                        <div className="border-t my-1"></div>
+
                         {options.map(opt => (
                             <label key={opt.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
                                 <input
