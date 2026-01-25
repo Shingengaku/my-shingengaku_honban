@@ -38,6 +38,7 @@ export const DEFAULT_EMAIL_TEMPLATE_GENERAL = {
 判定属性: {{rank}}
 参加会場: {{venue}}
 懇親会: {{social_venue}}
+合計金額: {{amount}} 円
 --------------------------------
 
 現在、お客様の条件に合致する自動決済案内が見つかりませんでした（または事務局確認が必要です）。
