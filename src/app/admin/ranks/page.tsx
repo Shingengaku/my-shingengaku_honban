@@ -182,7 +182,8 @@ export default function RanksPage() {
             if (res.ok) {
                 setRanks(ranks.filter(r => r.id !== id));
             } else {
-                alert('削除失敗');
+                const err = await res.json();
+                alert(`削除失敗: ${err.error || '不明なエラー'}`);
             }
         } catch (e) {
             alert('エラー');

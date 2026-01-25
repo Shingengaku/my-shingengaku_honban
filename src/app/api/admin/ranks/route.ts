@@ -91,8 +91,12 @@ export async function DELETE(request: Request) {
         if (error) throw error;
 
         return NextResponse.json({ success: true });
-    } catch (e) {
+    } catch (e: any) {
         console.error('Error deleting rank:', e);
+        // Postgres error code 23503 is foreign_key_violation
+        if (e.code === '23503') {
+            return NextResponse.json({ error: 'この属性は既に使用されているため削除できません（受講生データ等に含まれています）' }, { status: 400 });
+        }
         return NextResponse.json({ error: 'ランクの削除に失敗しました' }, { status: 500 });
     }
 }
