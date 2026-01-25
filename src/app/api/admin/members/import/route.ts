@@ -174,36 +174,40 @@ export async function POST(request: Request) {
             });
         }
 
-        // 3. メンバーへの処理 (手動Upsert)
+        // 3. メンバーへの処理 (手動Upsert: メール + 期 の複合キー判定)
         if (upsertData.length > 0) {
-            // バッチ内でメールアドレスによる重複排除 (CSV内の最新を優先)
+            // バッチ内でメール+期による重複排除 (CSV内の最新を優先)
             const uniqueInput = Array.from(
-                new Map(upsertData.map(item => [item.email, item])).values()
+                new Map(upsertData.map(item => [`${item.email}_${item.term_id}`, item])).values()
             );
 
             const emails = uniqueInput.map(u => u.email);
 
-            // Fetch existing members
+            // Fetch existing members by email to check for term collisions
             // Note: If emails array is huge, we might need chunking. Assuming reasonable CSV size (<1000 rows).
             const { data: existingMembers, error: fetchError } = await supabaseAdmin
                 .from('members')
-                .select('id, email')
+                .select('id, email, term_id')
                 .in('email', emails);
 
             if (fetchError) throw fetchError;
 
-            const existingMap = new Map<string, string>(); // email -> id
-            existingMembers?.forEach(m => existingMap.set(m.email, m.id));
+            // Map key: "email_termId"
+            const existingMap = new Map<string, string>();
+            existingMembers?.forEach(m => {
+                existingMap.set(`${m.email}_${m.term_id}`, m.id);
+            });
 
             const toInsert: any[] = [];
             const toUpdate: any[] = [];
 
             for (const item of uniqueInput) {
-                if (existingMap.has(item.email)) {
+                const key = `${item.email}_${item.term_id}`;
+                if (existingMap.has(key)) {
                     if (mode === 'overwrite') {
                         // 更新対象: IDは既存のものを使用、データはCSVの内容
                         toUpdate.push({
-                            id: existingMap.get(item.email),
+                            id: existingMap.get(key),
                             ...item
                         });
                     }
@@ -224,8 +228,7 @@ export async function POST(request: Request) {
 
             // Execute Update
             if (toUpdate.length > 0) {
-                // Update one by one as supabase doesn't support bulk update with different values easily
-                // For better performance, we run in parallel
+                // Update one by one
                 const updatePromises = toUpdate.map(item => {
                     const { id, ...updateData } = item;
                     return supabaseAdmin
@@ -234,15 +237,13 @@ export async function POST(request: Request) {
                         .eq('id', id);
                 });
 
-                // Wait for all updates
-                // Note: If extremely large, consider using a queue or batches.
                 await Promise.all(updatePromises);
             }
 
             // スキップされた重複 (CSV内重複)
             if (uniqueInput.length < upsertData.length) {
                 const diff = upsertData.length - uniqueInput.length;
-                errors.push(`情報: ファイル内で重複しているメールアドレスが ${diff} 件あり、最後のデータが採用されました。`);
+                errors.push(`情報: ファイル内で重複しているデータ（同じメールかつ同じ期）が ${diff} 件あり、最後のデータが採用されました。`);
             }
         }
 
