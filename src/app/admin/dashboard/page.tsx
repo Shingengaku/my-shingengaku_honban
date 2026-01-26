@@ -1386,7 +1386,7 @@ export default function AdminDashboard() {
                                             </div>
                                             <div className="text-sm text-gray-900 mt-1">
                                                 <span className="font-bold text-xs text-gray-400 block">懇親会:</span>
-                                                {app.social_venue === 'both' ? '両方参加' : (app.social_venue === 'tokyo' ? '東京' : (app.social_venue === 'fukuoka' ? '福岡' : (app.social_venue === 'none' ? '参加しない' : '-')))}
+                                                {app.social_venue === 'both' ? '両方参加' : (app.social_venue === 'tokyo' ? '東京' : (app.social_venue === 'fukuoka' ? '福岡' : (app.social_venue === 'none' ? '参加しない' : (app.social_venue || '-'))))}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 align-top">
