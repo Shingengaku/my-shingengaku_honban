@@ -345,7 +345,7 @@ export default function Home() {
 
             <div className={!isStudent ? 'opacity-50 pointer-events-none' : ''}>
               <label htmlFor="term" className="block text-sm font-medium text-gray-700">
-                期
+                期・コース
                 {isStudent && <span className="text-red-500 ml-1">*必須</span>}
               </label>
               <select
@@ -356,12 +356,12 @@ export default function Home() {
                 value={formData.term_id}
                 onChange={(e) => setFormData({ ...formData, term_id: e.target.value })}
               >
-                <option value="">期を選択してください</option>
+                <option value="">期・コースを選択してください</option>
                 {terms.map(t => (
                   <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
               </select>
-              <p className="text-xs text-gray-500 mt-1">※ご自身の期を選択してください。選択された期と名前に基づいて情報を確認します。</p>
+              <p className="text-xs text-gray-500 mt-1">※ご自身の期・コースを選択してください。選択された期・コースと名前に基づいて情報を確認します。</p>
             </div>
 
             <div>
