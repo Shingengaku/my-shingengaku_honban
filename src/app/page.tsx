@@ -491,7 +491,7 @@ export default function Home() {
                   />
                   <div className="ml-2">
                     <span className="block text-sm font-bold text-gray-900">オンライン参加</span>
-                    <span className="block text-xs text-gray-500">LIVE配信または録画を視聴します</span>
+                    <span className="block text-xs text-gray-500">LIVE配信とアーカイブが視聴できます</span>
                   </div>
                 </label>
               </div>
