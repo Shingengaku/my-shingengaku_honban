@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import crypto from 'crypto';
 
+export const dynamic = 'force-dynamic';
+
 // GET: ユーザー一覧
 export async function GET() {
     try {

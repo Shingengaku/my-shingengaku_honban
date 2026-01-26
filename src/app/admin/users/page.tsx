@@ -18,14 +18,20 @@ export default function AdminUsersPage() {
 
     const fetchUsers = async () => {
         setLoading(true);
+        setMessage('');
         try {
-            const res = await fetch('/api/admin/users');
+            // キャッシュを防ぐためにタイムスタンプまたはno-storeを指定
+            const res = await fetch('/api/admin/users', { cache: 'no-store' });
             if (res.ok) {
                 const data = await res.json();
                 setUsers(data);
+            } else {
+                const errData = await res.json();
+                setMessage(`一覧の取得に失敗しました: ${errData.error || res.statusText}`);
             }
         } catch (e) {
             console.error(e);
+            setMessage('通信エラーが発生しました');
         } finally {
             setLoading(false);
         }
