@@ -383,7 +383,7 @@ export default function Home() {
             <div>
               <label htmlFor="furigana" className="block text-sm font-medium text-gray-700">
                 フリガナ
-                <span className="text-red-500 ml-1">*必須 (カタカナ)</span>
+                <span className="text-red-500 ml-1">*必須</span>
               </label>
               <input
                 type="text"
