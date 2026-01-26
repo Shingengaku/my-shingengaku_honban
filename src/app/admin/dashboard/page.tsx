@@ -806,7 +806,7 @@ export default function AdminDashboard() {
         const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
 
         const header = [
-            'ID', '氏名', 'ふりがな', 'メールアドレス', '属性', '期', '会場', '懇親会', '合計金額', '支払状況', '環境', '申込日時', '備考', 'タグ', '参加タイプ'
+            'ID', '氏名', 'フリガナ', 'メールアドレス', '属性', '期', '会場', '懇親会', '合計金額', '支払状況', '環境', '申込日時', '備考', 'タグ', '参加タイプ'
         ].join(',');
 
         const rows = targetApps.map(app => {
@@ -852,7 +852,7 @@ export default function AdminDashboard() {
             alert('誤操作防止のため、Ctrlキーを押しながらクリックしてください');
             return;
         }
-        if (!confirm('【危険】お申込みデータをリセット（全削除）しますか？\n\n※マスタデータ（会員、属性、期、商品、設定）は消えません。\n※この操作は取り消せません。必ず事前にCSV出力を行ってください。')) return;
+        if (!confirm('【危険】お申込みデータをリセット（全削除）しますか？\n\n※マスタデータ（会員、属性、期、商品、設定、会場、オンライン）は消えません。\n※この操作は取り消せません。必ず事前にCSV出力を行ってください。')) return;
         if (!confirm('【最終確認】本当にお申込みデータだけを削除してよろしいですか？')) return;
 
         try {
@@ -1436,7 +1436,7 @@ export default function AdminDashboard() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-bold text-gray-700">ふりがな</label>
+                                        <label className="block text-sm font-bold text-gray-700">フリガナ</label>
                                         <input
                                             className="border w-full p-2 rounded"
                                             value={editForm.input_furigana || ''}

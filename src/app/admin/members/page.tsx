@@ -238,7 +238,7 @@ export default function MembersPage() {
 
 
     const handleExport = () => {
-        const headers = ['氏名', 'ふりがな', 'メールアドレス', '属性', '期'];
+        const headers = ['氏名', 'フリガナ', 'メールアドレス', '属性', '期'];
         const rows = members.map(m => [
             m.name,
             m.furigana || '',
@@ -313,7 +313,7 @@ export default function MembersPage() {
                         <p><strong>ヘッダー行:</strong> 必須 (1行目)</p>
                         <ul className="list-disc list-inside ml-2 bg-gray-50 p-2 rounded mt-1 text-xs">
                             <li><strong>氏名</strong>: 必須。</li>
-                            <li><strong>ふりがな</strong>: 任意。</li>
+                            <li><strong>フリガナ</strong>: 任意。</li>
                             <li><strong>メール</strong>: 必須 (一意のキーとなります)。</li>
                             <li><strong>属性</strong>: 任意。</li>
                             <li><strong>期</strong>: 任意 (例: 「1期」「1」など)。※現在は数値変換可能なもののみ対応</li>
@@ -327,7 +327,7 @@ export default function MembersPage() {
                     <thead className="bg-gray-50">
                         <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">氏名</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ふりがな</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">フリガナ</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">メールアドレス</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">属性</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">期</th>
@@ -396,7 +396,7 @@ export default function MembersPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700">ふりがな</label>
+                                    <label className="block text-sm font-medium text-gray-700">フリガナ</label>
                                     <input
                                         type="text"
                                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"

@@ -234,7 +234,8 @@ export async function POST(request: Request) {
 
                 remarks: remarks || null,
                 tags: tags,
-                participation_type: participation_type || 'venue'
+                participation_type: participation_type || 'venue',
+                environment: process.env.NODE_ENV === 'production' ? 'production' : 'development'
             });
 
         if (insertError) {

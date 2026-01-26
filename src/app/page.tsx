@@ -382,7 +382,7 @@ export default function Home() {
 
             <div>
               <label htmlFor="furigana" className="block text-sm font-medium text-gray-700">
-                ふりがな
+                フリガナ
                 <span className="text-red-500 ml-1">*必須 (カタカナ)</span>
               </label>
               <input
