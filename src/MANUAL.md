@@ -103,7 +103,8 @@ npm install
       id uuid default gen_random_uuid() primary key,
       username text unique not null,
       password_hash text not null,
-      email text
+      email text,
+      created_at timestamptz default now()
     );
     -- 2. パスワードリセット用
     create table if not exists password_resets (
