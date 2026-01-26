@@ -31,6 +31,10 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'ユーザー名とパスワードは必須です' }, { status: 400 });
         }
 
+        if (!email) {
+            return NextResponse.json({ error: 'メールアドレスは必須です' }, { status: 400 });
+        }
+
         // パスワードをハッシュ化
         const shasum = crypto.createHash('sha256');
         shasum.update(password.trim());
@@ -41,13 +45,13 @@ export async function POST(request: Request) {
             .from('admin_users')
             .insert({
                 username: username.trim(),
-                email: email ? email.trim() : null,
+                email: email.trim(),
                 password_hash: hashedPassword
             });
 
         if (error) {
             if (error.code === '23505') { // 一意性制約違反
-                return NextResponse.json({ error: 'ユーザー名は既に存在します' }, { status: 409 });
+                return NextResponse.json({ error: 'ユーザー名またはメールアドレスは既に存在します' }, { status: 409 });
             }
             return NextResponse.json({ error: error.message }, { status: 500 });
         }

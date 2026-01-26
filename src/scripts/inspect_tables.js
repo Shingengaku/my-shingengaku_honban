@@ -49,11 +49,12 @@ async function run() {
         }
     }
 
-    await checkTable('ranks');
-    await checkTable('venues');
-    // Products seems to be in app_settings, but let's check if there is a table
-    await checkTable('products');
-    await checkTable('terms');
+    const args = process.argv.slice(2);
+    const tablesToCheck = args.length > 0 ? args : ['ranks', 'venues', 'products', 'terms', 'applications'];
+
+    for (const table of tablesToCheck) {
+        await checkTable(table);
+    }
 }
 
 run();

@@ -38,8 +38,8 @@ export default function AdminUsersPage() {
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
         setMessage('');
-        if (!newItem.username || !newItem.password) {
-            setMessage('ユーザー名とパスワードを入力してください');
+        if (!newItem.username || !newItem.password || !newItem.email) {
+            setMessage('すべての項目を入力してください');
             return;
         }
 
@@ -101,13 +101,14 @@ export default function AdminUsersPage() {
                             />
                         </div>
                         <div className="flex-1">
-                            <label className="block text-sm font-medium text-gray-700">メールアドレス（任意）</label>
+                            <label className="block text-sm font-medium text-gray-700">メールアドレス<span className="text-red-500">*</span></label>
                             <input
                                 type="email"
                                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2"
                                 value={newItem.email}
                                 onChange={e => setNewItem({ ...newItem, email: e.target.value })}
                                 placeholder="パスワードリセット用"
+                                required
                             />
                         </div>
                         <div className="flex-1">

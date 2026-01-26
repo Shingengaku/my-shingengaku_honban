@@ -383,16 +383,23 @@ export default function Home() {
             <div>
               <label htmlFor="furigana" className="block text-sm font-medium text-gray-700">
                 ふりがな
-                <span className="text-red-500 ml-1">*必須</span>
+                <span className="text-red-500 ml-1">*必須 (カタカナ)</span>
               </label>
               <input
                 type="text"
                 id="furigana"
                 required
-                placeholder="しんげん たろう"
+                pattern="[\u30A1-\u30F6\u30FC\u3000 ]+"
+                title="カタカナで入力してください"
+                placeholder="シンゲン タロウ"
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"
                 value={formData.furigana}
-                onChange={(e) => setFormData({ ...formData, furigana: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  // 入力時にカタカナチェックも可能だが、HTML5のpatternで制御しつつ
+                  // ユーザーが入力しにくい場合はここでフィルタリングも検討
+                  setFormData({ ...formData, furigana: val })
+                }}
               />
             </div>
 
@@ -524,6 +531,7 @@ export default function Home() {
                   会場選択
                   <span className="text-red-500 ml-1">*必須</span>
                 </span>
+                <p className="text-xs text-gray-500 mb-2">※複数参加の場合は複数選択してください</p>
                 <div className="space-y-2">
                   {venueMaster.length > 0 ? (
                     <>
@@ -591,6 +599,7 @@ export default function Home() {
                   懇親会
                   <span className="text-red-500 ml-1">*必須</span>
                 </span>
+                <p className="text-xs text-gray-500 mb-2">※複数参加の場合は複数選択してください</p>
                 <div className="space-y-2 pl-4">
                   {socialMaster.length > 0 ? (
                     <>

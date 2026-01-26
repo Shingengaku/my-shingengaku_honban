@@ -1,591 +1,294 @@
+
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>神言学システム 完全構築・運用マニュアル</title>
-    <style>
-        body {
-            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            line-height: 1.7;
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 40px;
-            color: #374151;
-            /* Gray 700 */
-            background-color: #fbf6e5;
-            /* Walkthrough Artifact Cream Background */
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>神言学システム 完全構築・運用マニュアル</title>
+<style>
+    body {
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.7;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 40px;
+        color: #374151; /* グレー 700 */
+        background-color: #fbf6e5; /* ウォークスルーアーティファクトのクリーム色背景 */
+    }
+    h1, h2, h3, h4, h5, h6 {
+        color: #111827; /* グレー 900 */
+        margin-top: 2em;
+        margin-bottom: 0.8em;
+        font-weight: 700;
+        line-height: 1.3;
+    }
+    h1 { 
+        font-size: 2.25em; 
+        border-bottom: 2px solid #e5e7eb; 
+        padding-bottom: 0.5em; 
+        margin-bottom: 1.5em;
+    }
+    h2 { 
+        font-size: 1.75em; 
+        border-bottom: 1px solid #e5e7eb; 
+        padding-bottom: 0.3em; 
+    }
+    h3 { font-size: 1.35em; }
+    
+    p { margin-bottom: 1.5em; }
+    
+    strong { font-weight: 600; color: #111827; }
 
-        h1,
-        h2,
-        h3,
-        h4,
-        h5,
-        h6 {
-            color: #111827;
-            /* Gray 900 */
-            margin-top: 2em;
-            margin-bottom: 0.8em;
-            font-weight: 700;
-            line-height: 1.3;
-        }
+    /* テーブル - ウォークスルースタイル */
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 2em 0;
+        background-color: #fcfcfc; /* テーブル内容用のわずかにオフホワイト */
+        border: 1px solid #d1d5db; /* グレー 300 */
+        border-radius: 6px;
+        overflow: hidden;
+    }
+    th {
+        background-color: #e5e7eb; /* グレー 200 ヘッダー */
+        color: #1f2937; /* グレー 800 */
+        font-weight: 600;
+        text-align: left;
+        padding: 12px 16px;
+        border-bottom: 1px solid #d1d5db;
+    }
+    td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #e5e7eb;
+        color: #4b5563; /* グレー 600 */
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover { background-color: #f3f4f6; }
 
-        h1 {
-            font-size: 2.25em;
-            border-bottom: 2px solid #e5e7eb;
-            padding-bottom: 0.5em;
-            margin-bottom: 1.5em;
-        }
+    /* コードブロック */
+    pre {
+        background-color: #1f2937; /* 暗い背景 */
+        color: #f3f4f6;
+        padding: 1.5em;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.9em;
+        margin: 1.5em 0;
+        line-height: 1.5;
+        border: 1px solid #374151;
+    }
+    code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.9em;
+        background-color: #e5e7eb; 
+        color: #1f2937;
+        padding: 0.2em 0.4em;
+        border-radius: 4px;
+    }
+    pre code {
+        background-color: transparent;
+        color: inherit;
+        padding: 0;
+    }
 
-        h2 {
-            font-size: 1.75em;
-            border-bottom: 1px solid #e5e7eb;
-            padding-bottom: 0.3em;
-        }
+    /* リンク */
+    a { 
+        color: #2563eb; 
+        text-decoration: none; 
+        font-weight: 500;
+    }
+    a:hover { text-decoration: underline; }
 
-        h3 {
-            font-size: 1.35em;
-        }
+    /* リスト */
+    ul, ol { 
+        padding-left: 1.5em; 
+        margin-bottom: 1.5em; 
+    }
+    li { margin-bottom: 0.5em; }
 
-        p {
-            margin-bottom: 1.5em;
-        }
-
-        strong {
-            font-weight: 600;
-            color: #111827;
-        }
-
-        /* Tables - Walkthrough Style */
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            margin: 2em 0;
-            background-color: #fcfcfc;
-            /* Slightly off-white for table content */
-            border: 1px solid #d1d5db;
-            /* Gray 300 */
-            border-radius: 6px;
-            overflow: hidden;
-        }
-
-        th {
-            background-color: #e5e7eb;
-            /* Gray 200 header */
-            color: #1f2937;
-            /* Gray 800 */
-            font-weight: 600;
-            text-align: left;
-            padding: 12px 16px;
-            border-bottom: 1px solid #d1d5db;
-        }
-
-        td {
-            padding: 12px 16px;
-            border-bottom: 1px solid #e5e7eb;
-            color: #4b5563;
-            /* Gray 600 */
-        }
-
-        tr:last-child td {
-            border-bottom: none;
-        }
-
-        tr:hover {
-            background-color: #f3f4f6;
-        }
-
-        /* Code blocks */
-        pre {
-            background-color: #1f2937;
-            /* Dark bg */
-            color: #f3f4f6;
-            padding: 1.5em;
-            border-radius: 8px;
-            overflow-x: auto;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            font-size: 0.9em;
-            margin: 1.5em 0;
-            line-height: 1.5;
-            border: 1px solid #374151;
-        }
-
-        code {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            font-size: 0.9em;
-            background-color: #e5e7eb;
-            color: #1f2937;
-            padding: 0.2em 0.4em;
-            border-radius: 4px;
-        }
-
-        pre code {
-            background-color: transparent;
-            color: inherit;
-            padding: 0;
-        }
-
-        /* Links */
-        a {
-            color: #2563eb;
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        a:hover {
-            text-decoration: underline;
-        }
-
-        /* Lists */
-        ul,
-        ol {
-            padding-left: 1.5em;
-            margin-bottom: 1.5em;
-        }
-
-        li {
-            margin-bottom: 0.5em;
-        }
-
-        /* Alerts / Blockquotes */
-        blockquote {
-            background-color: #fffbeb;
-            /* Light yellow alert bg */
-            border-left: 4px solid #f59e0b;
-            /* Amber border */
-            padding: 1em;
-            margin: 1.5em 0;
-            color: #92400e;
-            /* Amber text */
-            border-radius: 0 4px 4px 0;
-            font-style: normal;
-            /* Override italic */
-        }
-    </style>
+    /* アラート / 引用 */
+    blockquote {
+        background-color: #fffbeb; /* 明るい黄色のアラート背景 */
+        border-left: 4px solid #f59e0b; /* 琥珀色の枠線 */
+        padding: 1em;
+        margin: 1.5em 0;
+        color: #92400e; /* 琥珀色のテキスト */
+        border-radius: 0 4px 4px 0;
+        font-style: normal; /* 斜体を上書き */
+    }
+</style>
 </head>
-
 <body>
-    <h1>神言学・集中講座申込み管理システム 完全構築・運用マニュアル</h1>
-    <p>このドキュメントは、本システムをゼロから構築し、運用し、さらに将来的に再構築（AIによる再現）を行うための完全なガイドです。
-        専門知識がない方でも、手順通りに進めることで環境構築から本番リリースまでを行えるように記述しています。</p>
-    <hr>
-    <h2>0. 本システムで使用するツール・API等の一覧表</h2>
-    <p>本システムを動かすために必要な道具（ツール）と外部サービス（API）の一覧です。これらがないとシステムは動きません。</p>
-    <table>
-        <thead>
-            <tr>
-                <th align="left">ツール・サービス名</th>
-                <th align="left">種類</th>
-                <th align="left">用途（何のために使うのか）</th>
-                <th align="left">これがないとどうなるか</th>
-                <th align="left">アクセスURL (ログインはこちら)</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td align="left"><strong>Node.js</strong> (ノード・ジェイエス)</td>
-                <td align="left">実行環境</td>
-                <td align="left">パソコン上でプログラミング言語(JavaScript)を動かすための土台です。</td>
-                <td align="left">システム自体が動きません。</td>
-                <td align="left"><a href="https://nodejs.org/ja/">ダウンロード</a> (推奨版LTSを選択)</td>
-            </tr>
-            <tr>
-                <td align="left"><strong>Visual Studio Code</strong> (VS Code)</td>
-                <td align="left">編集ソフト</td>
-                <td align="left">プログラムコードを書いたり、修正したりするためのエディタです。</td>
-                <td align="left">コードの編集が非常に困難になります。</td>
-                <td align="left"><a href="https://code.visualstudio.com/">ダウンロード</a></td>
-            </tr>
-            <tr>
-                <td align="left"><strong>Git</strong> (ギット)</td>
-                <td align="left">管理ツール</td>
-                <td align="left">プログラムの変更履歴を保存し、インターネット上の保管場所(GitHub等)とやり取りします。</td>
-                <td align="left">過去の状態に戻したり、コードを保存・共有できなくなります。</td>
-                <td align="left"><a href="https://git-scm.com/">ダウンロード</a></td>
-            </tr>
-            <tr>
-                <td align="left"><strong>Supabase</strong> (スパベース)</td>
-                <td align="left">データベース</td>
-                <td align="left">申込みデータ、会員情報、マスタ設定などを保存しておく「データの箱」です。</td>
-                <td align="left">申込み情報や会員情報などを保存・管理できません。</td>
-                <td align="left"><a href="https://supabase.com/dashboard">ログイン画面</a></td>
-            </tr>
-            <tr>
-                <td align="left"><strong>Resend</strong> (リセンド)</td>
-                <td align="left">メール配信API</td>
-                <td align="left">システムから自動で「申込み完了メール」などを送信するためのサービスです。</td>
-                <td align="left">申込み完了メールや決済リンクの案内メールが届きません。</td>
-                <td align="left"><a href="https://resend.com/login">ログイン画面</a></td>
-            </tr>
-            <tr>
-                <td align="left"><strong>Vercel</strong> (バーセル)</td>
-                <td align="left">公開サーバー</td>
-                <td align="left">作ったシステムをインターネット上に公開し、誰でも見られるようにする場所です。</td>
-                <td align="left">世界中の人がWebサイトとしてアクセスできるようになりません（自分のPC内だけで終わります）。</td>
-                <td align="left"><a href="https://vercel.com/login">ログイン画面</a></td>
-            </tr>
-        </tbody>
-    </table>
-    <h3>0.5. 各ツールの役割と関係（イメージ図）</h3>
-    <p>「なんでこんなにたくさんのツールを使うの？」と思うかもしれません。漫画や小説を書くことに例えると、それぞれの役割は以下のようになります。</p>
-    <ol>
-        <li><strong>VS Code ＝ 「作業机と原稿用紙」</strong>
-            <ul>
-                <li>ここで実際に文字（プログラム）を書きます。作業をする場所です。</li>
-            </ul>
-        </li>
-        <li><strong>Git (ギット) ＝ 「セーブ機能付きのカメラ」</strong>
-            <ul>
-                <li>作業の途中で「ここまでOK」という状態でパシャリと写真を撮ります（コミット）。失敗しても、写真を撮った時点まで時間を戻せます。</li>
-            </ul>
-        </li>
-        <li><strong>GitHub (ギットハブ) ＝ 「インターネット上の書庫・倉庫」</strong>
-            <ul>
-                <li>撮った写真をインターネット上に保存しておく場所です。パソコンが壊れても、ここにデータがあるので安心です。</li>
-            </ul>
-        </li>
-        <li><strong>Vercel (バーセル) ＝ 「自動で出版してくれる出版社」</strong>
-            <ul>
-                <li>GitHubという「書庫」に新しい原稿が届くと、それを自動で見つけて「本（Webサイト）」として世の中に公開してくれます。</li>
-            </ul>
-        </li>
-    </ol>
-    <p><strong>【作業の流れ】</strong></p>
-    <ol>
-        <li><strong>VS Code</strong> で書いて保存する。</li>
-        <li><strong>Git</strong> で記録して（コミット）、<strong>GitHub</strong> に送る（プッシュ）。</li>
-        <li><strong>Vercel</strong> が勝手にそれを拾って、世界中に公開する。</li>
-    </ol>
-    <hr>
-    <h2>準備編：まずは道具をそろえよう</h2>
-    <p>料理をする前に包丁やまな板を準備するのと同じように、プログラミングをするための道具を準備します。<br>
-        「もう入っているかも？」という場合も、念のため確認してみましょう。</p>
-
-    <h3>手順0: 道具が入っているか確認する</h3>
-    <p>Windowsの検索バー（画面下の虫眼鏡マーク）で「cmd」と入力して、「コマンドプロンプト」という黒い画面を開いてください。<br>
-        そこで、以下の文字を打ち込んでエンターキーを押します。</p>
-
-    <p><strong>1. Node.js (ノード・ジェイエス) の確認</strong></p>
-    <pre><code class="language-bash">node -v
+<h1>神言学・集中講座申込み管理システム 完全構築・運用マニュアル</h1>
+<p>このドキュメントは、本システムをゼロから構築し、運用し、さらに将来的に再構築（AIによる再現）を行うための完全なガイドです。
+専門知識がない方でも、手順通りに進めることで環境構築から本番リリースまでを行えるように記述しています。</p>
+<hr>
+<h2>0. 本システムで使用するツール・API等の一覧表</h2>
+<p>本システムを動かすために必要な道具（ツール）と外部サービス（API）の一覧です。これらがないとシステムは動きません。</p>
+<table>
+<thead>
+<tr>
+<th align="left">ツール・サービス名</th>
+<th align="left">種類</th>
+<th align="left">用途（何のために使うのか）</th>
+<th align="left">これがないとどうなるか</th>
+<th align="left">アクセスURL (ログインはこちら)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>Node.js</strong> (ノード・ジェイエス)</td>
+<td align="left">実行環境</td>
+<td align="left">パソコン上でプログラミング言語(JavaScript)を動かすための土台です。</td>
+<td align="left">システム自体が動きません。</td>
+<td align="left"><a href="https://nodejs.org/ja/">ダウンロード</a> (推奨版LTSを選択)</td>
+</tr>
+<tr>
+<td align="left"><strong>Visual Studio Code</strong> (VS Code)</td>
+<td align="left">編集ソフト</td>
+<td align="left">プログラムコードを書いたり、修正したりするためのエディタです。</td>
+<td align="left">コードの編集が非常に困難になります。</td>
+<td align="left"><a href="https://code.visualstudio.com/">ダウンロード</a></td>
+</tr>
+<tr>
+<td align="left"><strong>Git</strong> (ギット)</td>
+<td align="left">管理ツール</td>
+<td align="left">プログラムの変更履歴を保存し、インターネット上の保管場所(GitHub等)とやり取りします。</td>
+<td align="left">過去の状態に戻したり、コードを保存・共有できなくなります。</td>
+<td align="left"><a href="https://git-scm.com/">ダウンロード</a></td>
+</tr>
+<tr>
+<td align="left"><strong>Supabase</strong> (スパベース)</td>
+<td align="left">データベース</td>
+<td align="left">申込みデータ、会員情報、マスタ設定などを保存しておく「データの箱」です。</td>
+<td align="left">申込み情報や会員情報などを保存・管理できません。</td>
+<td align="left"><a href="https://supabase.com/dashboard">ログイン画面</a></td>
+</tr>
+<tr>
+<td align="left"><strong>Resend</strong> (リセンド)</td>
+<td align="left">メール配信API</td>
+<td align="left">システムから自動で「申込み完了メール」などを送信するためのサービスです。</td>
+<td align="left">申込み完了メールや決済リンクの案内メールが届きません。</td>
+<td align="left"><a href="https://resend.com/login">ログイン画面</a></td>
+</tr>
+<tr>
+<td align="left"><strong>Vercel</strong> (バーセル)</td>
+<td align="left">公開サーバー</td>
+<td align="left">作ったシステムをインターネット上に公開し、誰でも見られるようにする場所です。</td>
+<td align="left">世界中の人がWebサイトとしてアクセスできるようになりません（自分のPC内だけで終わります）。</td>
+<td align="left"><a href="https://vercel.com/login">ログイン画面</a></td>
+</tr>
+</tbody></table>
+<h3>0.5. 各ツールの役割と関係（イメージ図）</h3>
+<p>「なんでこんなにたくさんのツールを使うの？」と思うかもしれません。漫画や小説を書くことに例えると、それぞれの役割は以下のようになります。</p>
+<ol>
+<li><strong>VS Code ＝ 「作業机と原稿用紙」</strong><ul>
+<li>ここで実際に文字（プログラム）を書きます。作業をする場所です。</li>
+</ul>
+</li>
+<li><strong>Git (ギット) ＝ 「セーブ機能付きのカメラ」</strong><ul>
+<li>作業の途中で「ここまでOK」という状態でパシャリと写真を撮ります（コミット）。失敗しても、写真を撮った時点まで時間を戻せます。</li>
+</ul>
+</li>
+<li><strong>GitHub (ギットハブ) ＝ 「インターネット上の書庫・倉庫」</strong><ul>
+<li>撮った写真をインターネット上に保存しておく場所です。パソコンが壊れても、ここにデータがあるので安心です。</li>
+</ul>
+</li>
+<li><strong>Vercel (バーセル) ＝ 「自動で出版してくれる出版社」</strong><ul>
+<li>GitHubという「書庫」に新しい原稿が届くと、それを自動で見つけて「本（Webサイト）」として世の中に公開してくれます。</li>
+</ul>
+</li>
+</ol>
+<p><strong>【作業の流れ】</strong></p>
+<ol>
+<li><strong>VS Code</strong> で書いて保存する。</li>
+<li><strong>Git</strong> で記録して（コミット）、<strong>GitHub</strong> に送る（プッシュ）。</li>
+<li><strong>Vercel</strong> が勝手にそれを拾って、世界中に公開する。</li>
+</ol>
+<hr>
+<h2>① ローカル環境の構築方法と、本番環境への移行手順</h2>
+<p>あなたのパソコン（ローカル環境）でシステムを動かせるようにし、最終的にインターネット上（本番環境）で使えるようにする手順です。</p>
+<h3>前提条件</h3>
+<ul>
+<li>Windows または Mac のパソコンがあること。</li>
+<li>インターネットに繋がっていること。</li>
+</ul>
+<h3>手順1: 必要なソフトのインストール</h3>
+<ol>
+<li>上記の「ダウンロード」リンクから、<strong>Node.js</strong>, <strong>VS Code</strong>, <strong>Git</strong> をダウンロードしてインストールしてください。すべて初期設定のままで大丈夫です。</li>
+</ol>
+<h3>手順2: ソースコードの準備</h3>
+<ol>
+<li>適当なフォルダ（例: デスクトップに <code>project</code> フォルダ）を作ります。</li>
+<li>VS Codeを開き、「ファイル」メニューから「フォルダを開く」で、そのフォルダを開きます。</li>
+<li>VS Codeの上部メニュー「ターミナル」→「新しいターミナル」を開きます。</li>
+<li>以下のコマンドを入力してEnterキーを押します。（※ソースコードがGitHubにある場合）
+<code>git clone &lt;リポジトリのURL&gt;</code>
+※もし手元にzipファイルがある場合は、それを解凍して中身をこのフォルダに置いてください。</li>
+</ol>
+<h3>手順3: 必要な部品（ライブラリ）のダウンロード</h3>
+<p>ターミナルで以下のコマンドを入力し、Enterキーを押します。</p>
+<pre><code class="language-bash">npm install
 </code></pre>
-    <ul>
-        <li><strong>成功</strong>: <code>v20.x.x</code> のような数字が出ればOKです。</li>
-        <li><strong>失敗</strong>: 「内部コマンドまたは外部コマンド…」と出たら、インストールが必要です。<a
-                href="https://nodejs.org/ja/">Node.js公式サイト</a>から「推奨版」をダウンロードしてインストールしてください。</li>
-    </ul>
-
-    <p><strong>2. Git (ギット) の確認</strong></p>
-    <pre><code class="language-bash">git --version
-</code></pre>
-    <ul>
-        <li><strong>成功</strong>: <code>git version 2.x.x</code> のような数字が出ればOKです。</li>
-        <li><strong>失敗</strong>: インストールが必要です。<a
-                href="https://git-scm.com/">Git公式サイト</a>からダウンロードしてインストールしてください。インストール時の設定は全て「Next」で大丈夫です。</li>
-    </ul>
-
-    <p><strong>3. VS Code (ブイエス・コード) の準備</strong></p>
-    <ul>
-        <li>まだ持っていなければ、<a href="https://code.visualstudio.com/">VS Code公式サイト</a>からダウンロードしてインストールしてください。</li>
-        <li>インストールしたら起動します。</li>
-    </ul>
-
-    <hr>
-
-    <h3>手順1: インターネット上の倉庫 (GitHub) を準備する</h3>
-    <p>作ったプログラムを保存するための「GitHub (ギットハブ)」というサイトのアカウントを作ります。</p>
-    <ol>
-        <li><a href="https://github.com/">GitHub</a> にアクセスします。</li>
-        <li>「登録する (Sign up)」を押して、メールアドレスとパスワードを登録します。</li>
-        <li>登録したメールアドレスに確認メールが届くので、認証を済ませてください。</li>
-    </ol>
-
-    </ol>
-
-    <hr>
-
-    <h3>手順1.5: プログラムを入れる箱（リポジトリ）を作る</h3>
-    <p>これをしないと「リポジトリのURL」が手に入りません。</p>
-    <ol>
-        <li>GitHubのトップページ右上にある「＋」マークを押して <strong>「New repository」</strong> を選びます。</li>
-        <li><strong>Repository name</strong> に好きな名前（例: <code>my-shingengaku</code>）を入力します。</li>
-        <li>他の設定はそのままで、一番下の緑色のボタン <strong>「Create repository」</strong> を押します。</li>
-        <li>画面が切り替わったら、<strong>「Quick setup」</strong> または <strong>「HTTPS」</strong> と書かれているところにあるURL（例:
-            <code>https://github.com/あなたのID/my-shingengaku.git</code>）をコピーします。四角いコピーボタンを押すと便利です。<br>
-            <strong>※このURLが、後で使う「リポジトリのURL」です！</strong>
-        </li>
-    </ol>
-
-    <hr>
-
-    <h3>手順2: Gitの初期設定をする</h3>
-
-    <p>自分のパソコンで「誰が作業したか」を記録できるように、名前とメールアドレスを登録します。<br>
-        これをしておかないと、後でエラーになります。</p>
-
-    <ol>
-        <li>VS Codeの上部メニュー「ターミナル」→「新しいターミナル」を開きます。</li>
-        <li>以下の文字をコピーして貼り付け、エンターキーを押します。（<code>" "</code> の中は自分の名前に変えてください）
-            <pre><code class="language-bash">git config --global user.name "Taro Yamada"
-    </code></pre>
-        </li>
-        <li>次に、以下の文字をコピーして貼り付け、エンターキーを押します。（GitHubに登録したメールアドレスを入れてください）
-            <pre><code class="language-bash">git config --global user.email "taro@example.com"
-</code></pre>
-        </li>
-    </ol>
-
-    <p><strong>【ヒント: 登録情報がわからない場合】</strong></p>
-    <ul>
-        <li><strong>ユーザー名</strong>: GitHubにログインして、右上のアイコンをクリックすると、「Signed in as <strong>ユーザー名</strong>」と表示されます。</li>
-        <li><strong>メールアドレス</strong>: 右上のアイコン → <strong>「Settings」</strong> → 左メニューの <strong>「Emails」</strong>
-            で確認できます（<code>Primary</code> と書かれているものを使ってください）。</li>
-    </ul>
-
-    <p><strong>【確認方法】</strong><br>
-        正しく設定できたか確認してみましょう。以下のそれぞれを入力してエンターキーを押します。<br>
-        設定した名前やメールアドレスが表示されればOKです。</p>
-    <pre><code class="language-bash">git config --global user.name
-git config --global user.email
-</code></pre>
-
-    <p><strong>※補足: GitHubへのログインについて</strong><br>
-        この後、実際にプログラムをダウンロードしたり保存したりする時に、「GitHubにサインインしますか？」という画面が<strong>自動的に</strong>出ます。その時に「Sign in with
-        browser」などを選んでログインすればOKです。今は設定だけで大丈夫です。</p>
-
-    <hr>
-
-    <h3>手順3: パソコンでプログラムを開く</h3>
-    <p>あなたの状況に合わせて、A か B のどちらかを選んで進めてください。</p>
-
-    <h4>パターンA: まだコードがなく、ゼロから始める場合</h4>
-    <p>→ 新しいフォルダを作って、空っぽの状態からスタートします。</p>
-    <ol>
-        <li>デスクトップなどに新しいフォルダ（名前は <code>my-shingengaku</code> など）を作ります。</li>
-        <li>VS Codeのメニュー「ファイル」→「フォルダを開く」で、そのフォルダを選びます。</li>
-        <li>VS Codeの上部メニュー「ターミナル」→「新しいターミナル」を開きます。</li>
-        <li>以下のコマンドを入力して、インターネット上の箱（GitHub）と繋げます。
-            <pre><code class="language-bash">git clone &lt;リポジトリのURL&gt; .
-</code></pre>
-            ※URLの後に <strong>半角スペース</strong> と <strong>ドット</strong> を忘れないでください！
-        </li>
-    </ol>
-
-    <hr style="border-style: dashed; border-color: #ccc;">
-
-    <h4>パターンB: すでにAntigravity (AI) でコードを作ってある場合</h4>
-    <p>→ AIが作ったフォルダをそのまま使って、それをGitHubに送ります。</p>
-    <ol>
-        <li><strong>フォルダの場所を確認する</strong>:
-            <ul>
-                <li>今あなたが見ているこのフォルダ（<code>shingengaku-app</code>）を使います。</li>
-                <li>もし場所が分からない場合は、AIに「このフォルダをデスクトップにコピーして」と頼むと安全です（推奨）。</li>
-            </ul>
-        </li>
-        <li><strong>VS Codeで開く</strong>:
-            <ul>
-                <li>VS Codeを起動し、「ファイル」→「フォルダを開く」で、そのフォルダを選択して開きます。</li>
-            </ul>
-        </li>
-        <li><strong>GitHubに送る準備をする</strong>:
-            <ul>
-                <li>「ターミナル」→「新しいターミナル」を開き、以下のコマンドを順番に1行ずつ入力してエンターキーを押してください。</li>
-            </ul>
-            <pre><code class="language-bash">git init
-git add .
-git commit -m "Initial commit"
-git branch -M main
-git remote add origin &lt;リポジトリのURL&gt;
-git push -u origin main
-</code></pre>
-            <ul>
-                <li>※ <code>&lt;リポジトリのURL&gt;</code> は、手順1.5でコピーしたあなたのGitHubのURLに書き換えてください。</li>
-            </ul>
-        </li>
-    </ol>
-
-    <h3>手順2.5: プログラムの中身を入れる</h3>
-    <p>今、あなたの手元にあるフォルダ（<code>my-shingengaku</code>）は空っぽです。ここにプログラムのファイルを入れます。</p>
-    <ol>
-        <li><strong>既存のコードを持っている場合</strong>:
-            <ul>
-                <li>もしzipファイルや他のフォルダにソースコードがあるなら、その中身をすべてコピーして、この <code>my-shingengaku</code> フォルダの中に貼り付けてください。</li>
-                <li><code>package.json</code> というファイルが、<code>my-shingengaku</code> の直下に来るようにしてください。</li>
-            </ul>
-        </li>
-        <li><strong>Antigravity (AI) に作ってもらう場合 (新規作成)</strong>:
-            <ul>
-                <li>まだコードがない場合は、この後の手順（Antigravityに命令書を渡す）で自動生成してもらいます。そのまま手順3へ進んでください。</li>
-            </ul>
-        </li>
-    </ol>
-
-    <h3>手順3: 必要な部品をインストール</h3>
-    <p><strong>※注意: <code>package.json</code> がフォルダ内にない場合は、この手順はスキップして構いません。</strong></p>
-
-    <pre><code class="language-bash">npm install
-</code></pre>
-    <ul>
-        <li>何か色々な文字が流れますが、最後に <code>found 0 vulnerabilities</code> や <code>added ... packages</code>
-            と出れば成功です。これで「部品」が揃いました。</li>
-    </ul>
-
-    <strong>【結果の確認】</strong>
-    <ul>
-        <li><strong>成功</strong>: <code>added ... packages</code> と出て、<code>node_modules</code> というフォルダが作成されます。</li>
-        <li><strong>失敗 (エラー)</strong>:
-            <ul>
-                <li><code>npm error code ENOENT</code></li>
-                <li><code>npm error enoent Could not read package.json</code></li>
-            </ul>
-            <strong>重要</strong>: これが出ても、<strong>新規作成（Antigravityにお願いする場合）は問題ありません！</strong><br>
-            <ul>
-                <li>「まだコードがないので、インストールするものもありません」という意味です。</li>
-                <li>そのまま気にせず、次のステップへ進んでください。</li>
-                <li>もし「既存のコード」をコピーしたはずなのにこれが出た場合は、<code>package.json</code> のコピー忘れです。手順2.5を確認してください。</li>
-            </ul>
-        </li>
-    </ul>
-
-    <hr>
-    <h3>手順4: データベースの準備 (Supabase)</h3>
-    <p><strong>【重要】データベースは「開発用」と「本番用」で2つ作ります</strong>
-        テストでデータを消そうとして間違って本番データを消す事故を防ぐためです。</p>
-    <table>
-        <thead>
-            <tr>
-                <th align="left">環境</th>
-                <th align="left">プロジェクト名の例（おすすめ）</th>
-                <th align="left">役割</th>
-                <th align="left">データの場所</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td align="left"><strong>開発用</strong></td>
-                <td align="left"><strong><code>Shingengaku-Dev</code></strong></td>
-                <td align="left">テストデータを自由に入れて、機能を作るための実験場。</td>
-                <td align="left">Supabase上の「Dev」プロジェクト</td>
-            </tr>
-            <tr>
-                <td align="left"><strong>本番用</strong></td>
-                <td align="left"><strong><code>Shingengaku-Prod</code></strong></td>
-                <td align="left">実際のお客様が入力する大切なデータを保存する場所。</td>
-                <td align="left">Supabase上の「Prod」プロジェクト</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <div style="background-color: #e6f7ff; padding: 15px; border-radius: 5px; margin-top: 10px; margin-bottom: 20px;">
-        <strong>【Tips: プロジェクト名を変更したい場合】</strong><br>
-        もし名前を間違えて作ってしまった場合でも、後から変更可能です。
-        <ol>
-            <li>Supabaseの該当プロジェクトを開きます。</li>
-            <li>左メニューの <strong>「Settings (歯車)」→「General」</strong> を選びます。</li>
-            <li><strong>「Project Name」</strong> を修正し、右上の <strong>「Save」</strong> を押せば完了です。</li>
-        </ol>
-    </div>
-
-    <p><strong>作業手順 (まずは開発用を作る)</strong></p>
-    <ol>
-        <li><a href="https://supabase.com/dashboard">Supabaseダッシュボード</a> にログインし、「New Project」を押します。</li>
-        <li>プロジェクト名に <strong><code>Shingengaku-Dev</code></strong> と入力し、パスワードを決めて「Create new project」を押します。</li>
-        <li>数分待つと作成完了します。</li>
-        <li>左メニューの <strong>「Settings (歯車アイコン)」→「API」</strong> を開きます。</li>
-        <li>ここに表示される以下の2つが、システムを接続するための「鍵」です。<ul>
-                <li><strong>Project URL</strong> (例: <code>https://xyz...supabase.co</code>)</li>
-                <li><strong>Project API keys (anon public)</strong> (例: <code>eyJ...</code>)</li>
-            </ul>
-        </li>
-    </ol>
-
-    <h3>手順4.5: メールを送るための鍵 (Resend) を取得する</h3>
-    <p>システムからメールを送るために、「Resend」というサービスの鍵が必要です。</p>
-    <ol>
-        <li><a href="https://resend.com/">Resendのサイト</a> にアクセスし、<strong>「Get Started」</strong>
-            からアカウントを作ります（GitHubアカウントでログインすると楽です）。</li>
-        <li>ログインできたら、左メニューの <strong>「API Keys」</strong> をクリックします。</li>
-        <li><strong>「Create API Key」</strong> ボタンを押します。
-            <ul>
-                <li><strong>Name</strong>: <code>shingengaku</code> など好きな名前</li>
-                <li><strong>Permission</strong>: <code>Full access</code> のまま</li>
-                <li><strong>Sending domain</strong>: <code>All domains</code> のまま</li>
-            </ul>
-        </li>
-        <li><strong>「Add」</strong> を押すと、鍵（<code>re_</code> から始まる長い文字列）が表示されます。<br>
-            <strong>※重要</strong>: この鍵は一度しか表示されません！ コピーして、メモ帳などに大切に保存してください。<br>
-            これが <code>RESEND_API_KEY</code> （次の手順で使います）です。<br>
-            <strong>※メモ</strong>:
-            すでにローカル環境開発などでキーを取得済みの場合、それをそのまま使ってOKです。新しく作り直す必要はありません。また、1つのキーをローカルと本番の両方で使い回して構いません。<br>
-            <strong>※鍵を忘れてしまった場合</strong>: 安心してください。上の「Create API
-            Key」ボタンから、<strong>同じ名前で新しいキーを作っても大丈夫です</strong>。古いキーは削除しても、そのまま放置しても問題ありません。新しいキーをコピーして使ってください。
-        </li>
-    </ol>
-
-    <h3>手順5: パソコンとデータベースを繋ぐ (.env.local)</h3>
-    <p>接続情報をまとめたファイルを作成します。手動で作るか、AIに頼むことができます。</p>
-
-    <h4>A. 手動で作る場合</h4>
-    <ol>
-        <li>VS Codeの左側のファイル一覧で、<strong>一番上の階層（何もない場所）</strong> を右クリックし「新しいファイル」を選びます。<br>
-            ※ <code>src</code> フォルダの中ではなく、プロジェクトのフォルダ（<code>shingengaku-app</code>）の直下に作ってください。</li>
-        <li>ファイル名を <code>.env.local</code> （ドット・エンブ・ドット・ローカル）にします。</li>
-        <li>以下の内容をコピーして貼り付け、<code>***************</code> の部分を <strong>手順4で取得したURLとキー</strong> に書き換えます。
-            <pre><code class="language-env">NEXT_PUBLIC_SUPABASE_URL=*************** (Project URL)
+<ul>
+<li><strong>理由</strong>: <code>package.json</code> という設計図に書かれた「必要な部品」をインターネットから全部ダウンロードしてくるためです。</li>
+</ul>
+<h3>手順4: データベースの準備 (Supabase)</h3>
+<p><strong>【重要】データベースは「開発用」と「本番用」で2つ作ります</strong>
+テストでデータを消そうとして間違って本番データを消す事故を防ぐためです。</p>
+<table>
+<thead>
+<tr>
+<th align="left">環境</th>
+<th align="left">プロジェクト名の例（おすすめ）</th>
+<th align="left">役割</th>
+<th align="left">データの場所</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>開発用</strong></td>
+<td align="left"><strong><code>Shingengaku-Dev</code></strong></td>
+<td align="left">テストデータを自由に入れて、機能を作るための実験場。</td>
+<td align="left">Supabase上の「Dev」プロジェクト</td>
+</tr>
+<tr>
+<td align="left"><strong>本番用</strong></td>
+<td align="left"><strong><code>Shingengaku-Prod</code></strong></td>
+<td align="left">実際のお客様が入力する大切なデータを保存する場所。</td>
+<td align="left">Supabase上の「Prod」プロジェクト</td>
+</tr>
+</tbody></table>
+<p><strong>作業手順 (まずは開発用を作る)</strong></p>
+<ol>
+<li><a href="https://supabase.com/dashboard">Supabaseダッシュボード</a> にログインし、「New Project」を押します。</li>
+<li>プロジェクト名に <strong><code>Shingengaku-Dev</code></strong> と入力し、パスワードを決めて「Create new project」を押します。</li>
+<li>数分待つと作成完了します。</li>
+<li>左メニューの <strong>「Settings (歯車アイコン)」→「API」</strong> を開きます。</li>
+<li>ここに表示される以下の2つが、システムを接続するための「鍵」です。<ul>
+<li><strong>Project URL</strong> (例: <code>https://xyz...supabase.co</code>)</li>
+<li><strong>Project API keys (anon public)</strong> (例: <code>eyJ...</code>)</li>
+</ul>
+</li>
+</ol>
+<h3>手順5: パソコンとデータベースを繋ぐ (.env.local)</h3>
+<ol>
+<li>VS Codeの左側のファイル一覧で、何もないところを右クリックし「新しいファイル」を選びます。</li>
+<li>ファイル名を <code>.env.local</code> （ドット・エンブ・ドット・ローカル）にします。</li>
+<li>以下の内容をコピーして貼り付け、<code>***************</code> の部分を <strong>手順4で取得したURLとキー</strong> に書き換えます。<pre><code class="language-env">NEXT_PUBLIC_SUPABASE_URL=*************** (Project URL)
 SUPABASE_SERVICE_ROLE_KEY=*************** (次の行にある service_role secret キー ※注意: anonではなくservice_role推奨ですが、管理者機能を使うためです)
 resend_API_KEY=*************** (ResendのAPI Key)
-ADMIN_PASSWORD=admin123
 </code></pre>
-            <ul>
-                <li>※ <code>SUPABASE_SERVICE_ROLE_KEY</code> は、SupabaseのAPI設定画面の <code>service_role secret</code>
-                    (Revealを押すと見える) を使ってください。管理者権限が必要なためです。</li>
-            </ul>
-        </li>
-    </ol>
-
-    <h4>B. AI (Antigravity) に頼む場合</h4>
-    <p>自分でファイル作成やコピペをするのが不安な場合は、AIに任せることもできます。</p>
-    <ol>
-        <li>チャットで以下のように入力して送信してください。<br>
-            <div style="background-color: #f3f4f6; padding: 10px; border-radius: 4px; margin: 5px 0;">
-                「以下の鍵を使って .env.local ファイルを作成してください。<br>
-                ・Supabase URL: (あなたのProject URL)<br>
-                ・Service Role Key: (あなたのservice_role secret)<br>
-                ・Resend Key: (あなたのResend API Key)」
-            </div>
-        </li>
-        <li>AIが自動的に正しい場所にファイルを作成します。</li>
-    </ol>
-    <div
-        style="background-color: #fffbeb; padding: 15px; border-left: 5px solid #f59e0b; border-radius: 4px; margin-top: 10px;">
-        <strong>【重要: 環境の使い分けについて】</strong><br>
-        この <code>.env.local</code> ファイルは <strong>「開発環境（あなたのパソコン）」専用</strong> です。<br>
-        本番環境（Vercel）で使う鍵は、これとは別に <strong>手順8</strong> で設定します。<br>
-        <ul>
-            <li>ここには <strong>Shingengaku-Dev (開発用)</strong> の鍵を書いてください。</li>
-            <li>このファイルは Git に保存されない（無視される）設定になっているため、GitHub にはアップロードされません。</li>
-        </ul>
-    </div>
-
-    <div style="background-color: #e6f7ff; padding: 15px; border-radius: 5px; margin-top: 10px;">
-        <strong>【Tips: どのデータベースに繋がっているか確認する方法】</strong>
-        <ul>
-            <li><code>.env.local</code> ファイルの <code>NEXT_PUBLIC_SUPABASE_URL</code> に書かれているURLを確認します。</li>
-            <li>Supabaseのダッシュボードで、<code>Shingengaku-Dev</code> と <code>Shingengaku-Prod</code> のそれぞれの「Project URL」(Home
-                → Settings → API) と見比べてください。</li>
-            <li>URLが一致している方が、現在ローカル環境が接続しているデータベースです。</li>
-        </ul>
-    </div>
-
-    <h3>手順6: データベースの箱を作る (SQL実行)</h3>
-    <ol>
-        <li>
-            <p>Supabaseのダッシュボード左メニューから <strong>「SQL Editor」</strong> を開きます。</p>
-        </li>
-        <li>
-            <p>以下のSQLを貼り付けて「Run」を押します。これで必要なテーブルが全て作成されます。</p>
-            <pre><code class="language-sql">-- 1. 管理者ユーザーテーブル
+<ul>
+<li>※ <code>SUPABASE_SERVICE_ROLE_KEY</code> は、SupabaseのAPI設定画面の <code>service_role secret</code> (Revealを押すと見える) を使ってください。管理者権限が必要なためです。</li>
+</ul>
+</li>
+</ol>
+<h3>手順6: データベースの箱を作る (SQL実行)</h3>
+<ol>
+<li><p>Supabaseのダッシュボード左メニューから <strong>「SQL Editor」</strong> を開きます。</p>
+</li>
+<li><p>以下のSQLを貼り付けて「Run」を押します。これで必要なテーブルが全て作成されます。</p>
+<pre><code class="language-sql">-- 1. 管理者ユーザーテーブル
 create table if not exists admin_users (
   id uuid default gen_random_uuid() primary key,
   username text unique not null,
@@ -625,7 +328,7 @@ create table if not exists applications (
   created_at timestamptz default now(),
   input_name text, input_furigana text, input_email text, total_amount integer,
   payment_status text check (payment_status in (&#39;unpaid&#39;, &#39;paid&#39;, &#39;cancelled&#39;)),
-  payment_key text, venue text, social_venue text, applied_rank_name text,
+  payment_key text, venue text, social_venue text, applied_rank_name text, attend_social boolean default false,
   environment text, remarks text, matched_member_id integer references members(id),
   tags text[], is_duplicate_confirmed boolean default false, cc_email text, bcc_email text
 );
@@ -635,246 +338,312 @@ create table if not exists app_settings (
 );
 insert into app_settings (id, data) values (1, &#39;{}&#39;) on conflict do nothing;
 </code></pre>
-        </li>
-    </ol>
-    <h3>手順7: ローカルでの動作確認</h3>
-    <ol>
-        <li>VS Codeのターミナルで <code>npm run dev</code> と入力してEnterを押します。</li>
-        <li>ブラウザで <code>http://localhost:3000</code> にアクセスし、画面が表示されれば成功です。</li>
-    </ol>
-    <hr>
-    <h3>手順8: 本番環境への移行 (Vercel)</h3>
-    <p>いよいよインターネット上に公開します。この作業は少し慎重に行いましょう。</p>
-    <p><strong>1. 本番用データベースの準備 (Supabase)</strong></p>
-    <ol>
-        <li>
-            <p><strong>新しいプロジェクトを作る</strong>:</p>
-            <ul>
-                <li><a href="https://supabase.com/dashboard">Supabaseダッシュボード</a> に行き、緑色の <strong>「New Project」</strong>
-                    ボタンを押します。</li>
-                <li>Organization（組織）を選びます（通常は自分の名前）。</li>
-                <li><strong>Name</strong>: <strong><code>Shingengaku-Prod</code></strong> と入力します。</li>
-                <li><strong>Database Password</strong>: 自分で決めた強力なパスワードを入力します（忘れないようにメモしてください）。</li>
-                <li><strong>Region</strong>: <code>Tokyo</code> (または近い場所) を選びます。</li>
-                <li>「Create new project」を押して、数分待ちます。</li>
-            </ul>
-        </li>
-        <li>
-            <p><strong>テーブルを作成する</strong>:</p>
-            <ul>
-                <li>作成された <code>Shingengaku-Prod</code> の画面左メニューから <strong>「SQL Editor」</strong> アイコン（紙のようなマーク）をクリックします。
-                </li>
-                <li>以前、開発環境で実行したのと同じ <strong>手順6のSQL</strong> をすべて貼り付けます。</li>
-                <li>右下の <strong>「Run」</strong> ボタンを押します。「Success」と出ればOKです。</li>
-            </ul>
-        </li>
-        <li>
-            <p><strong>本番用の鍵（API Key）を取得する</strong>:</p>
-            <ul>
-                <li>左メニュー下の <strong>「Settings (歯車アイコン)」</strong> を押し、その中の <strong>「API」</strong> を選びます。</li>
-                <li>以下の3つの情報をメモ帳などにコピーしておきます。<ol>
-                        <li><strong>Project URL</strong> (<code>https://...supabase.co</code> というURL)</li>
-                        <li><strong>anon public</strong> キー (<code>eyJ...</code> で始まる長い文字列)</li>
-                        <li><strong>service_role secret</strong> キー (「Reveal」を押すと表示されます。<code>eyJ...</code>
-                            で始まるさらに重要な文字列)</li>
-                    </ol>
-                </li>
-            </ul>
-        </li>
-    </ol>
-    <p><strong>2. Vercelで公開する</strong></p>
-    <ol>
-        <li>
-            <p><strong>プロジェクトのインポート</strong>:</p>
-            <ul>
-                <li><a href="https://vercel.com/dashboard">Vercelダッシュボード</a> に行き、右上の <strong>「Add New...」</strong> →
-                    <strong>「Project」</strong> を選びます。
-                </li>
-                <li>「Import Git Repository」という画面で、自分のアカウントの横にある <strong>「Adjust GitHub App Permissions」</strong>
-                    （または表示されているリポジトリ一覧から <code>shingengaku-app</code>）を探し、<strong>「Import」</strong> ボタンを押します。</li>
-            </ul>
-        </li>
-        <li>
-            <p><strong>環境変数の設定 (一番重要です！)</strong>:</p>
-            <ul>
-                <li>「Configure Project」という画面になります。</li>
-                <li><strong>「Environment Variables」</strong> という項目をクリックして開きます。</li>
-                <li>ここに、先ほどメモした <strong>本番用(Prod)の鍵</strong> などを1つずつ入力して「Add」を押していきます。<br>
-                    <strong>※注意: ここではパソコン上に「ファイル」は作りません！ ブラウザの画面に入力するだけです。</strong>
-                </li>
-            </ul>
-            <table>
-                <thead>
-                    <tr>
-                        <th align="left">Key (左側の箱に入力)</th>
-                        <th align="left">Value (右側の箱に入力)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td align="left"><code>NEXT_PUBLIC_SUPABASE_URL</code></td>
-                        <td align="left">先ほど控えた <strong>本番用(Prod)の Project URL</strong></td>
-                    </tr>
-                    <tr>
-                        <td align="left"><code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code></td>
-                        <td align="left">先ほど控えた <strong>本番用(Prod)の anon public キー</strong></td>
-                    </tr>
-                    <tr>
-                        <td align="left"><code>SUPABASE_SERVICE_ROLE_KEY</code></td>
-                        <td align="left">先ほど控えた <strong>本番用(Prod)の service_role secret キー</strong></td>
-                    </tr>
-                    <tr>
-                        <td align="left"><code>RESEND_API_KEY</code></td>
-                        <td align="left"><code>re_</code> から始まる <strong>ResendのAPIキー</strong> (開発時と同じでOK)</td>
-                    </tr>
-                </tbody>
-            </table>
-            <ul>
-                <li>※入力間違いがないかよく確認してください。</li>
-            </ul>
-        </li>
-        <li>
-            <p><strong>デプロイ実行</strong>:</p>
-            <ul>
-                <li>すべての変数を追加したら、下の <strong>「Deploy」</strong> ボタンを押します。</li>
-                <li>花吹雪が舞ったら成功です！ 表示された画像のリンクをクリックすると、あなたのシステムが世界中に公開されています。</li>
-            </ul>
-        </li>
-        </ul>
-        </li>
-    </ol>
-
-    <div
-        style="background-color: #fce7f3; padding: 15px; border-left: 5px solid #ec4899; border-radius: 4px; margin-top: 20px; margin-bottom: 20px;">
-        <h3>🤔 コラム: どうやって「開発」と「本番」が切り替わるの？</h3>
-        <p>「手元にも <code>.env.local</code> があって、Vercelにも環境変数を入れたら、どっちが使われるの？」と疑問に思うかもしれません。<br>
-            実は、<strong>「場所」によって自動的に切り替わります。</strong></p>
-
-        <ul>
-            <li><strong>🏠 あなたのパソコン (開発環境)</strong>
-                <ul>
-                    <li><code>npm run dev</code> で動かしている時。</li>
-                    <li>パソコンの中にある <strong><code>.env.local</code>ファイル</strong> を見て動きます。</li>
-                    <li>ここには <code>Shingengaku-Dev</code> の鍵が書かれています。</li>
-                </ul>
-            </li>
-            <li><strong>☁️ インターネット上のサーバー (本番環境)</strong>
-                <ul>
-                    <li>Vercelにアップロードされた後。</li>
-                    <li>サーバー上にはファイル（<code>.env.local</code>）が存在しません（Gitで無視されているため）。</li>
-                    <li>代わりに、<strong>Vercelの管理画面で設定した「Environment Variables」</strong> を見て動きます。</li>
-                    <li>ここには <code>Shingengaku-Prod</code> の鍵を設定しました。</li>
-                </ul>
-            </li>
-        </ul>
-        <p>つまり、<strong>「ファイルを2つ作って切り替える」のではなく、「場所が変わるから参照先も勝手に変わる」</strong> という仕組みです。<br>
-            ですので、パソコン上にあえて「本番用のenvファイル」を作る必要はありません（作ると間違って本番データを消してしまう事故の元です！）。</p>
-    </div>
-
-    <p><strong>3. 管理者ユーザーの作成 (最初だけやる作業)</strong></p>
-    <ul>
-        <li>公開された本番サイトにはまだ誰も登録されていません。</li>
-        <li>本番用Supabase (<code>Shingengaku-Prod</code>) のSQL Editorで、以下のSQLを実行して、最初の管理者を作ってください（パスワードはハッシュ化されたものが必要です）。
-            <pre><code class="language-sql">insert into admin_users (username, password_hash) values (&#39;admin&#39;, &#39;ここにハッシュ化したパスワードを入れる&#39;);
+</li>
+</ol>
+<h3>手順7: ローカルでの動作確認</h3>
+<ol>
+<li>VS Codeのターミナルで <code>npm run dev</code> と入力してEnterを押します。</li>
+<li>ブラウザで <code>http://localhost:3000</code> にアクセスし、画面が表示されれば成功です。</li>
+</ol>
+<hr>
+<h3>手順8: 本番環境への移行 (Vercel)</h3>
+<p>いよいよインターネット上に公開します。この作業は少し慎重に行いましょう。</p>
+<p><strong>1. 本番用データベースの準備 (Supabase)</strong></p>
+<ol>
+<li><p><strong>新しいプロジェクトを作る</strong>:</p>
+<ul>
+<li><a href="https://supabase.com/dashboard">Supabaseダッシュボード</a> に行き、緑色の <strong>「New Project」</strong> ボタンを押します。</li>
+<li>Organization（組織）を選びます（通常は自分の名前）。</li>
+<li><strong>Name</strong>: <strong><code>Shingengaku-Prod</code></strong> と入力します。</li>
+<li><strong>Database Password</strong>: 自分で決めた強力なパスワードを入力します（忘れないようにメモしてください）。</li>
+<li><strong>Region</strong>: <code>Tokyo</code> (または近い場所) を選びます。</li>
+<li>「Create new project」を押して、数分待ちます。</li>
+</ul>
+</li>
+<li><p><strong>テーブルを作成する</strong>:</p>
+<ul>
+<li>作成された <code>Shingengaku-Prod</code> の画面左メニューから <strong>「SQL Editor」</strong> アイコン（紙のようなマーク）をクリックします。</li>
+<li>以前、開発環境で実行したのと同じ <strong>手順6のSQL</strong> をすべて貼り付けます。</li>
+<li>右下の <strong>「Run」</strong> ボタンを押します。「Success」と出ればOKです。</li>
+</ul>
+</li>
+<li><p><strong>本番用の鍵（API Key）を取得する</strong>:</p>
+<ul>
+<li>左メニュー下の <strong>「Settings (歯車アイコン)」</strong> を押し、その中の <strong>「API」</strong> を選びます。</li>
+<li>以下の3つの情報をメモ帳などにコピーしておきます。<ol>
+<li><strong>Project URL</strong> (<code>https://...supabase.co</code> というURL)</li>
+<li><strong>anon public</strong> キー (<code>eyJ...</code> で始まる長い文字列)</li>
+<li><strong>service_role secret</strong> キー (「Reveal」を押すと表示されます。<code>eyJ...</code> で始まるさらに重要な文字列)</li>
+</ol>
+</li>
+</ul>
+</li>
+</ol>
+<p><strong>2. Vercelで公開する</strong></p>
+<ol>
+<li><p><strong>プロジェクトのインポート</strong>:</p>
+<ul>
+<li><a href="https://vercel.com/dashboard">Vercelダッシュボード</a> に行き、右上の <strong>「Add New...」</strong> → <strong>「Project」</strong> を選びます。</li>
+<li>「Import Git Repository」という画面で、自分のアカウントの横にある <strong>「Adjust GitHub App Permissions」</strong> （または表示されているリポジトリ一覧から <code>shingengaku-app</code>）を探し、<strong>「Import」</strong> ボタンを押します。</li>
+</ul>
+</li>
+<li><p><strong>環境変数の設定 (一番重要です！)</strong>:</p>
+<ul>
+<li>「Configure Project」という画面になります。</li>
+<li><strong>「Environment Variables」</strong> という項目をクリックして開きます。</li>
+<li>ここに、先ほどメモした <strong>本番用(Prod)の鍵</strong> などを1つずつ入力して「Add」を押していきます。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th align="left">Key (左側の箱に入力)</th>
+<th align="left">Value (右側の箱に入力)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><code>NEXT_PUBLIC_SUPABASE_URL</code></td>
+<td align="left">先ほど控えた <strong>本番用(Prod)の Project URL</strong></td>
+</tr>
+<tr>
+<td align="left"><code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code></td>
+<td align="left">先ほど控えた <strong>本番用(Prod)の anon public キー</strong></td>
+</tr>
+<tr>
+<td align="left"><code>SUPABASE_SERVICE_ROLE_KEY</code></td>
+<td align="left">先ほど控えた <strong>本番用(Prod)の service_role secret キー</strong></td>
+</tr>
+<tr>
+<td align="left"><code>RESEND_API_KEY</code></td>
+<td align="left"><code>re_</code> から始まる <strong>ResendのAPIキー</strong> (開発時と同じでOK)</td>
+</tr>
+<tr>
+<td align="left"><code>FROM_EMAIL</code></td>
+<td align="left">本番環境で使用するメールアドレス (例: <code>info@your-domain.com</code> または <code>noreply@resend.dev</code>)</td>
+</tr>
+</tbody></table>
+<ul>
+<li>※入力間違いがないかよく確認してください。</li>
+</ul>
+</li>
+<li><p><strong>デプロイ実行</strong>:</p>
+<ul>
+<li>すべての変数を追加したら、下の <strong>「Deploy」</strong> ボタンを押します。</li>
+<li>花吹雪が舞ったら成功です！</li>
+<li><strong>本番URLの場所</strong>:<ul>
+<li>完了画面の <strong>「Visit」</strong> ボタン、またはプレビュー画像をクリックすると開きます。</li>
+<li>後から確認する場合は、Vercelダッシュボードのプロジェクト名の下に <code>https://shingengaku-app.vercel.app</code> のようなURLが表示されています（これが本番URLです）。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<p><strong>3. 管理者ユーザーの作成 (最初だけやる作業)</strong></p>
+<ul>
+<li><p>公開された本番サイトにはまだ誰も登録されていません。</p>
+</li>
+<li><p>本番用Supabase (<code>Shingengaku-Prod</code>) のSQL Editorで、以下のSQLを実行して、最初の管理者を作ってください（パスワードはハッシュ化されたものが必要です）。</p>
+<pre><code class="language-sql">insert into admin_users (username, password_hash) values (&#39;admin&#39;, &#39;ここにハッシュ化したパスワードを入れる&#39;);
 </code></pre>
-            (※ハッシュ化ツールなどで <code>password123</code> をSHA-256変換した文字を入れてください)
-        </li>
-    </ul>
-    <hr>
-    <h3>手順9: プログラムの修正が発生した場合の対応手順</h3>
-    <p>システムの運用中に「文字を変えたい」「新機能を追加したい」などが起きた場合の対応手順です。</p>
-
-    <h4>A. 自分でコードを書く場合 (通常の手順)</h4>
-    <ol>
-        <li><strong>ローカル環境で修正・テスト</strong></li>
-        <li><strong>VS Codeの「ソース管理」からコミット＆プッシュ</strong></li>
-        <li><strong>Vercelが自動デプロイ</strong></li>
-    </ol>
-    <p>これは従来通りの手順です（詳細は上記手順8と同様）。</p>
-
-    <hr>
-
-    <h4>B. 【推奨】AI (Antigravity) を利用した修正・運用フロー</h4>
-    <p><strong>「コードは書きたくない」「VS Codeの操作もあまりしたくない」</strong> という場合は、以下の流れでAIに任せることができます。</p>
-
-    <p><strong>1. 修正の依頼</strong><br>
-        チャットでAIに要望を伝えます。</p>
-    <ul>
-        <li>例: 「トップページの『登録』ボタンを赤色にして」</li>
-        <li>例: 「申込み完了メールの文言を〇〇に変えて」</li>
-    </ul>
-    <p>AIが自動的にプログラムファイルを編集します。</p>
-
-    <p><strong>2. 手元での確認 (重要)</strong><br>
-        AIが「修正しました」と答えたら、<strong>まだ本番には反映されていません</strong>。<br>
-        自分のパソコン上の確認画面 (<code>http://localhost:3000</code>) を見て、本当に直っているか確認してください。</p>
-    <ul>
-        <li>修正が不十分なら、続けてチャットで「まだ直っていない」「やっぱりこうして」と指示します。</li>
-    </ul>
-
-    <p><strong>3. 本番への反映 (デプロイ)</strong><br>
-        確認してOKなら、その変更を本番環境へ送ります。以下のどちらかの方法で行います。</p>
-    <ul>
-        <li><strong>方法①（確実）</strong>: VS Codeの左側にある「ソース管理（枝分かれアイコン）」を押し、メッセージ欄に「修正」と入れて「コミット」→「同期（プッシュ）」を押す。</li>
-        <li><strong>方法②（AIに頼む）</strong>: チャットで <strong>「この変更をGitHubにプッシュして（本番に反映して）」</strong> と依頼する。<br>
-            AIがコマンドを実行し、GitHubへ送信します。</li>
-    </ul>
-    <p>GitHubに送信された時点で、Vercelがそれを検知し、数分後に本番サイトが自動的に更新されます。</p>
-
-    <hr>
-
-    <h4>注意点: データベースの変更</h4>
-    <p>AIに「新しい項目を増やして」と頼んだ場合、データベース(Supabase)の設定も変える必要があることが多いです。<br>
-        AIは「SQLを実行してください」と<strong>SQL文（データベースへの命令）</strong>を表示することがあります。<br>
-        その場合は、<strong>手順6</strong> と同様に、Supabaseのダッシュボード(SQL Editor)を開き、Dev環境とProd環境の両方でSQLを実行してください。<br>
-        ※「本番DBにも適用して」とAIに頼んでも、AIは本番DBへの直接アクセス権持っていない場合があるため、最後は人間がSupabaseの管理画面でボタンを押すのが一番安全です。</p>
-
-    <blockquote>
-        <p>[!WARNING]
-            本番用データベースを触るときは、間違ってデータを消さないように細心の注意を払ってください。</p>
-    </blockquote>
-    <hr>
-    <h2>② システム仕様の完全な一覧化</h2>
-    <h3>1. 一般ユーザー向け機能（申込みフォーム）</h3>
-    <ul>
-        <li><strong>動的フォーム生成</strong>: 管理画面で設定された商品（金額・会場・属性）に基づいて、申込みフォームが動的に変わる。</li>
-        <li><strong>期・属性の選択</strong>: データベースのマスタに基づき、「期（数字・文字列両対応）」と「属性」を選択できる。</li>
-        <li><strong>金額自動計算</strong>: 選択された属性、会場（講義・懇親会）の組み合わせから、正しい合計金額を自動計算する。</li>
-        <li><strong>会員特定ロジック</strong>: 入力された「名前」と「期」をもとに、会員名簿データベースと照合し、既存会員かどうかを特定する。<ul>
-                <li>一致した場合：その会員IDを紐付ける。</li>
-                <li>一致しない場合：新規またはゲストとして扱う。</li>
-            </ul>
-        </li>
-        <li><strong>重複チェック</strong>: 同じメールアドレスでの申込みがあった場合、警告を表示する（または管理画面でフラグを立てる）。</li>
-        <li><strong>自動返信メール</strong>: 申込み完了時、ユーザーと管理者（CC/BCC）に確認メールを即時送信する。<ul>
-                <li>メール内には、申込み内容に応じた「決済リンクURL」が自動挿入される。</li>
-            </ul>
-        </li>
-    </ul>
-    <h3>2. 管理者向け機能</h3>
-    <ul>
-        <li><strong>ダッシュボード</strong>: 申込み一覧を表示・検索・フィルタリング（決済状況、会場、期などで絞り込み）。</li>
-        <li><strong>詳細編集</strong>: 申込み内容（金額、会場など）を後から修正できる。修正時、確認メールの再送も可能。</li>
-        <li><strong>CSVエクスポート</strong>: 申込みデータをCSV形式でダウンロードできる。<ul>
-                <li><strong>ソート順</strong>: 属性順（特進→...） &gt; 期順 &gt; 五十音順 の優先順位で並び替えられる。</li>
-            </ul>
-        </li>
-        <li><strong>マスタ管理（ドラッグ＆ドロップ対応）</strong>:<ul>
-                <li><strong>期マスタ</strong>: 期の追加・削除・名称変更・並び替え。</li>
-                <li><strong>属性マスタ</strong>: ランクの追加・削除・基本金額設定・並び替え。</li>
-                <li><strong>会場マスタ</strong>: 講義/懇親会会場の追加・削除・並び替え。</li>
-                <li><strong>商品マスタ</strong>: 決済リンクを含む商品の定義。並び替え対応。</li>
-            </ul>
-        </li>
-        <li><strong>会員管理</strong>: 会員名簿の閲覧、CSVインポート/エクスポートにより一括登録が可能。</li>
-        <li><strong>管理者ログイン</strong>: ID/パスワードによる認証。セッション管理。</li>
-    </ul>
-    <hr>
-    <h2>③ 再構築可能な「言葉によるトランザクション」</h2>
-    <p>このシステムをAI（アンチグラビティ等）を使ってゼロから再構築するための「命令書」です。
-        新しいAIとのチャットに、以下のTransaction 1から順に貼り付けてください。</p>
-    <h3>Transaction 1: プロジェクトの初期化</h3>
-    <pre><code class="language-text">あなたは熟練したNext.jsエンジニアです。以下の構成で新しいWebアプリケーションを作成してください。
+<p>(※ハッシュ化ツールなどで <code>password123</code> をSHA-256変換した文字を入れてください)</p>
+<p>(※ハッシュ化ツールなどで <code>password123</code> をSHA-256変換した文字を入れてください)</p>
+</li>
+</ul>
+<hr>
+<h3>手順8.5: 本番環境でのメール設定 (Resendドメイン認証)</h3>
+<p>本番環境で一般のお客様（<code>gmail.com</code> など）へ確実にメールを届けるためには、<strong>独自ドメインの認証</strong>が必要になります。
+（これを行わないと、自分自身のアドレス以外にはメールが送信できないか、迷惑メール扱いになる可能性があります）</p>
+<ol>
+<li><p><strong>ドメインの所有確認 (Verify Domain)</strong>:</p>
+<ul>
+<li><a href="https://resend.com/domains">Resendダッシュボード</a> の「Domains」タブを開きます。</li>
+<li>「Add Domain」を押し、あなたが持っているドメイン（例: <code>shingengaku.com</code>）を入力します。</li>
+<li>地域は <code>us-east-1</code> (デフォルト) でOKです。</li>
+</ul>
+</li>
+<li><p><strong>DNSレコードの設定</strong>:</p>
+<ul>
+<li>表示された <strong>MX</strong>, <strong>TXT (SPF/DKIM)</strong>, <strong>CNAME</strong> などのレコードを、あなたのドメイン管理画面（お名前.com、Xserver、Google Domainsなど）に追加します。</li>
+<li>追加後、Resend画面の「Verify DNS Records」を押して、ステータスが <strong>「Verified」</strong> になるのを待ちます（最大24〜48時間かかることがあります）。</li>
+</ul>
+<blockquote>
+<p>[!TIP]
+<strong>Xserver (エックスサーバー) での具体的な入力ガイド (shingengaku.com の場合)</strong></p>
+<p>Xserverの「DNSレコード追加」画面で、Resendに表示された3つのレコードを順番に追加します。
+<strong>※重要: Xserverの「ホスト名」欄には、ドメイン名 (<code>.shingengaku.com</code>) を含めずに、サブドメイン部分だけを入力します。</strong></p>
+<p><strong>① MXレコード (バウンスメール対策)</strong></p>
+<ul>
+<li><strong>ホスト名</strong>: Resend画面の <strong>Name</strong> に表示されている文字を入力します。<ul>
+<li>例: <code>bounces</code> と表示されていたら <code>bounces</code></li>
+<li>例: <code>send</code> と表示されていたら <code>send</code></li>
+<li>※ドメイン名 (<code>.shingengaku.com</code>) は含めません。</li>
+</ul>
+</li>
+<li><strong>種別</strong>: <code>MX</code> を選択します。</li>
+<li><strong>内容</strong>: Resend画面の <strong>Value</strong> を入力（コピペ）します。<ul>
+<li>例: <code>feedback-smtp.us-east-1.amazonses.com</code></li>
+</ul>
+</li>
+<li><strong>優先度</strong>: <code>10</code></li>
+</ul>
+<p><strong>② TXTレコード (SPF: なりすまし防止)</strong></p>
+<ul>
+<li><strong>ホスト名</strong>: Resend画面の <strong>Name</strong> に表示されている文字を入力します。<ul>
+<li>例: <code>bounces</code> または <code>send</code> など</li>
+<li>※ドメイン名 (<code>.shingengaku.com</code>) は含めません。</li>
+</ul>
+</li>
+<li><strong>種別</strong>: <code>TXT</code> を選択します。</li>
+<li><strong>内容</strong>: Resend画面の <strong>Value</strong> を入力（コピペ）します。<ul>
+<li>例: <code>&quot;v=spf1 include:amazonses.com ~all&quot;</code></li>
+</ul>
+</li>
+<li><strong>優先度</strong>: <code>0</code> (そのまま)</li>
+</ul>
+<p><strong>③ TXTレコード (DKIM: 電子署名)</strong></p>
+<ul>
+<li><strong>ホスト名</strong>: <code>resend._domainkey</code> (または <code>smtp._domainkey</code>) のように入力します。<ul>
+<li>(Resend表示: <code>resend._domainkey.shingengaku.com</code> → ドメイン部分を除いて <code>resend._domainkey</code> だけ入れる)</li>
+</ul>
+</li>
+<li><strong>種別</strong>: <code>TXT</code> を選択します。</li>
+<li><strong>内容</strong>: <code>p=</code> から始まる長い文字列をすべてコピペします。</li>
+<li><strong>優先度</strong>: <code>0</code> (そのまま)</li>
+</ul>
+</blockquote>
+</li>
+<li><p><strong>Vercel環境変数の更新</strong>:</p>
+<ul>
+<li><p>認証が完了したら、Vercelのプロジェクト設定画面（Settings -&gt; Environment Variables）に行きます。</p>
+</li>
+<li><p><code>FROM_EMAIL</code> というキーを追加（編集）し、値を認証済みドメインのアドレス（例: <code>info@shingengaku.com</code>）に変更します。</p>
+</li>
+<li><p><strong>重要</strong>: 環境変数を変更した後は、Vercelの「Deployments」タブから最新のデプロイの「Redeploy」を行うか、次回のコード更新時に反映されます。</p>
+</li>
+<li><p><strong>重要</strong>: 環境変数を変更した後は、Vercelの「Deployments」タブから最新のデプロイの「Redeploy」を行うか、次回のコード更新時に反映されます。</p>
+</li>
+</ul>
+</li>
+</ol>
+<h3>手順9: プログラムの修正が発生した場合の対応手順</h3>
+<p>システムの運用中に「文字を変えたい」「新機能を追加したい」などが起きた場合の対応手順です。</p>
+<p><strong>1. ローカル環境で修正・テストする</strong>
+まずはいきなり本番を変えず、自分のパソコン（ローカル）で直します。</p>
+<ol>
+<li>VS Codeで該当のファイルを編集し、保存します。</li>
+<li>ターミナルで <code>npm run dev</code> が動いていることを確認し、ブラウザ (<code>http://localhost:3000</code>) で動作確認します。<ul>
+<li>エラーが出ないか？</li>
+<li>思った通りの修正になっているか？</li>
+<li>他の機能が壊れていないか？（最低限の確認）</li>
+</ul>
+</li>
+</ol>
+<p><strong>2. 本番環境へ反映する（デプロイ）</strong>
+テストでOKだったら、本番へ反映します。作業は「保存して送る」だけです。</p>
+<ol>
+<li><strong>コミット</strong>:<ul>
+<li>VS Code左側の「ソース管理」アイコンをクリック。</li>
+<li>メッセージ欄に「〇〇を修正」と入力して「コミット」ボタンを押す。</li>
+</ul>
+</li>
+<li><strong>プッシュ</strong>:<ul>
+<li>「同期」または「プッシュ」ボタンを押して、GitHubへ送信する。</li>
+</ul>
+</li>
+<li><strong>自動反映待ち</strong>:<ul>
+<li>VercelがGitHubの更新を検知し、数分以内に本番サイトを自動更新してくれます。</li>
+</ul>
+</li>
+</ol>
+<p><strong>3. 【重要】データベースの変更が発生した場合</strong>
+これが一番注意が必要です。
+プログラム（コード）だけでなく、<strong>「テーブルに項目を増やした」「新しいテーブルを作った」</strong> などの変更をした場合は、プログラムを反映するだけではエラーになります。</p>
+<ul>
+<li><strong>対応手順</strong>:<ul>
+<li>ローカル(Dev)で実行した「変更用SQL」と同じものを、<strong>本番用Supabase (Shingengaku-Prod)</strong> のSQL Editorでも実行してください。</li>
+<li>例：「<code>members</code> テーブルに <code>phone</code> カラムを追加した」場合<pre><code class="language-sql">alter table members add column phone text;
+</code></pre>
+これをDev環境で試したあと、Prod環境でも必ず実行します。</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>[!WARNING]
+本番用データベースを触るときは、間違ってデータを消さないように細心の注意を払ってください。</p>
+</blockquote>
+<h3>手順10: トラブルシューティング (メールが届かない場合など)</h3>
+<p>「申込みはできたのにメールが来ない」という場合、以下の順番で確認してください。</p>
+<p><strong>1. Resendダッシュボードを見る</strong></p>
+<ul>
+<li><a href="https://resend.com/emails">ResendのEmails画面</a> を見ます。</li>
+<li>ここに送ったはずのメールが表示されていますか？<ul>
+<li><strong>表示あり + Statusが <code>Delivered</code></strong>: Resendは送信に成功しています。受信側の迷惑メールフォルダを確認してください。</li>
+<li><strong>表示あり + Statusが <code>Bounced</code></strong>: 宛先不明などで弾かれました。DNS設定 (MXレコード) が正しいか再確認してください。</li>
+<li><strong>表示なし</strong>: プログラムからResendへの送信リクエスト自体が失敗しています。次の「Vercelログ」を見てください。</li>
+</ul>
+</li>
+</ul>
+<p><strong>2. Vercelのログを見る</strong></p>
+<ul>
+<li>Vercelダッシュボードでプロジェクトを開き、<strong>「Logs」</strong> タブを開きます。</li>
+<li>申込みを行った時間のログを探します。赤文字でエラー (<code>Error: ...</code> や <code>500</code>) が出ていませんか？<ul>
+<li><code>Missing API Key</code>: 環境変数 <code>RESEND_API_KEY</code> が設定されていません。</li>
+<li><code>Unauthorized</code>: APIキーが間違っています。</li>
+</ul>
+</li>
+</ul>
+<p><strong>3. Sandbox制限の疑い (一番多い原因)</strong></p>
+<ul>
+<li>ドメイン認証が完了する前、または <code>FROM_EMAIL</code> を設定していない場合、Resendは「Sandboxモード」で動きます。</li>
+<li><strong>Sandboxモードの制限</strong>: <strong>「Resendに登録した自分自身のアドレス」にしかメールを送れません。</strong></li>
+<li>解決策:<ol>
+<li>手順8.5に従ってドメイン (<code>shingengaku.com</code> 等) を認証する。</li>
+<li>Vercelの環境変数 <code>FROM_EMAIL</code> に認証済みドメインのアドレス (<code>info@shingengaku.com</code> 等) を設定する。</li>
+<li>これで誰にでも送れるようになります。</li>
+</ol>
+</li>
+</ul>
+<hr>
+<h2>② システム仕様の完全な一覧化</h2>
+<h3>1. 一般ユーザー向け機能（申込みフォーム）</h3>
+<ul>
+<li><strong>動的フォーム生成</strong>: 管理画面で設定された商品（金額・会場・属性）に基づいて、申込みフォームが動的に変わる。</li>
+<li><strong>期・属性の選択</strong>: データベースのマスタに基づき、「期（数字・文字列両対応）」と「属性」を選択できる。</li>
+<li><strong>金額自動計算</strong>: 選択された属性、会場（講義・懇親会）の組み合わせから、正しい合計金額を自動計算する。</li>
+<li><strong>会員特定ロジック</strong>: 入力された「名前」と「期」をもとに、会員名簿データベースと照合し、既存会員かどうかを特定する。<ul>
+<li>一致した場合：その会員IDを紐付ける。</li>
+<li>一致しない場合：新規またはゲストとして扱う。</li>
+</ul>
+</li>
+<li><strong>重複チェック</strong>: 同じメールアドレスでの申込みがあった場合、警告を表示する（または管理画面でフラグを立てる）。</li>
+<li><strong>自動返信メール</strong>: 申込み完了時、ユーザーと管理者（CC/BCC）に確認メールを即時送信する。<ul>
+<li>メール内には、申込み内容に応じた「決済リンクURL」が自動挿入される。</li>
+</ul>
+</li>
+</ul>
+<h3>2. 管理者向け機能</h3>
+<ul>
+<li><strong>ダッシュボード</strong>: 申込み一覧を表示・検索・フィルタリング（決済状況、会場、期などで絞り込み）。</li>
+<li><strong>詳細編集</strong>: 申込み内容（金額、会場など）を後から修正できる。修正時、確認メールの再送も可能。</li>
+<li><strong>CSVエクスポート</strong>: 申込みデータをCSV形式でダウンロードできる。<ul>
+<li><strong>ソート順</strong>: 属性順（特進→...） &gt; 期順 &gt; 五十音順 の優先順位で並び替えられる。</li>
+</ul>
+</li>
+<li><strong>マスタ管理（ドラッグ＆ドロップ対応）</strong>:<ul>
+<li><strong>期マスタ</strong>: 期の追加・削除・名称変更・並び替え。</li>
+<li><strong>属性マスタ</strong>: ランクの追加・削除・基本金額設定・並び替え。</li>
+<li><strong>会場マスタ</strong>: 講義/懇親会会場の追加・削除・並び替え。</li>
+<li><strong>商品マスタ</strong>: 決済リンクを含む商品の定義。並び替え対応。</li>
+</ul>
+</li>
+<li><strong>会員管理</strong>: 会員名簿の閲覧、CSVインポート/エクスポートにより一括登録が可能。</li>
+<li><strong>管理者ログイン</strong>: ID/パスワードによる認証。セッション管理。</li>
+</ul>
+<hr>
+<h2>③ 再構築可能な「言葉によるトランザクション」</h2>
+<p>このシステムをAI（アンチグラビティ等）を使ってゼロから再構築するための「命令書」です。
+新しいAIとのチャットに、以下のTransaction 1から順に貼り付けてください。</p>
+<h3>Transaction 1: プロジェクトの初期化</h3>
+<pre><code class="language-text">あなたは熟練したNext.jsエンジニアです。以下の構成で新しいWebアプリケーションを作成してください。
 
 【技術スタック】
 - フレームワーク: Next.js 14+ (App Router)
@@ -886,8 +655,8 @@ insert into app_settings (id, data) values (1, &#39;{}&#39;) on conflict do noth
 まず、`npx create-next-app@latest` を使用してプロジェクトを初期化し、上記のライブラリをインストールしてください。
 その後、`.env.local` ファイルを作成し、NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY を設定する準備をしてください（値は空で構いません）。
 </code></pre>
-    <h3>Transaction 2: データベース設計と構築</h3>
-    <pre><code class="language-text">Supabaseのデータベーススキーマを設計します。以下のテーブルを作成するSQLを書いてください。
+<h3>Transaction 2: データベース設計と構築</h3>
+<pre><code class="language-text">Supabaseのデータベーススキーマを設計します。以下のテーブルを作成するSQLを書いてください。
 
 1. `admin_users`: 管理者ログイン用（username, password_hash）
 2. `terms`: 期マスタ（name, sort_order）。sort_orderで並び替え可能にする。
@@ -898,8 +667,8 @@ insert into app_settings (id, data) values (1, &#39;{}&#39;) on conflict do noth
 
 また、Supabase接続用のクライアントコード (`src/lib/supabaseAdmin.ts`) を作成してください。管理者権限（Service Role）を使用します。
 </code></pre>
-    <h3>Transaction 3: 管理画面（マスタ管理）の実装</h3>
-    <pre><code class="language-text">管理者用のマスタ管理画面を実装してください。
+<h3>Transaction 3: 管理画面（マスタ管理）の実装</h3>
+<pre><code class="language-text">管理者用のマスタ管理画面を実装してください。
 以下の4つの画面を作り、それぞれでデータの追加・削除・編集・ドラッグアンドドロップによる並び替えができるようにしてください。
 
 1. `/admin/terms`: 期マスタ管理
@@ -910,8 +679,8 @@ insert into app_settings (id, data) values (1, &#39;{}&#39;) on conflict do noth
 UIライブラリには `@dnd-kit` を使用し、直感的に「⋮⋮」アイコンをドラッグして順序を入れ替えられるようにしてください。
 並び替え後は「保存」ボタンで順序を確定し、API経由で `sort_order` カラムを一括更新してください。
 </code></pre>
-    <h3>Transaction 4: 申込みフォーム（フロントエンド）の実装</h3>
-    <pre><code class="language-text">一般ユーザー向けの申込みフォーム (`/`) を実装してください。
+<h3>Transaction 4: 申込みフォーム（フロントエンド）の実装</h3>
+<pre><code class="language-text">一般ユーザー向けの申込みフォーム (`/`) を実装してください。
 
 【要件】
 1. APIから「期」「属性」「会場」のマスタデータを取得し、プルダウンの選択肢として表示する。
@@ -920,8 +689,8 @@ UIライブラリには `@dnd-kit` を使用し、直感的に「⋮⋮」アイ
 3. 選択された「属性」「講義会場」「懇親会会場」の組み合わせに基づいて、合計金額をリアルタイムに計算し表示する。
 4. 「申込み」ボタン押下時に `/api/apply` へデータを送信する。
 </code></pre>
-    <h3>Transaction 5: 申込み処理APIとメール送信の実装</h3>
-    <pre><code class="language-text">バックエンドAPI (`/api/apply`) を実装してください。
+<h3>Transaction 5: 申込み処理APIとメール送信の実装</h3>
+<pre><code class="language-text">バックエンドAPI (`/api/apply`) を実装してください。
 
 【処理フロー】
 1. 受け取った「名前」「期」を使って `members` テーブルを検索し、既存会員がいればIDを紐付ける。
@@ -930,8 +699,8 @@ UIライブラリには `@dnd-kit` を使用し、直感的に「⋮⋮」アイ
 4. `Resend` ライブラリを使用して、ユーザーと管理者に完了メールを送信する。
     - メール本文には、マスタ設定に基づいた正しい「決済リンクURL」・「合計金額」・「会場情報」を埋め込むこと。
 </code></pre>
-    <h3>Transaction 6: 管理者ダッシュボードの実装</h3>
-    <pre><code class="language-text">管理者が申込み状況を確認できるダッシュボード (`/admin/dashboard`) を作成してください。
+<h3>Transaction 6: 管理者ダッシュボードの実装</h3>
+<pre><code class="language-text">管理者が申込み状況を確認できるダッシュボード (`/admin/dashboard`) を作成してください。
 
 【機能】
 1. 申込みデータの一覧表示（ページネーション不要、全件表示）。
@@ -942,5 +711,4 @@ UIライブラリには `@dnd-kit` を使用し、直感的に「⋮⋮」アイ
 </code></pre>
 
 </body>
-
 </html>

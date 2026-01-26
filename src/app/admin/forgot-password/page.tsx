@@ -25,6 +25,7 @@ export default function ForgotPassword() {
             const data = await res.json();
 
             if (res.ok) {
+                // APIからのメッセージをそのまま表示（「メールを送信しました（登録がない場合は届きません）」など）
                 setMessage(data.message || 'メールを送信しました。');
             } else {
                 setError(data.error || '送信に失敗しました。');
