@@ -585,9 +585,6 @@ export default function Home() {
                     />
                     <span className="ml-2 text-gray-700">参加しません</span>
                   </label>
-                  {(selectedVenues.length > 1 && !selectedVenues.includes('参加しない')) && (
-                    <p className="text-xs text-blue-600 ml-6">※複数会場に参加される場合は、全て選択してください。</p>
-                  )}
                 </div>
               </div>
             )}
