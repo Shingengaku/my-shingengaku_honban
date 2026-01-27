@@ -31,22 +31,28 @@ export async function GET() {
 
 
   // ソートロジック
-  // 1. ランク順 (ASC, nulls last -> 一般)
-  // 2. 期順 (ASC, nulls last)
-  // 3. ふりがな順 (ASC)
+  // 1. 申込日時順 (DESC -> 新しいもの順)
+  // 2. ランク順 (ASC, nulls last -> 一般)
+  // 3. 期順 (ASC, nulls last)
+  // 4. ふりがな順 (ASC)
 
   const sortedData = data.sort((a, b) => {
-    // 1. ランク順
+    // 1. 申込日時順 (新しいもの順)
+    const dateA = new Date(a.created_at).getTime();
+    const dateB = new Date(b.created_at).getTime();
+    if (dateA !== dateB) return dateB - dateA;
+
+    // 2. ランク順
     const rankOrderA = a.members?.ranks?.sort_order ?? 999;
     const rankOrderB = b.members?.ranks?.sort_order ?? 999;
     if (rankOrderA !== rankOrderB) return rankOrderA - rankOrderB;
 
-    // 2. 期順
+    // 3. 期順
     const genA = parseInt(a.members?.terms?.name || '9999');
     const genB = parseInt(b.members?.terms?.name || '9999');
     if (genA !== genB) return genA - genB;
 
-    // 3. ふりがな順
+    // 4. ふりがな順
     // マスタのふりがなを優先、なければ入力ふりがな
     const furiganaA = a.members?.furigana || a.input_furigana || '';
     const furiganaB = b.members?.furigana || b.input_furigana || '';
