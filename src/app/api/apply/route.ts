@@ -14,6 +14,7 @@ interface ApplyRequest {
     introducer?: string;
     no_introducer?: boolean;
     participation_type?: string;
+    remarks?: string;
 }
 
 interface PaymentLinkItem {
@@ -43,7 +44,7 @@ const venueDisplayMap: Record<string, string> = {
 export async function POST(request: Request) {
     try {
         const body: ApplyRequest = await request.json();
-        let { name, furigana, email, venue, social_venue, term_id, introducer, no_introducer, participation_type } = body;
+        let { name, furigana, email, venue, social_venue, term_id, introducer, no_introducer, participation_type, remarks: userRemarks } = body;
 
         // 0. データの正規化
         if (name) {
@@ -189,7 +190,8 @@ export async function POST(request: Request) {
 
         // 備考欄の作成 (紹介者情報など)
         const tags: string[] = [];
-        let remarks = '';
+        let remarks = userRemarks ? userRemarks + '\n' : ''; // ユーザー入力の備考を先頭に追加
+
         if (!matchedProduct) {
             remarks += '【要確認】商品マスタに対象の商品のお申し込みがありません。\n';
         }
@@ -213,6 +215,9 @@ export async function POST(request: Request) {
                 }
             }
         }
+
+        // remarks の末尾の改行を整理（オプション）
+        remarks = remarks.trim();
 
         // attend_social カラムの値を導出
         const attendSocial = (social_venue && social_venue !== 'none' && social_venue !== '参加しない');
