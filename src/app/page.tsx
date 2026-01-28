@@ -17,6 +17,7 @@ export default function Home() {
     email: '',
     venue: '',
     term_id: '',
+    remarks: '', // Added for typed access
   });
 
   // 新規追加: 受講生かどうか、紹介者情報
@@ -41,6 +42,11 @@ export default function Home() {
   // 多重選択用の状態管理
   const [selectedVenues, setSelectedVenues] = useState<string[]>([]);
   const [selectedSocialVenues, setSelectedSocialVenues] = useState<string[]>([]);
+
+  // LIVE視聴時の会場選択
+  const [onlineLiveVenues, setOnlineLiveVenues] = useState<string[]>([]);
+  // 備考 (formDataにはないので別途管理、あるいはformDataに結合)
+  // ここでは payload 作成時に結合します
 
   /* ... ポップアップ状態 ... */
   const [infoText, setInfoText] = useState('');
@@ -111,6 +117,7 @@ export default function Home() {
 
     let finalVenue = '';
     let finalSocialVenue = '';
+    let additionalRemarks = '';
 
     if (participationType === 'venue') {
       if (selectedSocialVenues.length === 0) {
@@ -134,6 +141,11 @@ export default function Home() {
       }
       finalVenue = selectedOnlineOption;
       finalSocialVenue = 'none'; // オンラインは懇親会なし
+
+      // LIVE視聴の場合の会場選択チェック
+      if (selectedOnlineOption === 'LIVE視聴' && onlineLiveVenues.length > 0) {
+        additionalRemarks = `\n【LIVE視聴会場】${onlineLiveVenues.join('・')}`;
+      }
     }
 
     try {
@@ -146,6 +158,7 @@ export default function Home() {
         // 一般の場合は term_id を空にする
         term_id: isStudent ? formData.term_id : undefined,
         participation_type: participationType,
+        remarks: additionalRemarks ? (formData.remarks ? formData.remarks + additionalRemarks : additionalRemarks) : undefined
       };
 
       const res = await fetch('/api/apply', {
@@ -502,27 +515,73 @@ export default function Home() {
 
             {/* オンライン選択 (参加タイプがオンラインの場合) */}
             {participationType === 'online' && (
-              <div className="animate-fade-in">
-                <span className="block text-sm font-medium text-gray-700 mb-2">
-                  オンライン視聴タイプ
-                  <span className="text-red-500 ml-1">*必須</span>
-                </span>
-                <select
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"
-                  value={selectedOnlineOption}
-                  onChange={(e) => setSelectedOnlineOption(e.target.value)}
-                >
-                  <option value="">視聴タイプを選択してください</option>
-                  {onlineOptions.length > 0 ? (
-                    onlineOptions.map((opt) => (
-                      <option key={opt.name} value={opt.name}>
-                        {opt.name}
-                      </option>
-                    ))
-                  ) : null}
-                </select>
-                {onlineOptions.length === 0 && (
-                  <p className="text-gray-500 text-sm mt-1">現在選択可能なオンラインオプションはありません。</p>
+              <div className="animate-fade-in space-y-4">
+                <div>
+                  <span className="block text-sm font-medium text-gray-700 mb-2">
+                    オンライン視聴タイプ
+                    <span className="text-red-500 ml-1">*必須</span>
+                  </span>
+                  <select
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"
+                    value={selectedOnlineOption}
+                    onChange={(e) => setSelectedOnlineOption(e.target.value)}
+                  >
+                    <option value="">視聴タイプを選択してください</option>
+                    {onlineOptions.length > 0 ? (
+                      onlineOptions.map((opt) => (
+                        <option key={opt.name} value={opt.name}>
+                          {opt.name}
+                        </option>
+                      ))
+                    ) : null}
+                  </select>
+                  {onlineOptions.length === 0 && (
+                    <p className="text-gray-500 text-sm mt-1">現在選択可能なオンラインオプションはありません。</p>
+                  )}
+                </div>
+
+                {/* LIVE視聴時の追加会場選択 */}
+                {selectedOnlineOption === 'LIVE視聴' && (
+                  <div className="bg-blue-50 p-4 rounded-md animate-fade-in">
+                    <span className="block text-sm font-medium text-gray-700 mb-2">
+                      参加会場（任意）
+                    </span>
+                    <p className="text-xs text-gray-500 mb-2">※LIVE視聴時に会場にもお越しになる場合は選択してください</p>
+                    <div className="flex space-x-6">
+                      <label className="flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          value="東京"
+                          checked={onlineLiveVenues.includes('東京')}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setOnlineLiveVenues([...onlineLiveVenues, '東京']);
+                            } else {
+                              setOnlineLiveVenues(onlineLiveVenues.filter(v => v !== '東京'));
+                            }
+                          }}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-gray-700">東京</span>
+                      </label>
+                      <label className="flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          value="福岡"
+                          checked={onlineLiveVenues.includes('福岡')}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setOnlineLiveVenues([...onlineLiveVenues, '福岡']);
+                            } else {
+                              setOnlineLiveVenues(onlineLiveVenues.filter(v => v !== '福岡'));
+                            }
+                          }}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-gray-700">福岡</span>
+                      </label>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
