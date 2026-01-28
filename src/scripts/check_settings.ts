@@ -15,7 +15,7 @@ async function checkSettings() {
     console.log('設定が見つかりました:');
     data.forEach(row => {
         if (row.key === 'payment_links') {
-            console.log(`${row.key}: [複雑なオブジェクト] (長さ: ${row.value?.length})`);
+            console.log(`${row.key}:`, JSON.stringify(row.value, null, 2));
         } else {
             console.log(`${row.key}: ${JSON.stringify(row.value)}`);
         }

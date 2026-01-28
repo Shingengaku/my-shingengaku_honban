@@ -254,7 +254,21 @@ export async function POST(request: Request) {
         }
 
         // 5. メール送信
-        const displayVenue = venueDisplayMap[venue] || venue;
+        let displayVenue = venueDisplayMap[venue] || venue;
+
+        // LIVE視聴の場合、備考から会場名を抽出して付記
+        // 改行や前後のスペースに強くする
+        if (participation_type === 'online') {
+            // 例: \n【LIVE視聴会場】東京
+            // または他のテキストが混ざっている場合もある
+            const match = /【LIVE視聴会場】\s*([^\n]+)/.exec(userRemarks || '');
+            if (match) {
+                const liveVenue = match[1].trim();
+                if (liveVenue) {
+                    displayVenue += ` (${liveVenue})`;
+                }
+            }
+        }
         let displaySocialVenue = venueDisplayMap[social_venue] || social_venue;
 
         // オンライン参加の場合は懇親会を「ー」と表記

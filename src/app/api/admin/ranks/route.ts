@@ -76,9 +76,9 @@ export async function PUT(request: Request) {
     }
 }
 
-// Helper to check usage
+// 使用状況を確認するヘルパー
 async function checkUsage(rankId: string) {
-    // 1. Members check
+    // 1. メンバー（受講生）チェック
     const { count, error: countError } = await supabaseAdmin
         .from('members')
         .select('*', { count: 'exact', head: true })
@@ -87,7 +87,7 @@ async function checkUsage(rankId: string) {
     if (countError) throw countError;
     if (count && count > 0) return '受講生データに使用されているため削除できません';
 
-    // 2. Product Settings check
+    // 2. 商品設定チェック
     const { data: settings, error: settingsError } = await supabaseAdmin
         .from('app_settings')
         .select('value')
@@ -98,7 +98,7 @@ async function checkUsage(rankId: string) {
 
     if (settings?.value && Array.isArray(settings.value)) {
         const products = settings.value;
-        // rank_id might be string or number in JSON
+        // rank_id はJSON内で文字列または数値の可能性があります
         const used = products.some((p: any) => String(p.rank_id) === String(rankId));
         if (used) return '商品マスタ（決済リンク設定）に使用されているため削除できません';
     }
@@ -106,7 +106,7 @@ async function checkUsage(rankId: string) {
     return null; // OK
 }
 
-// Override the DELETE function content logic
+// DELETE関数の内容ロジックをオーバーライド
 export async function DELETE(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
@@ -114,7 +114,7 @@ export async function DELETE(request: Request) {
 
         if (!id) return NextResponse.json({ error: 'IDは必須です' }, { status: 400 });
 
-        // Pre-check usage
+        // 使用状況を事前チェック
         const usageError = await checkUsage(id);
         if (usageError) {
             return NextResponse.json({ error: usageError }, { status: 400 });
@@ -131,7 +131,7 @@ export async function DELETE(request: Request) {
     } catch (e: any) {
         console.error('Error deleting rank:', e);
         if (e.code === '23503') {
-            // Fallback for race conditions
+            // 競合状態のフォールバック
             return NextResponse.json({ error: 'この属性は既に使用されているため削除できません' }, { status: 400 });
         }
         return NextResponse.json({ error: 'ランクの削除に失敗しました' }, { status: 500 });

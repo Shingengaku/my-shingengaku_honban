@@ -80,8 +80,8 @@ export const DEFAULT_EMAIL_TEMPLATE_FORGOT_PASS = {
 export function processEmailTemplate(templateBody: string, vars: Record<string, string>): string {
     let content = templateBody;
     for (const [key, value] of Object.entries(vars)) {
-        // gフラグ付きの正規表現を使用した、単純な replaceAll 相当の処理
-        // 自動エスケープはここでは堅牢ではありませんが、既知のキーには十分です
+        // gフラグを使用したreplaceAll相当の処理
+        // 自動エスケープはここでは完全ではありませんが、既知のキーには十分です
         const regex = new RegExp(`{{${key}}}`, 'g');
         content = content.replace(regex, value || '');
     }

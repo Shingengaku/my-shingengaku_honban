@@ -1,0 +1,13 @@
+[
+  {
+    "key": "テスト商品",
+    "url": "https://credit.j-payment.co.jp/link/creditcard?aid=121911&iid=keikan_aman&mailauthckey=a5a5d1ae8b844e59805f1a3aefdb46cb",
+    "name": "テスト商品",
+    "rank_id": "7",
+    "social_fee": 8000,
+    "lecture_fee": 11000,
+    "product_code": "keikan_aman",
+    "venue_social": "東京",
+    "venue_lecture": "東京"
+  }
+]

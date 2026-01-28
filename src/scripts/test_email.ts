@@ -4,20 +4,20 @@ import { resend } from '../lib/resend';
 const apiKey = process.env.RESEND_API_KEY;
 const fromEmail = process.env.FROM_EMAIL;
 
-console.log("--- Resend Configuration Check ---");
-console.log(`RESEND_API_KEY: ${apiKey ? "Present" : "MISSING"}`);
-console.log(`FROM_EMAIL: ${fromEmail || "Not set (will use default)"}`);
+console.log("--- Resend 設定チェック ---");
+console.log(`RESEND_API_KEY: ${apiKey ? "あり" : "なし"}`);
+console.log(`FROM_EMAIL: ${fromEmail || "未設定 (デフォルトを使用)"}`);
 
 async function sendTestEmail() {
     if (!apiKey) {
-        console.error("Error: RESEND_API_KEY is missing. Cannot proceed.");
+        console.error("エラー: RESEND_API_KEY がありません。処理を中止します。");
         process.exit(1);
     }
 
     const sender = fromEmail ? `Test <${fromEmail}>` : 'onboarding@resend.dev';
     const recipient = 'delivered@resend.dev'; // 設定が正しい場合に常に成功するResendのテスト用アドレス
 
-    console.log(`\nAttempting to send test email...`);
+    console.log(`\nテストメールの送信を試行中...`);
     console.log(`From: ${sender}`);
     console.log(`To: ${recipient}`);
 
@@ -26,7 +26,7 @@ async function sendTestEmail() {
             from: sender,
             to: [recipient],
             subject: 'Resend Test Email',
-            html: '<p>This is a test email to verify your Resend configuration.</p>'
+            html: '<p>これはResendの設定を確認するためのテストメールです。</p>'
         });
 
         if (error) {
@@ -37,7 +37,7 @@ async function sendTestEmail() {
             console.log("Response data:", data);
         }
     } catch (e) {
-        console.error("\n❌ Unexpected error occurred.");
+        console.error("\n❌ 予期せぬエラーが発生しました。");
         console.error(e);
     }
 }

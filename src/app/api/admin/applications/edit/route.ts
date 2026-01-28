@@ -23,7 +23,6 @@ export async function POST(request: Request) {
         }
 
         if (type === 'update') {
-            // Extract special fields
             // 特殊フィールドを抽出
             // 備考: 厳密に言えば、このカラムはまだ存在しない可能性があります。
             // ユーザーが追加していない場合、この更新は失敗します。
@@ -40,7 +39,7 @@ export async function POST(request: Request) {
                 ...appUpdates
             } = updates;
 
-            // 楽観的ロック (Optimistic Locking) check
+            // 楽観的ロック (Optimistic Locking) チェック
             if (updated_at) {
                 const { data: currentApp, error: fetchError } = await supabaseAdmin
                     .from('applications')
@@ -113,7 +112,7 @@ export async function POST(request: Request) {
             // まず matched_member_id を取得する必要があります
             const { data: appData, error: fetchError } = await supabaseAdmin
                 .from('applications')
-                .select('matched_member_id, input_name, input_furigana, input_email') // Fetch inputs too
+                .select('matched_member_id, input_name, input_furigana, input_email') // 入力も取得
                 .eq('id', id)
                 .single();
 
@@ -136,7 +135,7 @@ export async function POST(request: Request) {
                             name: name || 'Unknown',
                             email: email,
                             furigana: furigana || '',
-                            generation: member_generation // Set directly
+                            generation: member_generation // 直接設定
                         })
                         .select('id')
                         .single();
@@ -145,7 +144,7 @@ export async function POST(request: Request) {
                         console.error('Failed to create new member:', createError);
                     } else if (newMember) {
                         targetMemberId = newMember.id;
-                        // Link it back to application
+                        // アプリケーションに再リンク
                         await supabaseAdmin
                             .from('applications')
                             .update({ matched_member_id: targetMemberId })

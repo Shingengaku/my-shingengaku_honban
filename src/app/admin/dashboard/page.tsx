@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { getPaymentKey } from '@/lib/payment';
 
 // 型定義
 interface Application {
@@ -47,6 +48,7 @@ interface PaymentLinkItem {
     url: string;
     venue_lecture?: string;
     venue_social?: string;
+    rank_id?: string; // ランクID (照合用)
 }
 
 interface Venue {
@@ -334,7 +336,8 @@ export default function AdminDashboard() {
                         key: item.name,
                         url: item.url || '',
                         venue_lecture: item.venue_lecture || '',
-                        venue_social: item.venue_social || ''
+                        venue_social: item.venue_social || '',
+                        rank_id: item.rank_id ? String(item.rank_id) : undefined
                     }));
                 } else {
                     const linksObj = val || {};
@@ -343,7 +346,8 @@ export default function AdminDashboard() {
                         lecture_fee: '0',
                         social_fee: '0',
                         key,
-                        url: String(value)
+                        url: String(value),
+                        rank_id: undefined
                     }));
                 }
 
@@ -483,7 +487,7 @@ export default function AdminDashboard() {
     }, [apps]);
 
     const confirmDuplicate = async (id: string) => {
-        // Modal provides confirmation
+        // 確認モーダルを表示
         setLoading(true);
         try {
             const res = await fetch('/api/admin/applications/update', {
@@ -1136,7 +1140,7 @@ export default function AdminDashboard() {
                             <button onClick={() => setFilter('cancelled')} className={`px-4 py-2 rounded-md ${filter === 'cancelled' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`}>キャンセル</button>
                             <button onClick={() => setFilter('all')} className={`px-4 py-2 rounded-md ${filter === 'all' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`}>全て</button>
                         </div>
-                        {/* Statistics Display */}
+                        {/* 統計表示 */}
                         <div className="flex gap-4 text-sm bg-gray-50 px-4 py-2 rounded border border-gray-200">
                             <div className="flex flex-col items-center">
                                 <span className="text-gray-500 text-xs">お申込み総数</span>
@@ -1165,7 +1169,7 @@ export default function AdminDashboard() {
                         </div>
                     </div>
 
-                    {/* Advanced Filters with MultiSelect */}
+                    {/* 高度なフィルター (複数選択) */}
                     <div className="flex gap-2 items-start">
                         <MultiSelect
                             label="全ての属性"
@@ -1215,7 +1219,7 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className="flex gap-4 items-center">
-                        {/* Search Box */}
+                        {/* 検索ボックス */}
                         <div className="relative">
                             <input
                                 type="text"
@@ -1238,7 +1242,7 @@ export default function AdminDashboard() {
                         </div>
                     </div>
 
-                    {/* Reset Data Button (Bottom Right) */}
+                    {/* データリセットボタン (右下) */}
                     <div className="flex justify-end pt-2 border-t border-gray-100 mt-2">
                         <button onClick={handleTruncate} className="px-2 py-1 text-xs text-red-500 hover:text-red-700 border border-red-200 rounded hover:bg-red-50" title="Ctrlキーを押しながらクリック">
                             データをリセット(削除)
@@ -1330,8 +1334,79 @@ export default function AdminDashboard() {
                                 const furigana = app.members?.furigana || app.input_furigana;
 
                                 const isAlert = app.remarks?.includes('商品マスタ') && !app.tags?.includes('confirmed_product_alert');
-                                // Check if ignored
+                                // 除外されているか確認
                                 const isIgnored = app.tags?.includes('ignore_duplicate');
+
+                                // 商品名マッチングロジック
+                                let displayProductName = app.payment_key || '';
+                                const appRankId = ranks.find(r => r.name === rankName)?.id;
+
+                                // アプリの会場名と商品マスタの会場名を照合
+                                // (注意: 商品マスタ側が「東京」で、アプリ側が「tokyo」の場合など正規化が必要だが、
+                                //  現状の保存ロジックではアプリ側に日本語が入ることもある。
+                                //  ここでは単純な文字列一致 + 既知の変換を試みる)
+                                const normalizeVenue = (v: string | undefined) => {
+                                    if (!v) return '';
+                                    if (v === 'tokyo') return '東京';
+                                    if (v === 'fukuoka') return '福岡';
+                                    if (v === 'both') return '福岡・東京講演参加'; // または '東京・福岡...'
+                                    if (v === 'none') return '参加しない';
+                                    return v;
+                                };
+                                const appVL = normalizeVenue(app.venue);
+                                const appVS = normalizeVenue(app.social_venue);
+
+                                const matchedProduct = paymentLinksData.find(p => {
+                                    // ランク一致 (商品マスタにrank_idがない場合は誰でもマッチする可能性があるが、
+                                    //  通常は一般がnull。ここでは厳密にチェック)
+                                    const rankMatch = p.rank_id ? String(p.rank_id) === String(appRankId) : !appRankId; // appRankIdがない(一般)なら p.rank_idもなしか?
+                                    // 実際には 一般のみ rank_id = null で保存されていることが多い。
+                                    // rankName = '一般' のとき、rankId は undefined/null
+
+                                    // 会場一致
+                                    // 商品マスタの venue_lecture と app の venue を比較
+                                    // 商品マスタの venue_social と app の social_venue を比較
+                                    // (部分一致や正規化が必要)
+                                    const pVL = p.venue_lecture || '';
+                                    const pVS = p.venue_social || '';
+
+                                    const vMatch = pVL === appVL || pVL === app.venue; // 日本語またはコード
+                                    // 懇親会のマッチング (LIVEの場合は無視などあるが、ここでは単純比較)
+                                    const sMatch = pVS === appVS || pVS === app.social_venue;
+
+                                    return rankMatch && vMatch && sMatch;
+                                });
+
+                                if (matchedProduct) {
+                                    displayProductName = matchedProduct.name;
+                                } else {
+                                    // マッチしなかった場合、payment_keyを使わず、現在のAppデータから生成する
+                                    // (DBのpayment_keyが古い/間違っている可能性があるため)
+                                    // getPaymentKey は tokyo/both 以外を福岡にしてしまうため、LIVE視聴などは考慮が必要
+
+                                    if (app.participation_type === 'online') {
+                                        displayProductName = `【${rankName}】LIVE視聴/懇親会なし`;
+                                    } else {
+                                        // 会場名が tokyo/fukuoka/both と一致しない場合(例: 参加しない, none)のハンドリング
+                                        // getPaymentKey は unknown を福岡にするので、ここで制御する
+                                        let vForKey = app.venue;
+                                        if (vForKey !== 'tokyo' && vForKey !== 'fukuoka' && vForKey !== 'both') {
+                                            if (vForKey === 'none' || vForKey === '参加しない') {
+                                                vForKey = 'none'; // getPaymentKeyはnoneを想定していないが...
+                                                // getPaymentKey自体を修正するか、ここで手動生成するか。
+                                                // 安全のため手動生成に近い形をとる
+                                            }
+                                        }
+
+                                        // getPaymentKeyの挙動: tokyo->東京, both->福岡・東京, その他->福岡
+                                        // 確実に変な値(noneなど)が福岡にならないようにする
+                                        if (vForKey === 'none') {
+                                            displayProductName = `【${rankName}】会場参加なし/${app.social_venue === 'none' ? '懇親会なし' : '懇親会あり'}`;
+                                        } else {
+                                            displayProductName = getPaymentKey(rankName, app.venue || '', app.social_venue || '');
+                                        }
+                                    }
+                                }
 
                                 return (
                                     <tr key={app.id} className={`${selectedIds.has(app.id) ? 'bg-indigo-50' : (isAlert ? 'bg-red-50' : '')} ${isAlert ? 'text-red-600' : ''}`}>
@@ -1384,7 +1459,7 @@ export default function AdminDashboard() {
                                                         )}
                                                     </div>
                                                 )}
-                                                {/* Introduction Badge */}
+                                                {/* 紹介者バッジ */}
                                                 {app.tags?.includes('ご紹介') && (
                                                     <div className="mt-1">
                                                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
@@ -1416,7 +1491,18 @@ export default function AdminDashboard() {
                                         <td className="px-6 py-4 align-top">
                                             <div className="text-sm text-gray-900">
                                                 <span className="font-bold text-xs text-gray-400 block">講義:</span>
-                                                {app.venue === 'both' ? '東京・福岡' : (app.venue === 'tokyo' ? '東京' : (app.venue === 'fukuoka' ? '福岡' : (app.venue === 'none' ? '参加しない' : (app.venue || '-'))))}
+                                                {(() => {
+                                                    let vDisplay = app.venue === 'both' ? '東京・福岡' : (app.venue === 'tokyo' ? '東京' : (app.venue === 'fukuoka' ? '福岡' : (app.venue === 'none' ? '参加しない' : (app.venue || '-'))));
+
+                                                    // LIVE視聴の場合、備考から会場名を抽出
+                                                    if (app.participation_type === 'online' || (app.venue && app.venue.includes('LIVE視聴'))) {
+                                                        const match = /【LIVE視聴会場】\s*([^\n]+)/.exec(app.remarks || '');
+                                                        if (match) {
+                                                            vDisplay += ` (${match[1].trim()})`;
+                                                        }
+                                                    }
+                                                    return vDisplay;
+                                                })()}
                                             </div>
                                             <div className="text-sm text-gray-900 mt-1">
                                                 <span className="font-bold text-xs text-gray-400 block">懇親会:</span>
@@ -1425,7 +1511,7 @@ export default function AdminDashboard() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 align-top">
                                             <div>¥{app.total_amount.toLocaleString()}</div>
-                                            <div className="text-xs text-gray-400 select-all cursor-pointer truncate max-w-[150px]" title={app.payment_key}>{app.payment_key}</div>
+                                            <div className="text-xs text-gray-400 select-all cursor-pointer truncate max-w-[150px]" title={displayProductName}>{displayProductName}</div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex flex-col space-y-1 align-top">
                                             <div className="space-x-2">

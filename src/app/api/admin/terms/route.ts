@@ -26,7 +26,7 @@ export async function POST(request: Request) {
 
         if (!name) return NextResponse.json({ error: '名前は必須です' }, { status: 400 });
 
-        // Get max sort_order to append at the end
+        // max sort_order を取得して末尾に追加
         const { data: maxOrderData } = await supabaseAdmin
             .from('terms')
             .select('sort_order')
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
         if (error) throw error;
         return NextResponse.json(data);
     } catch (e) {
-        return NextResponse.json({ error: 'Failed to create term' }, { status: 500 });
+        return NextResponse.json({ error: '期の作成に失敗しました' }, { status: 500 });
     }
 }
 

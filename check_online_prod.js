@@ -1,7 +1,7 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
-// Prod credentials from env_backup_production.txt
+// env_backup_production.txt からの本番環境の認証情報
 const PROD_URL = "https://odxnczxbtltccfrizvkb.supabase.co";
 const PROD_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9keG5jenhidGx0Y2Nmcml6dmtiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODIwNjE4NywiZXhwIjoyMDgzNzgyMTg3fQ.OsJMZcayGa3i8q9JTffAfwOzz2sSJlHQPW2tcGNYQnM";
 

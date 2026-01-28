@@ -20,18 +20,18 @@ export default function GlobalSettingsPage() {
                 if (res.ok) {
                     const data = await res.json();
 
-                    // The API returns values as formatted JSON object or raw Key-Value from table
-                    // Based on previous checks, /api/admin/settings returns { ...key: value } 
-                    // Let's verify inspect of /api/admin/settings if possible, but assuming standard format we saw in client
-                    // Actually, let's assume the API might return the raw key-value pairs or the reshaped object.
-                    // The public /api/settings returns reshaped object. 
-                    // Let's assume /api/admin/settings is similar or we handle it.
-                    // Looking at `products/page.tsx`, it calls `/api/admin/settings` and expects `data.payment_links` etc.
-                    // So it returns a reshaped object.
+                    // APIは値をフォーマットされたJSONオブジェクトまたはテーブルからの生のKey-Valueとして返します
+                    // 以前のチェックに基づき、/api/admin/settings は { ...key: value } を返します 
+                    // 可能であれば /api/admin/settings の検証を行いますが、クライアントで見た標準フォーマットを想定します
+                    // 実際には、APIが生のキーバリューペアまたは整形されたオブジェクトを返す可能性があります。
+                    // パブリックな /api/settings は整形されたオブジェクトを返します。 
+                    // /api/admin/settings も同様か、またはここで処理すると想定します。
+                    // `products/page.tsx` を見ると、`/api/admin/settings` を呼び出し `data.payment_links` 等を期待しています。
+                    // したがって、整形されたオブジェクトを返します。
 
                     setSettings({
                         application_text: data.application_text || '',
-                        application_active: data.application_active !== false, // Default to true
+                        application_active: data.application_active !== false, // デフォルトは true
                         application_title: data.application_title || '',
                         application_title_size: data.application_title_size || 'text-3xl'
                     });
