@@ -464,6 +464,9 @@ export default function Home() {
               <span className="block text-sm font-bold text-gray-700 mb-2">
                 参加タイプ
                 <span className="text-red-500 ml-1">*必須</span>
+                <span className="text-xs font-normal text-gray-500 ml-1">
+                  （異なる会場にて、会場参加とオンライン参加を併せて受講される場合は、各参加方法ごとにお申し込みください）
+                </span>
               </span>
               <div className="flex flex-col sm:flex-row gap-4">
                 <label className={`flex p-3 border rounded-md cursor-pointer transition-colors ${participationType === 'venue' ? 'bg-white border-indigo-500 ring-2 ring-indigo-200' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
