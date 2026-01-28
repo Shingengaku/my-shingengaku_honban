@@ -273,7 +273,7 @@ export default function AdminDashboard() {
     const fetchApplications = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/admin/applications');
+            const res = await fetch('/api/admin/applications', { cache: 'no-store' });
             if (res.ok) {
                 const data = await res.json();
                 // データの整形 (participation_typeの補完など)

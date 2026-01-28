@@ -4,6 +4,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 import { getPaymentKey } from '@/lib/payment';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   // ... (comments omitted)
 
