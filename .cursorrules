@@ -1,0 +1,10 @@
+# Antigravity Rules
+
+## Language Preference
+- **User Language**: Japanese
+- **Output Language**: Japanese (日本語)
+- **Code Comments**: Japanese (日本語)
+
+## Behavior
+- All explanations, artifact contents, and code comments must be written in Japanese.
+- Commit messages and technical logs can be in English if standard, but descriptions for the user should be in Japanese.

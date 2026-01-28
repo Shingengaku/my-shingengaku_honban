@@ -1,5 +1,5 @@
 
--- Update email_template with proper default JSON
+-- email_templateを適切なデフォルトJSONで更新
 UPDATE app_settings
 SET value = '{
   "subject": "【神言学】お申込み受付・決済のご案内",
@@ -7,7 +7,7 @@ SET value = '{
 }'::jsonb
 WHERE key = 'email_template';
 
--- Update email_template_general with proper default JSON
+-- email_template_generalを適切なデフォルトJSONで更新
 UPDATE app_settings
 SET value = '{
   "subject": "【神言学】お申込み受付のお知らせ",
@@ -15,7 +15,7 @@ SET value = '{
 }'::jsonb
 WHERE key = 'email_template_general';
 
--- Update email_template_resend
+-- email_template_resendを更新
 UPDATE app_settings
 SET value = '{
   "subject": "【神言学】【再送】お申込み受付・決済のご案内",
@@ -23,7 +23,7 @@ SET value = '{
 }'::jsonb
 WHERE key = 'email_template_resend';
 
--- Update email_template_forgot_pass
+-- email_template_forgot_passを更新
 UPDATE app_settings
 SET value = '{
   "subject": "【神言学】パスワードリセットのご案内",
