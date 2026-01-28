@@ -544,9 +544,9 @@ export default function Home() {
                 {selectedOnlineOption === 'LIVE視聴' && (
                   <div className="bg-blue-50 p-4 rounded-md animate-fade-in">
                     <span className="block text-sm font-medium text-gray-700 mb-2">
-                      参加会場（任意）
+                      参加会場
                     </span>
-                    <p className="text-xs text-gray-500 mb-2">※LIVE視聴時に会場にもお越しになる場合は選択してください</p>
+                    <p className="text-xs text-red-600 mb-2">※会場参加もお申込みされている場合、その会場を選択しないように注意してください。</p>
                     <div className="flex space-x-6">
                       <label className="flex items-center cursor-pointer">
                         <input
