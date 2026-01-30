@@ -165,10 +165,14 @@ export async function POST(request: Request) {
                 // 講義会場のマッチ: コード一致 または 日本語名一致
                 // 商品マスタ側が複数選択("東京・大阪")の場合もあるかもしれないが、完全一致で管理されている前提ならこれでOK
                 // もし"東京"が含まれるか？のロジックが必要なら includes を使うが、現状は会場ごとに商品を作っているはず。
-                const venueMatch = (p.venue_lecture === venue) || (p.venue_lecture === searchVenue);
+                const venueMatch = (p.venue_lecture === venue) ||
+                    (p.venue_lecture === searchVenue) ||
+                    (venue === 'both' && (p.venue_lecture === '東京・福岡' || p.venue_lecture === '福岡・東京'));
 
                 // 懇親会会場のマッチ
-                let socialMatch = (p.venue_social === social_venue) || (p.venue_social === searchSocial);
+                let socialMatch = (p.venue_social === social_venue) ||
+                    (p.venue_social === searchSocial) ||
+                    (social_venue === 'both' && (p.venue_social === '東京・福岡' || p.venue_social === '福岡・東京'));
 
                 // オンライン参加の特例: 商品側の懇親会が「ー」ならマッチとみなす
                 // (ユーザー入力の social_venue は無視してよい、なぜならオンラインに懇親会はないから)

@@ -60,9 +60,13 @@ export async function POST(request: Request) {
         let matchedProduct = null;
         if (Array.isArray(paymentLinks)) {
             matchedProduct = paymentLinks.find((p: any) => {
-                const venueMatch = (p.venue_lecture === venue) || (p.venue_lecture === searchVenue);
+                const venueMatch = (p.venue_lecture === venue) ||
+                    (p.venue_lecture === searchVenue) ||
+                    (venue === 'both' && (p.venue_lecture === '東京・福岡' || p.venue_lecture === '福岡・東京'));
 
-                let socialMatch = (p.venue_social === social_venue) || (p.venue_social === searchSocial);
+                let socialMatch = (p.venue_social === social_venue) ||
+                    (p.venue_social === searchSocial) ||
+                    (social_venue === 'both' && (p.venue_social === '東京・福岡' || p.venue_social === '福岡・東京'));
 
                 // オンライン参加の特例
                 if (participation_type === 'online' && p.venue_social === 'ー') {
