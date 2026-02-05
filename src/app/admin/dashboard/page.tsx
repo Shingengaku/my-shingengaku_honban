@@ -1095,6 +1095,7 @@ export default function AdminDashboard() {
 
     const venueLectureOptions = [
         ...Array.from(new Set([...venueList.filter(v => v.type === 'lecture').map(v => v.name)])).map(v => ({ label: v as string, value: v as string })),
+        { label: '東京・福岡', value: '東京・福岡' },
         { label: '参加しない', value: 'none' }
     ];
     // Remove duplicates by value just in case
@@ -1102,6 +1103,7 @@ export default function AdminDashboard() {
 
     const venueSocialOptions = [
         ...Array.from(new Set([...venueList.filter(v => v.type === 'social').map(v => v.name)])).map(v => ({ label: v as string, value: v as string })),
+        { label: '両方参加', value: '両方参加' },
         { label: '参加しない', value: 'none' }
     ];
     const uniqueVenueSocialOptions = Array.from(new Map(venueSocialOptions.map(item => [item.value, item])).values());
