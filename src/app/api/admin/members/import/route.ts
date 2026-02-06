@@ -28,7 +28,8 @@ function parseCSV(text: string) {
         'ランク': 'rank_name',
         '属性': 'rank_name',
         '期': 'generation',
-        '期生': 'generation'
+        '期生': 'generation',
+        '特進': 'is_tokushin'
     };
 
     const mappedHeaders = headers.map(h => keyMap[h] || h);
@@ -126,7 +127,7 @@ export async function POST(request: Request) {
                 continue;
             }
 
-            const { name, furigana, email, rank_name, generation } = row;
+            const { name, furigana, email, rank_name, generation, is_tokushin } = row;
 
             if (!email || !name) {
                 errors.push(`スキップ: 氏名またはメールアドレスが空欄です (行データ: ${JSON.stringify(row)})`);
@@ -165,12 +166,25 @@ export async function POST(request: Request) {
                 termId = termsRes.data[0].id;
             }
 
+            // 特進フラグの解析: "特進" string, "true", "TRUE", "1" -> true
+            // 空文字, "false", "0" -> false
+            let isTokushinBool = false;
+            if (typeof is_tokushin === 'string') {
+                const val = is_tokushin.trim();
+                if (val === '特進' || val.toLowerCase() === 'true' || val === '1' || val === 'あり') {
+                    isTokushinBool = true;
+                }
+            } else if (typeof is_tokushin === 'boolean') {
+                isTokushinBool = is_tokushin;
+            }
+
             upsertData.push({
                 name,
                 furigana: furigana || name,
                 email,
                 rank_id: rankId,
-                term_id: termId
+                term_id: termId,
+                is_tokushin: isTokushinBool
             });
         }
 

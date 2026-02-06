@@ -322,6 +322,7 @@ export default function MembersPage() {
                             <li><strong>メール</strong>: 必須。</li>
                             <li><strong>属性</strong>: 任意。</li>
                             <li><strong>期</strong>: 任意 (例: 「1期」「1」など)。※現在は数値変換可能なもののみ対応</li>
+                            <li><strong>特進</strong>: 任意 (例: 「特進」または「あり」で特進扱い)。</li>
                         </ul>
                     </div>
                 </div>
