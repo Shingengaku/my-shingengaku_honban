@@ -317,9 +317,9 @@ export default function MembersPage() {
                         <p><strong>文字コード:</strong> UTF-8 (推奨) ※BOM付きも可</p>
                         <p><strong>ヘッダー行:</strong> 必須 (1行目)</p>
                         <ul className="list-disc list-inside ml-2 bg-gray-50 p-2 rounded mt-1 text-xs">
-                            <li><strong>氏名</strong>: 必須。</li>
+                            <li><strong>氏名</strong>: 必須 (同姓同名かつ同じ期の場合は上書きされます)。</li>
                             <li><strong>フリガナ</strong>: 任意。</li>
-                            <li><strong>メール</strong>: 必須 (一意のキーとなります)。</li>
+                            <li><strong>メール</strong>: 必須。</li>
                             <li><strong>属性</strong>: 任意。</li>
                             <li><strong>期</strong>: 任意 (例: 「1期」「1」など)。※現在は数値変換可能なもののみ対応</li>
                         </ul>

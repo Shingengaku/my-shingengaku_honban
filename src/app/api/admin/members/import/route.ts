@@ -177,38 +177,38 @@ export async function POST(request: Request) {
         let savedCount = 0;
         let mergedCount = 0;
 
-        // 3. メンバーへの処理 (手動Upsert: メール + 期 の複合キー判定)
+        // 3. メンバーへの処理 (手動Upsert: 氏名 + 期 の複合キー判定)
         if (upsertData.length > 0) {
-            // バッチ内でメール+期による重複排除 (CSV内の最新を優先)
+            // バッチ内で氏名+期による重複排除 (CSV内の最新を優先)
             const uniqueInput = Array.from(
-                new Map(upsertData.map(item => [`${item.email}_${item.term_id}`, item])).values()
+                new Map(upsertData.map(item => [`${item.name}_${item.term_id}`, item])).values()
             );
 
             savedCount = uniqueInput.length;
             mergedCount = upsertData.length - uniqueInput.length;
 
-            const emails = uniqueInput.map(u => u.email);
+            const names = uniqueInput.map(u => u.name);
 
-            // Fetch existing members by email to check for term collisions
-            // Note: If emails array is huge, we might need chunking. Assuming reasonable CSV size (<1000 rows).
+            // Fetch existing members by name to check for term collisions
+            // Note: If names array is huge, we might need chunking. Assuming reasonable CSV size (<1000 rows).
             const { data: existingMembers, error: fetchError } = await supabaseAdmin
                 .from('members')
-                .select('id, email, term_id')
-                .in('email', emails);
+                .select('id, name, term_id')
+                .in('name', names);
 
             if (fetchError) throw fetchError;
 
-            // Map key: "email_termId"
+            // Map key: "name_termId"
             const existingMap = new Map<string, string>();
             existingMembers?.forEach(m => {
-                existingMap.set(`${m.email}_${m.term_id}`, m.id);
+                existingMap.set(`${m.name}_${m.term_id}`, m.id);
             });
 
             const toInsert: any[] = [];
             const toUpdate: any[] = [];
 
             for (const item of uniqueInput) {
-                const key = `${item.email}_${item.term_id}`;
+                const key = `${item.name}_${item.term_id}`;
                 if (existingMap.has(key)) {
                     if (mode === 'overwrite') {
                         // 更新対象: IDは既存のものを使用、データはCSVの内容
@@ -248,7 +248,7 @@ export async function POST(request: Request) {
 
             // スキップされた重複 (CSV内重複)
             if (mergedCount > 0) {
-                errors.unshift(`ℹ️ 重複統合: ${mergedCount} 件のデータが、同じメールアドレス・期のため統合(上書き)されました。`);
+                errors.unshift(`ℹ️ 重複統合: ${mergedCount} 件のデータが、同じ氏名・期のため統合(上書き)されました。`);
             }
         }
 
