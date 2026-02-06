@@ -736,10 +736,23 @@ export default function AdminDashboard() {
         const product = paymentLinksData.find(p => p.key === key || p.name === key);
         let newVenue = '';
         let newSocial = '';
+        let newParticipationType: 'venue' | 'online' = 'venue';
 
         if (product) {
             if (product.venue_lecture) newVenue = product.venue_lecture;
             if (product.venue_social) newSocial = product.venue_social;
+
+            // 参加タイプの自動判定
+            if (product.name?.includes('LIVE') || product.name?.includes('オンライン')) {
+                newParticipationType = 'online';
+                // オンラインの場合、会場名は「LIVE視聴」などをセット（もしマスタにあれば維持、なければ自動設定）
+                // ただし、product.venue_lectureが空でないならそれを優先
+            }
+        } else {
+            // マスタにない場合も商品名から推測
+            if (key.includes('LIVE') || key.includes('オンライン')) {
+                newParticipationType = 'online';
+            }
         }
 
         // 2. レガシーパース (keyにフォーマット情報が含まれている場合、それが優先またはフォールバックになる可能性があります)
@@ -750,7 +763,8 @@ export default function AdminDashboard() {
             payment_key: key,
             applied_rank_name: parsed ? parsed.rank : prev.applied_rank_name,
             venue: parsed ? parsed.venue : (newVenue || prev.venue),
-            social_venue: parsed ? parsed.social : (newSocial || prev.social_venue)
+            social_venue: parsed ? parsed.social : (newSocial || prev.social_venue),
+            participation_type: newParticipationType
         }));
     };
 
@@ -1673,6 +1687,7 @@ export default function AdminDashboard() {
                                                 {venueList.filter(v => v.type === 'lecture').map(opt => (
                                                     <option key={opt.id} value={opt.name}>{opt.name}</option>
                                                 ))}
+                                                <option value="東京・福岡">東京・福岡</option>
                                                 <option value="参加しない">参加しない</option>
                                             </select>
                                         )}
