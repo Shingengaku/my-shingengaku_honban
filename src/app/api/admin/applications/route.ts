@@ -18,6 +18,7 @@ export async function GET() {
         terms ( name ),
         generation,
         furigana,
+        is_tokushin,
         ranks (
           name,
           base_fee,

@@ -30,6 +30,7 @@ interface Application {
     members?: {
         generation?: number;
         furigana: string;
+        is_tokushin?: boolean;
         ranks?: {
             name: string;
             sort_order: number;
@@ -836,12 +837,13 @@ export default function AdminDashboard() {
         const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
 
         const header = [
-            'ID', '氏名', 'フリガナ', 'メールアドレス', '属性', '期', '会場', '懇親会', '合計金額', '支払状況', '環境', '申込日時', '備考', 'タグ', '参加タイプ'
+            'ID', '氏名', 'フリガナ', 'メールアドレス', '属性', '期', '特進', '会場', '懇親会', '合計金額', '支払状況', '環境', '申込日時', '備考', 'タグ', '参加タイプ'
         ].join(',');
 
         const rows = targetApps.map(app => {
             const rank = app.applied_rank_name || app.members?.ranks?.name || '一般';
             const gen = app.members?.generation ? `${app.members.generation}期` : '-';
+            const tokushin = app.members?.is_tokushin ? '特進' : '';
             const social = app.social_venue ? app.social_venue : (app.attend_social ? '参加' : '参加しない');
             // @ts-ignore
             const env = app.environment === 'production' ? '本番' : 'テスト';
@@ -855,6 +857,7 @@ export default function AdminDashboard() {
                 `"${app.input_email}"`,
                 `"${rank}"`,
                 `"${gen}"`,
+                `"${tokushin}"`,
                 `"${app.venue || ''}"`,
                 `"${social}"`,
                 app.total_amount,
