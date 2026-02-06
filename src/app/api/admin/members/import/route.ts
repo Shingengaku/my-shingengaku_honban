@@ -129,8 +129,8 @@ export async function POST(request: Request) {
 
             const { name, furigana, email, rank_name, generation, is_tokushin } = row;
 
-            if (!email || !name) {
-                errors.push(`スキップ: 氏名またはメールアドレスが空欄です (行データ: ${JSON.stringify(row)})`);
+            if (!name) {
+                errors.push(`スキップ: 氏名が空欄です (行データ: ${JSON.stringify(row)})`);
                 continue;
             }
 
@@ -141,7 +141,9 @@ export async function POST(request: Request) {
                     // 今のところ、欠落している場合は最初のランクを使用しますか？それともエラー？
                     // 既存のロジックは警告して最初を使用していました。
                     rankId = ranksRes.data[0].id;
-                    errors.push(`警告: 属性 "${rank_name}" が不明なため、既定の "${ranksRes.data[0].name}" を設定しました (メール: ${email})`);
+                    if (rank_name) {
+                        errors.push(`警告: 属性 "${rank_name}" が不明なため、既定の "${ranksRes.data[0].name}" を設定しました (氏名: ${name})`);
+                    }
                 }
             }
 
@@ -150,9 +152,19 @@ export async function POST(request: Request) {
             if (generation) {
                 // 完全一致を試行
                 termId = termMap.get(generation) || null;
-                // generationが数値のみの場合、"X期" 形式を試行
-                if (!termId && /^\d+$/.test(generation)) {
-                    termId = termMap.get(`${generation}期`) || null;
+
+                // 数値抽出を試行 ("11期生" -> "11", "第1期" -> "1")
+                if (!termId) {
+                    const numMatch = generation.match(/\d+/);
+                    if (numMatch) {
+                        const numStr = numMatch[0];
+                        // "11" -> "11期" で再検索
+                        termId = termMap.get(`${numStr}期`) || null;
+                        // "11" そのままで検索
+                        if (!termId) {
+                            termId = termMap.get(numStr) || null;
+                        }
+                    }
                 }
             }
             // まだnullの場合、最初の期をデフォルトにしますか？それともnullを許可しますか？
@@ -226,14 +238,30 @@ export async function POST(request: Request) {
                 if (existingMap.has(key)) {
                     if (mode === 'overwrite') {
                         // 更新対象: IDは既存のものを使用、データはCSVの内容
+                        // メールアドレスがない場合、更新データから除外（既存のままにする）
+                        // しかし、CSVパース時にundefinedになっているはずなので、スプレッド構文で上書きされる恐れがあるか？
+                        // item.email が undefined/empty string の場合、それをDBのNULLにしたくないなら、
+                        // updateDataを作成する際にundefinedのフィールドを除外する必要がある。
+                        // ここでは、emailがFalsyなら既存のemailを維持したい（あるいは更新しない）。
+
+                        const updateData = { ...item };
+                        if (!updateData.email) {
+                            delete updateData.email; // 更新対象から外す
+                        }
+
                         toUpdate.push({
                             id: existingMap.get(key),
-                            ...item
+                            ...updateData
                         });
                     }
                     // skipモードなら何もしない
                 } else {
-                    toInsert.push(item);
+                    // 新規作成: メールアドレス必須
+                    if (item.email) {
+                        toInsert.push(item);
+                    } else {
+                        errors.push(`スキップ: 既存データが見つからず、メールアドレスもないため新規登録できません (氏名: ${item.name}, 期ID: ${item.term_id})`);
+                    }
                 }
             }
 
