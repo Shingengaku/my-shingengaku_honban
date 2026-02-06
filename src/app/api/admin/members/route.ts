@@ -2,6 +2,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
     try {
         const { data, error } = await supabaseAdmin
