@@ -20,6 +20,7 @@ interface Member {
     email: string;
     rank_id: number;
     term_id: number;
+    is_tokushin?: boolean; // 特進フラグ
     ranks?: Rank;
     terms?: Term;
 }
@@ -38,7 +39,8 @@ export default function MembersPage() {
         furigana: '',
         email: '',
         rank_id: '',
-        term_id: '' // generation -> term_id
+        term_id: '', // generation -> term_id
+        is_tokushin: false
     });
 
     const [importMode, setImportMode] = useState<'overwrite' | 'skip'>('overwrite');
@@ -95,7 +97,8 @@ export default function MembersPage() {
                 furigana: member.furigana,
                 email: member.email,
                 rank_id: String(member.rank_id),
-                term_id: String(member.term_id)
+                term_id: String(member.term_id),
+                is_tokushin: member.is_tokushin || false
             });
         } else {
             setEditingMember(null);
@@ -104,7 +107,8 @@ export default function MembersPage() {
                 furigana: '',
                 email: '',
                 rank_id: ranks.length > 0 ? String(ranks[0].id) : '',
-                term_id: terms.length > 0 ? String(terms[0].id) : ''
+                term_id: terms.length > 0 ? String(terms[0].id) : '',
+                is_tokushin: false
             });
         }
         setShowModal(true);
@@ -238,13 +242,14 @@ export default function MembersPage() {
 
 
     const handleExport = () => {
-        const headers = ['氏名', 'フリガナ', 'メールアドレス', '属性', '期'];
+        const headers = ['氏名', 'フリガナ', 'メールアドレス', '属性', '期', '特進'];
         const rows = members.map(m => [
             m.name,
             m.furigana || '',
             m.email,
             m.ranks?.name || '',
-            m.terms?.name || ''
+            m.terms?.name || '',
+            m.is_tokushin ? '特進' : ''
         ]);
 
         const csvContent = [
@@ -331,6 +336,7 @@ export default function MembersPage() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">メールアドレス</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">属性</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">期</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">特進</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                         </tr>
                     </thead>
@@ -344,6 +350,13 @@ export default function MembersPage() {
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{member.email}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{member.ranks?.name}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{member.terms?.name}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {member.is_tokushin && (
+                                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                            特進
+                                        </span>
+                                    )}
+                                </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <button onClick={() => handleOpenModal(member)} className="text-indigo-600 hover:text-indigo-900 mr-4">編集</button>
                                     <button onClick={() => handleDelete(member.id)} className="text-red-600 hover:text-red-900">削除</button>
@@ -437,6 +450,18 @@ export default function MembersPage() {
                                             <option key={t.id} value={t.id}>{t.name}</option>
                                         ))}
                                     </select>
+                                </div>
+                                <div className="flex items-center">
+                                    <input
+                                        id="is_tokushin"
+                                        type="checkbox"
+                                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                        checked={formData.is_tokushin}
+                                        onChange={e => setFormData({ ...formData, is_tokushin: e.target.checked })}
+                                    />
+                                    <label htmlFor="is_tokushin" className="ml-2 block text-sm font-medium text-gray-700">
+                                        特進
+                                    </label>
                                 </div>
                             </div>
                             <div className="mt-6 flex justify-end space-x-3">

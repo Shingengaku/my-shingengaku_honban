@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { name, furigana, email, rank_id, term_id } = body;
+        const { name, furigana, email, rank_id, term_id, is_tokushin } = body;
 
         // バリデーション
         if (!name || !furigana || !email || !rank_id || !term_id) {
@@ -41,7 +41,14 @@ export async function POST(request: Request) {
 
         const { data, error } = await supabaseAdmin
             .from('members')
-            .insert({ name, furigana, email, rank_id, term_id })
+            .insert({
+                name,
+                furigana,
+                email,
+                rank_id,
+                term_id,
+                is_tokushin: is_tokushin || false
+            })
             .select()
             .single();
 
@@ -57,13 +64,20 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
     try {
         const body = await request.json();
-        const { id, name, furigana, email, rank_id, term_id } = body;
+        const { id, name, furigana, email, rank_id, term_id, is_tokushin } = body;
 
         if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 });
 
         const { data, error } = await supabaseAdmin
             .from('members')
-            .update({ name, furigana, email, rank_id, term_id })
+            .update({
+                name,
+                furigana,
+                email,
+                rank_id,
+                term_id,
+                is_tokushin
+            })
             .eq('id', id)
             .select()
             .single();
