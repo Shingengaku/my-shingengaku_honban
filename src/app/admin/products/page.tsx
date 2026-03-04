@@ -206,7 +206,7 @@ function SortableRow({
                     className="w-full border rounded px-2 py-1 bg-gray-100 text-gray-500 cursor-not-allowed"
                     value={item.name}
                     readOnly
-                    title="商品名は変更できません。変更したい場合は削除して新規追加してください。"
+                    title={item.name}
                 />
             </td>
             <td className="p-2 align-top">
