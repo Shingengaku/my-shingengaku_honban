@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { getPaymentKey } from '@/lib/payment';
-import { DEFAULT_EMAIL_TEMPLATE, processEmailTemplate } from '@/lib/emailTemplate';
+import { DEFAULT_EMAIL_TEMPLATE, DEFAULT_EMAIL_TEMPLATE_GENERAL, DEFAULT_EMAIL_TEMPLATE_NO_PARTICIPATION, processEmailTemplate } from '@/lib/emailTemplate';
 
 export async function POST(request: Request) {
     try {
@@ -109,7 +109,9 @@ export async function POST(request: Request) {
 
         // 4. テンプレート選択
         let template;
-        if (totalAmount === 0 && matchedProduct) {
+        if (venue === 'none' || venue === '参加しない' || app.venue === 'none' || app.venue === '参加しない') {
+            template = DEFAULT_EMAIL_TEMPLATE_NO_PARTICIPATION;
+        } else if (totalAmount === 0 && matchedProduct) {
             // 0円かつ商品あり -> 無料テンプレート
             const dbTemplateVenue = settings.email_template_free;
             const dbTemplateOnline = settings.email_template_free_online;
@@ -134,7 +136,7 @@ export async function POST(request: Request) {
         } else {
             // 商品なし -> 一般
             const dbTemplate = settings.email_template_general;
-            template = (dbTemplate && dbTemplate.subject) ? dbTemplate : DEFAULT_EMAIL_TEMPLATE; // GENERALのデフォルト定義があればそれを使うが、ここでは省略
+            template = (dbTemplate && dbTemplate.subject) ? dbTemplate : DEFAULT_EMAIL_TEMPLATE_GENERAL;
         }
 
         // 5. 変数展開
@@ -146,7 +148,12 @@ export async function POST(request: Request) {
             if (match) {
                 const liveVenue = match[1].trim();
                 if (liveVenue) {
-                    displayVenue = displayVenue ? `${displayVenue} (${liveVenue})` : liveVenue;
+                    if (!displayVenue) {
+                        displayVenue = liveVenue.includes('・') ? 'LIVE視聴（2会場）' : 'LIVE視聴';
+                    }
+                    if (!displayVenue.includes(`(${liveVenue})`)) {
+                        displayVenue = `${displayVenue} (${liveVenue})`;
+                    }
                 }
             }
             displaySocialVenue = 'ー';

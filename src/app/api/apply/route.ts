@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { resend } from '@/lib/resend';
-import { processEmailTemplate, DEFAULT_EMAIL_TEMPLATE, DEFAULT_EMAIL_TEMPLATE_GENERAL } from '@/lib/emailTemplate';
+import { processEmailTemplate, DEFAULT_EMAIL_TEMPLATE, DEFAULT_EMAIL_TEMPLATE_GENERAL, DEFAULT_EMAIL_TEMPLATE_NO_PARTICIPATION } from '@/lib/emailTemplate';
 
 // 型定義
 interface ApplyRequest {
@@ -299,7 +299,12 @@ export async function POST(request: Request) {
             if (match) {
                 const liveVenue = match[1].trim();
                 if (liveVenue) {
-                    displayVenue += ` (${liveVenue})`;
+                    if (!displayVenue) {
+                        displayVenue = liveVenue.includes('・') ? 'LIVE視聴（2会場）' : 'LIVE視聴';
+                    }
+                    if (!displayVenue.includes(`(${liveVenue})`)) {
+                        displayVenue = `${displayVenue} (${liveVenue})`;
+                    }
                 }
             }
         }
@@ -311,10 +316,10 @@ export async function POST(request: Request) {
         }
 
         let template;
-        // 0円（無料）の場合のテンプレート判定
-        // 商品マスタに存在し、かつ金額が0円の場合のみ「無料メール」を送る
-        // 商品が存在しない（マッチしない）場合の0円は、事務局確認のため「一般メール」へ
-        if (totalAmount === 0 && matchedProduct) {
+        // 参加しない場合のテンプレート判定
+        if (venue === 'none' || venue === '参加しない') {
+            template = DEFAULT_EMAIL_TEMPLATE_NO_PARTICIPATION;
+        } else if (totalAmount === 0 && matchedProduct) {
             const dbTemplateVenue = settings.email_template_free;
             const dbTemplateOnline = settings.email_template_free_online;
 

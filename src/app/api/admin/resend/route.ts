@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { resend } from '@/lib/resend';
-import { processEmailTemplate, DEFAULT_EMAIL_TEMPLATE_RESEND } from '@/lib/emailTemplate';
+import { processEmailTemplate, DEFAULT_EMAIL_TEMPLATE_RESEND, DEFAULT_EMAIL_TEMPLATE_NO_PARTICIPATION } from '@/lib/emailTemplate';
 
 export async function POST(request: Request) {
     try {
@@ -49,7 +49,10 @@ export async function POST(request: Request) {
         const paymentUrl = paymentLink?.url || '';
 
         // テンプレート選択
-        const template = settings.email_template_resend || DEFAULT_EMAIL_TEMPLATE_RESEND;
+        let template = settings.email_template_resend || DEFAULT_EMAIL_TEMPLATE_RESEND;
+        if (app.venue === 'none' || app.venue === '参加しない') {
+            template = DEFAULT_EMAIL_TEMPLATE_NO_PARTICIPATION;
+        }
 
         const venueDisplayMap: Record<string, string> = {
             'tokyo': '東京',
@@ -58,8 +61,24 @@ export async function POST(request: Request) {
             'none': '参加しません'
         };
 
-        const displayVenue = venueDisplayMap[app.venue] || app.venue;
-        const displaySocialVenue = venueDisplayMap[app.social_venue] || app.social_venue;
+        let displayVenue = venueDisplayMap[app.venue] || app.venue;
+        let displaySocialVenue = venueDisplayMap[app.social_venue] || app.social_venue;
+
+        if (app.participation_type === 'online') {
+            const match = /【LIVE視聴会場】\s*([^\n]+)/.exec(app.remarks || '');
+            if (match) {
+                const liveVenue = match[1].trim();
+                if (liveVenue) {
+                    if (!displayVenue) {
+                        displayVenue = liveVenue.includes('・') ? 'LIVE視聴（2会場）' : 'LIVE視聴';
+                    }
+                    if (!displayVenue.includes(`(${liveVenue})`)) {
+                        displayVenue = `${displayVenue} (${liveVenue})`;
+                    }
+                }
+            }
+            displaySocialVenue = 'ー';
+        }
 
         // 修正: 案内文と合計金額を削除し、URLのみにする
         const paymentLinkSection = paymentUrl ? paymentUrl : '';

@@ -26,6 +26,25 @@ export const DEFAULT_EMAIL_TEMPLATE = {
 {{payment_link_section}}`
 };
 
+export const DEFAULT_TEMPLATE_FREE_ONLINE = {
+    subject: '【神言学】お申込み受付完了のお知らせ',
+    body: `{{name}} 様
+
+神言学講座へのお申込みありがとうございます。
+以下の内容で受付いたしました。
+
+--------------------------------
+お名前: {{name}}
+判定属性: {{rank}}
+参加会場: {{venue}}
+懇親会: {{social_venue}}
+合計金額: {{amount}} 円
+--------------------------------
+
+オンラインでのご参加、ありがとうございます。
+ご視聴に関する詳細につきましては、追ってご連絡させていただきます。`
+};
+
 export const DEFAULT_EMAIL_TEMPLATE_GENERAL = {
     subject: '【神言学】お申込み受付のお知らせ',
     body: `{{name}} 様
@@ -43,6 +62,24 @@ export const DEFAULT_EMAIL_TEMPLATE_GENERAL = {
 
 現在、お客様の条件に合致する自動決済案内が見つかりませんでした（または事務局確認が必要です）。
 事務局より別途、正式なご案内メールをお送りいたしますので、今しばらくお待ちください。`
+};
+
+export const DEFAULT_EMAIL_TEMPLATE_NO_PARTICIPATION = {
+    subject: '【神言学】ご回答ありがとうございました',
+    body: `{{name}} 様
+
+神言学講座について、ご回答誠にありがとうございます。
+以下の内容でお知らせを受け付けいたしました。
+
+--------------------------------
+お名前: {{name}}
+判定属性: {{rank}}
+参加会場: {{venue}}
+懇親会: {{social_venue}}
+--------------------------------
+
+またの機会でのご参加を心よりお待ち申し上げております。
+引き続き、どうぞよろしくお願いいたします。`
 };
 
 export const DEFAULT_EMAIL_TEMPLATE_RESEND = {
