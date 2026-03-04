@@ -131,7 +131,8 @@ export async function POST(request: Request) {
         const settings: Partial<AppSettings> & {
             email_template?: any,
             email_template_general?: any,
-            email_template_free?: any
+            email_template_free?: any,
+            email_template_free_online?: any
         } = {};
         settingsData?.forEach(row => {
             if (row.key === 'payment_links') settings.payment_links = row.value;
@@ -140,6 +141,7 @@ export async function POST(request: Request) {
             if (row.key === 'email_template') settings.email_template = row.value;
             if (row.key === 'email_template_general') settings.email_template_general = row.value;
             if (row.key === 'email_template_free') settings.email_template_free = row.value;
+            if (row.key === 'email_template_free_online') settings.email_template_free_online = row.value;
         });
 
         const paymentLinks = settings.payment_links || [];
@@ -162,12 +164,28 @@ export async function POST(request: Request) {
             const searchSocial = venueDisplayMap[social_venue] || social_venue;
 
             matchedProduct = paymentLinks.find(p => {
+                // オンライン参加の特例: 複数会場選択時、商品側の名前や想定に両方が含まれているか確認
+                let effectiveVenue = venue;
+                let effectiveSearchVenue = searchVenue;
+
+                if (participation_type === 'online') {
+                    const matchLive = /【LIVE視聴会場】\s*([^\n]+)/.exec(userRemarks || '');
+                    if (matchLive) {
+                        const liveVenues = matchLive[1].trim(); // e.g., "東京・福岡"
+                        // もし両方選択されている場合、商品は "東京・福岡" または "福岡・東京" を想定しているはず。
+                        effectiveVenue = liveVenues;
+                        effectiveSearchVenue = liveVenues;
+                    }
+                }
+
                 // 講義会場のマッチ: コード一致 または 日本語名一致
-                // 商品マスタ側が複数選択("東京・大阪")の場合もあるかもしれないが、完全一致で管理されている前提ならこれでOK
-                // もし"東京"が含まれるか？のロジックが必要なら includes を使うが、現状は会場ごとに商品を作っているはず。
                 const venueMatch = (p.venue_lecture === venue) ||
                     (p.venue_lecture === searchVenue) ||
-                    (venue === 'both' && (p.venue_lecture === '東京・福岡' || p.venue_lecture === '福岡・東京'));
+                    (p.venue_lecture === effectiveVenue) ||
+                    (p.venue_lecture === effectiveSearchVenue) ||
+                    (effectiveVenue === 'both' && (p.venue_lecture === '東京・福岡' || p.venue_lecture === '福岡・東京')) ||
+                    (effectiveVenue === '東京・福岡' && (p.venue_lecture === '東京・福岡' || p.venue_lecture === '福岡・東京')) ||
+                    (effectiveVenue === '福岡・東京' && (p.venue_lecture === '東京・福岡' || p.venue_lecture === '福岡・東京'));
 
                 // 懇親会会場のマッチ
                 let socialMatch = (p.venue_social === social_venue) ||
@@ -285,7 +303,14 @@ export async function POST(request: Request) {
         // 商品マスタに存在し、かつ金額が0円の場合のみ「無料メール」を送る
         // 商品が存在しない（マッチしない）場合の0円は、事務局確認のため「一般メール」へ
         if (totalAmount === 0 && matchedProduct) {
-            const dbTemplate = settings.email_template_free;
+            const dbTemplateVenue = settings.email_template_free;
+            const dbTemplateOnline = settings.email_template_free_online;
+
+            let dbTemplate = dbTemplateVenue;
+            if (participation_type === 'online' && dbTemplateOnline && dbTemplateOnline.subject) {
+                dbTemplate = dbTemplateOnline;
+            }
+
             // 0円用テンプレートがあればそれを使う。なければ一般用、あるいはデフォルトにフォールバック
             if (dbTemplate && dbTemplate.subject) {
                 template = dbTemplate;
