@@ -168,6 +168,8 @@ export async function POST(request: Request) {
                 let effectiveVenue = venue;
                 let effectiveSearchVenue = searchVenue;
 
+                let onlineProductCategory = '';
+
                 if (participation_type === 'online') {
                     const matchLive = /【LIVE視聴会場】\s*([^\n]+)/.exec(userRemarks || '');
                     if (matchLive) {
@@ -175,6 +177,15 @@ export async function POST(request: Request) {
                         // もし両方選択されている場合、商品は "東京・福岡" または "福岡・東京" を想定しているはず。
                         effectiveVenue = liveVenues;
                         effectiveSearchVenue = liveVenues;
+
+                        // LIVE視聴で複数会場選ばれたかどうかの判定用
+                        if (liveVenues.includes('・')) {
+                            onlineProductCategory = 'LIVE視聴（2会場）';
+                        } else {
+                            onlineProductCategory = 'LIVE視聴';
+                        }
+                    } else {
+                        onlineProductCategory = 'LIVE視聴';
                     }
                 }
 
@@ -183,6 +194,7 @@ export async function POST(request: Request) {
                     (p.venue_lecture === searchVenue) ||
                     (p.venue_lecture === effectiveVenue) ||
                     (p.venue_lecture === effectiveSearchVenue) ||
+                    (onlineProductCategory !== '' && p.venue_lecture === onlineProductCategory) ||
                     (effectiveVenue === 'both' && (p.venue_lecture === '東京・福岡' || p.venue_lecture === '福岡・東京')) ||
                     (effectiveVenue === '東京・福岡' && (p.venue_lecture === '東京・福岡' || p.venue_lecture === '福岡・東京')) ||
                     (effectiveVenue === '福岡・東京' && (p.venue_lecture === '東京・福岡' || p.venue_lecture === '福岡・東京'));

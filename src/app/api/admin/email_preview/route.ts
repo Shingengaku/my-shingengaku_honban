@@ -28,6 +28,7 @@ export async function POST(request: Request) {
             if (row.key === 'email_template') settings.email_template = row.value;
             if (row.key === 'email_template_general') settings.email_template_general = row.value;
             if (row.key === 'email_template_free') settings.email_template_free = row.value;
+            if (row.key === 'email_template_free_online') settings.email_template_free_online = row.value;
         });
 
         const ranks = ranksRes.data || [];
@@ -59,24 +60,48 @@ export async function POST(request: Request) {
 
         let matchedProduct = null;
         if (Array.isArray(paymentLinks)) {
-            matchedProduct = paymentLinks.find((p: any) => {
-                const venueMatch = (p.venue_lecture === venue) ||
-                    (p.venue_lecture === searchVenue) ||
-                    (venue === 'both' && (p.venue_lecture === '東京・福岡' || p.venue_lecture === '福岡・東京'));
+            // まずは `app.payment_key` でマッチするか試行
+            if (app.payment_key) {
+                matchedProduct = paymentLinks.find((p: any) => p.name === app.payment_key || p.key === app.payment_key) || null;
+            }
 
-                let socialMatch = (p.venue_social === social_venue) ||
-                    (p.venue_social === searchSocial) ||
-                    (social_venue === 'both' && (p.venue_social === '東京・福岡' || p.venue_social === '福岡・東京'));
-
-                // オンライン参加の特例
-                if (participation_type === 'online' && p.venue_social === 'ー') {
-                    socialMatch = true;
+            // payment_key で見つからない場合は従来の条件でマッチング
+            if (!matchedProduct) {
+                let onlineProductCategory = '';
+                if (participation_type === 'online') {
+                    const matchLive = /【LIVE視聴会場】\s*([^\n]+)/.exec(app.remarks || '');
+                    if (matchLive) {
+                        const liveVenues = matchLive[1].trim();
+                        if (liveVenues.includes('・')) {
+                            onlineProductCategory = 'LIVE視聴（2会場）';
+                        } else {
+                            onlineProductCategory = 'LIVE視聴';
+                        }
+                    } else {
+                        onlineProductCategory = 'LIVE視聴';
+                    }
                 }
 
-                const rankMatch = (rankId ? String(p.rank_id) === rankId : !p.rank_id);
+                matchedProduct = paymentLinks.find((p: any) => {
+                    const venueMatch = (p.venue_lecture === venue) ||
+                        (p.venue_lecture === searchVenue) ||
+                        (onlineProductCategory !== '' && p.venue_lecture === onlineProductCategory) ||
+                        (venue === 'both' && (p.venue_lecture === '東京・福岡' || p.venue_lecture === '福岡・東京'));
 
-                return venueMatch && socialMatch && rankMatch;
-            }) || null;
+                    let socialMatch = (p.venue_social === social_venue) ||
+                        (p.venue_social === searchSocial) ||
+                        (social_venue === 'both' && (p.venue_social === '東京・福岡' || p.venue_social === '福岡・東京'));
+
+                    // オンライン参加の特例
+                    if (participation_type === 'online' && p.venue_social === 'ー') {
+                        socialMatch = true;
+                    }
+
+                    const rankMatch = (rankId ? String(p.rank_id) === rankId : !p.rank_id);
+
+                    return venueMatch && socialMatch && rankMatch;
+                }) || null;
+            }
         }
 
         const totalAmount = matchedProduct ? (Number(matchedProduct.lecture_fee) + Number(matchedProduct.social_fee)) : 0;
@@ -86,7 +111,14 @@ export async function POST(request: Request) {
         let template;
         if (totalAmount === 0 && matchedProduct) {
             // 0円かつ商品あり -> 無料テンプレート
-            const dbTemplate = settings.email_template_free;
+            const dbTemplateVenue = settings.email_template_free;
+            const dbTemplateOnline = settings.email_template_free_online;
+
+            let dbTemplate = dbTemplateVenue;
+            if (participation_type === 'online' && dbTemplateOnline && dbTemplateOnline.subject) {
+                dbTemplate = dbTemplateOnline;
+            }
+
             if (dbTemplate && dbTemplate.subject) {
                 template = dbTemplate;
             } else {
@@ -107,9 +139,16 @@ export async function POST(request: Request) {
 
         // 5. 変数展開
         // 表示用文字列
-        const displayVenue = venueDisplayMap[venue] || venue;
+        let displayVenue = venueDisplayMap[venue] || venue;
         let displaySocialVenue = venueDisplayMap[social_venue] || social_venue;
         if (participation_type === 'online') {
+            const match = /【LIVE視聴会場】\s*([^\n]+)/.exec(app.remarks || '');
+            if (match) {
+                const liveVenue = match[1].trim();
+                if (liveVenue) {
+                    displayVenue = displayVenue ? `${displayVenue} (${liveVenue})` : liveVenue;
+                }
+            }
             displaySocialVenue = 'ー';
         }
 
