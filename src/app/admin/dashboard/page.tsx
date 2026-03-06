@@ -1763,7 +1763,7 @@ export default function AdminDashboard() {
                             width="w-40"
                         />
                         <MultiSelect
-                            label="全ての懁E��会会場"
+                            label="全ての懇親会の回答"
                             options={uniqueVenueSocialOptions}
                             selected={filterVenueSocial}
                             onChange={setFilterVenueSocial}
