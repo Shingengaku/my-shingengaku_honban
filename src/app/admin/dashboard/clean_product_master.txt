@@ -1,0 +1,5 @@
+    const [productNameMaster, setProductNameMaster] = useState<{ venues: string[], socials: string[], names: string[] }>({
+        venues: ['東京講演参加', '福岡講演参加', '福岡・東京講演参加'],
+        socials: ['懇親会なし', '懇親会東京のみ', '懇親会福岡のみ', '懇親会両方'],
+        names: []
+    });

@@ -1,0 +1,80 @@
+﻿笆ｲ Next.js 16.1.1 (Turbopack)
+- Environments: .env.local
+
+node.exe : 笞 The "middleware" file convention is deprecated.
+ Please use "proxy" instead. Learn more: https://nextjs.org/d
+ocs/messages/middleware-to-proxy
+発生場所 行:1 文字:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\node
+js/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (笞 The "middlew 
+   ...leware-to-proxy:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  Creating an optimized production build ...
+笨・Compiled successfully in 3.5s
+  Skipping validation of types
+  Collecting page data using 15 workers ...
+  Generating static pages using 15 workers (0/41) ...
+  Generating static pages using 15 workers (10/41) 
+  Generating static pages using 15 workers (20/41) 
+  Generating static pages using 15 workers (30/41) 
+笨・Generating static pages using 15 workers (41/41) in 273.3ms
+  Finalizing page optimization ...
+
+Route (app)
+笏・笳・/
+笏・笳・/_not-found
+笏・笳・/admin/dashboard
+笏・笳・/admin/forgot-password
+笏・笳・/admin/login
+笏・笳・/admin/members
+笏・笳・/admin/online-options
+笏・笳・/admin/popup
+笏・笳・/admin/products
+笏・笳・/admin/ranks
+笏・笳・/admin/reset-password
+笏・笳・/admin/settings
+笏・笳・/admin/terms
+笏・笳・/admin/users
+笏・笳・/admin/venues
+笏・ﾆ・/api/admin/applications
+笏・ﾆ・/api/admin/applications/delete
+笏・ﾆ・/api/admin/applications/edit
+笏・ﾆ・/api/admin/applications/truncate
+笏・ﾆ・/api/admin/applications/update
+笏・ﾆ・/api/admin/email_preview
+笏・ﾆ・/api/admin/forgot-password
+笏・ﾆ・/api/admin/login
+笏・ﾆ・/api/admin/logout
+笏・ﾆ・/api/admin/members
+笏・ﾆ・/api/admin/members/import
+笏・ﾆ・/api/admin/online-options
+笏・ﾆ・/api/admin/ranks
+笏・ﾆ・/api/admin/ranks/import
+笏・ﾆ・/api/admin/ranks/reorder
+笏・ﾆ・/api/admin/resend
+笏・ﾆ・/api/admin/reset-password
+笏・ﾆ・/api/admin/settings
+笏・ﾆ・/api/admin/terms
+笏・ﾆ・/api/admin/terms/import
+笏・ﾆ・/api/admin/terms/reorder
+笏・ﾆ・/api/admin/users
+笏・ﾆ・/api/admin/venues
+笏・ﾆ・/api/admin/venues/import
+笏・ﾆ・/api/admin/venues/reorder
+笏・ﾆ・/api/apply
+笏・ﾆ・/api/online-options
+笏・ﾆ・/api/settings
+笏・ﾆ・/api/terms
+笏・ﾆ・/api/test-email
+笏・ﾆ・/api/venues
+
+
+ﾆ・Proxy (Middleware)
+
+笳・ (Static)   prerendered as static content
+ﾆ・ (Dynamic)  server-rendered on demand
+

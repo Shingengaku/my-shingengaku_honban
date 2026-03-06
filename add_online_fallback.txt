@@ -1,0 +1,3 @@
+import { createClient } from '@supabase/supabase-js';
+
+// Node script failed to connect due to DNS, so we can try to use a direct SQL run but we might just use front-end UI first since we have the component.

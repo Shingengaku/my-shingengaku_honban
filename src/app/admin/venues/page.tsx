@@ -25,9 +25,10 @@ interface Venue {
     name: string;
     type: 'lecture' | 'social';
     sort_order: number;
+    is_recruitment_ended?: boolean;
 }
 
-function SortableItem({ venue, onDelete }: { venue: Venue, onDelete: (id: number) => void }) {
+function SortableItem({ venue, onDelete, onToggle }: { venue: Venue, onDelete: (id: number) => void, onToggle: (id: number, currentStatus: boolean) => void }) {
     const {
         attributes,
         listeners,
@@ -42,20 +43,35 @@ function SortableItem({ venue, onDelete }: { venue: Venue, onDelete: (id: number
     };
 
     return (
-        <li ref={setNodeRef} style={style} className="p-3 flex justify-between items-center bg-white border-b last:border-b-0 hover:bg-gray-50 group">
-            <div className="flex items-center gap-3">
+        <li ref={setNodeRef} style={style} className={`p-3 flex justify-between items-center bg-white border-b last:border-b-0 hover:bg-gray-50 group ${venue.is_recruitment_ended ? 'opacity-75 bg-gray-50' : ''}`}>
+            <div className="flex items-center gap-3 flex-1">
                 <div {...attributes} {...listeners} className="cursor-grab text-gray-400 group-hover:text-gray-600 font-bold px-1" title="ドラッグして移動">
                     ⋮⋮
                 </div>
-                <span className="font-medium text-gray-800">{venue.name}</span>
+                <span className={`font-medium ${venue.is_recruitment_ended ? 'text-gray-500 line-through' : 'text-gray-800'}`}>{venue.name}</span>
             </div>
-            <button
-                onClick={() => onDelete(venue.id)}
-                className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs transition-colors"
-                type="button"
-            >
-                削除
-            </button>
+            <div className="flex items-center gap-4">
+                <label className="flex items-center cursor-pointer text-sm">
+                    <span className={`mr-2 font-bold ${venue.is_recruitment_ended ? 'text-red-600' : 'text-gray-400'}`}>募集終了</span>
+                    <div className="relative">
+                        <input
+                            type="checkbox"
+                            className="sr-only"
+                            checked={!!venue.is_recruitment_ended}
+                            onChange={() => onToggle(venue.id, !!venue.is_recruitment_ended)}
+                        />
+                        <div className={`block w-10 h-6 rounded-full transition-colors ${venue.is_recruitment_ended ? 'bg-red-500' : 'bg-gray-300'}`}></div>
+                        <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${venue.is_recruitment_ended ? 'transform translate-x-4' : ''}`}></div>
+                    </div>
+                </label>
+                <button
+                    onClick={() => onDelete(venue.id)}
+                    className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs transition-colors shrink-0"
+                    type="button"
+                >
+                    削除
+                </button>
+            </div>
         </li>
     );
 }
@@ -139,6 +155,23 @@ export default function VenueMasterPage() {
                 setVenues(venues.filter(v => v.id !== id));
             } else {
                 alert('削除に失敗しました');
+            }
+        } catch (e) {
+            alert('エラーが発生しました');
+        }
+    };
+
+    const toggleRecruitmentStatus = async (id: number, currentStatus: boolean) => {
+        try {
+            const res = await fetch('/api/admin/venues', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, is_recruitment_ended: !currentStatus })
+            });
+            if (res.ok) {
+                setVenues(venues.map(v => v.id === id ? { ...v, is_recruitment_ended: !currentStatus } : v));
+            } else {
+                alert('更新に失敗しました');
             }
         } catch (e) {
             alert('エラーが発生しました');
@@ -302,7 +335,7 @@ export default function VenueMasterPage() {
                                             {lectureVenues.length === 0 ? (
                                                 <div className="p-4 text-center text-gray-400 text-sm">登録なし</div>
                                             ) : lectureVenues.map((v) => (
-                                                <SortableItem key={v.id} venue={v} onDelete={removeVenue} />
+                                                <SortableItem key={v.id} venue={v} onDelete={removeVenue} onToggle={toggleRecruitmentStatus} />
                                             ))}
                                         </SortableContext>
                                         <div className="p-3 flex justify-between items-center bg-gray-50 border-b group opacity-70">
@@ -346,7 +379,7 @@ export default function VenueMasterPage() {
                                             {socialVenues.length === 0 ? (
                                                 <div className="p-4 text-center text-gray-400 text-sm">登録なし</div>
                                             ) : socialVenues.map((v) => (
-                                                <SortableItem key={v.id} venue={v} onDelete={removeVenue} />
+                                                <SortableItem key={v.id} venue={v} onDelete={removeVenue} onToggle={toggleRecruitmentStatus} />
                                             ))}
                                         </SortableContext>
                                         <div className="p-3 flex justify-between items-center bg-gray-50 border-b group opacity-70">

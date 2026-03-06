@@ -67,3 +67,28 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ error: 'Failed to delete venue' }, { status: 500 });
     }
 }
+
+export async function PATCH(request: Request) {
+    try {
+        const body = await request.json();
+        const { id, is_recruitment_ended } = body;
+
+        if (!id || typeof is_recruitment_ended !== 'boolean') {
+            return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 });
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from('venues')
+            .update({ is_recruitment_ended })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        return NextResponse.json(data);
+    } catch (e) {
+        console.error('Error updating venue:', e);
+        return NextResponse.json({ error: 'Failed to update venue' }, { status: 500 });
+    }
+}

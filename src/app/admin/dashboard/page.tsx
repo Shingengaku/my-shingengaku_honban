@@ -1537,7 +1537,7 @@ export default function AdminDashboard() {
             if (s === '参加しない' || s === '不参加' || s === 'none') s = 'none';
             else if (s === 'tokyo') s = '東京';
             else if (s === 'fukuoka') s = '福岡';
-            else if (s === 'both') s = '両方参加';
+            else if (s === 'both') s = '東京・福岡';
 
             if (!filterVenueSocial.has(s)) return false;
         }
@@ -1659,7 +1659,7 @@ export default function AdminDashboard() {
 
     const venueSocialOptions = [
         ...Array.from(new Set([...venueList.filter(v => v.type === 'social').map(v => v.name)])).map(v => ({ label: v as string, value: v as string })),
-        { label: '両方参加', value: '両方参加' },
+        { label: '東京・福岡', value: '東京・福岡' },
         { label: '参加しない', value: 'none' }
     ];
     const uniqueVenueSocialOptions = Array.from(new Map(venueSocialOptions.map(item => [item.value, item])).values());
@@ -2115,7 +2115,7 @@ export default function AdminDashboard() {
                                             </div>
                                             <div className="text-sm text-gray-900 mt-1">
                                                 <span className="font-bold text-xs text-gray-400 block">懇親会</span>
-                                                {app.social_venue === 'both' ? '両方参加' : (app.social_venue === 'tokyo' ? '東京' : (app.social_venue === 'fukuoka' ? '福岡' : (app.social_venue === 'none' ? '参加しない' : (app.social_venue || '-'))))}
+                                                {app.social_venue === 'both' ? '東京・福岡' : (app.social_venue === 'tokyo' ? '東京' : (app.social_venue === 'fukuoka' ? '福岡' : (app.social_venue === 'none' ? '参加しない' : (app.social_venue || '-'))))}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 align-top">

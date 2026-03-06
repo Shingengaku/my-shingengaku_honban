@@ -29,8 +29,8 @@ export default function Home() {
   const [isActive, setIsActive] = useState(true);
 
   // 会場マスタ用
-  const [venueMaster, setVenueMaster] = useState<{ name: string, type: string }[]>([]);
-  const [socialMaster, setSocialMaster] = useState<{ name: string, type: string }[]>([]);
+  const [venueMaster, setVenueMaster] = useState<{ name: string, type: string, is_recruitment_ended?: boolean }[]>([]);
+  const [socialMaster, setSocialMaster] = useState<{ name: string, type: string, is_recruitment_ended?: boolean }[]>([]);
   const [onlineOptions, setOnlineOptions] = useState<{ name: string, type: string }[]>([]);
 
   // 参加タイプ
@@ -547,11 +547,21 @@ export default function Home() {
                   >
                     <option value="">視聴タイプを選択してください</option>
                     {onlineOptions.length > 0 ? (
-                      onlineOptions.map((opt) => (
-                        <option key={opt.name} value={opt.name}>
-                          {opt.name}
-                        </option>
-                      ))
+                      onlineOptions.map((opt) => {
+                        // LIVE視聴（2会場）は、東京か福岡のどちらかが募集終了していれば選択不可にするか非表示にする
+                        if (opt.name === 'LIVE視聴（2会場）') {
+                          const tokyoEnded = venueMaster.find(v => v.name === '東京')?.is_recruitment_ended;
+                          const fukuokaEnded = venueMaster.find(v => v.name === '福岡')?.is_recruitment_ended;
+                          if (tokyoEnded || fukuokaEnded) {
+                            return null; // 募集終了の会場がある場合はオプション自体を表示しない
+                          }
+                        }
+                        return (
+                          <option key={opt.name} value={opt.name}>
+                            {opt.name}
+                          </option>
+                        );
+                      })
                     ) : null}
                   </select>
                   {onlineOptions.length === 0 && (
@@ -567,40 +577,46 @@ export default function Home() {
                     </span>
                     <p className="text-xs text-red-600 mb-2">※会場参加もお申込みされている場合、その会場を選択しないように注意してください。</p>
                     <div className="flex space-x-6">
-                      <label className={`flex items-center ${selectedOnlineOption === 'LIVE視聴（2会場）' ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}>
-                        <input
-                          type="checkbox"
-                          value="東京"
-                          checked={selectedOnlineOption === 'LIVE視聴（2会場）' ? true : onlineLiveVenues.includes('東京')}
-                          disabled={selectedOnlineOption === 'LIVE視聴（2会場）'}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setOnlineLiveVenues([...onlineLiveVenues, '東京']);
-                            } else {
-                              setOnlineLiveVenues(onlineLiveVenues.filter(v => v !== '東京'));
-                            }
-                          }}
-                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:bg-indigo-300"
-                        />
-                        <span className="ml-2 text-gray-700">東京</span>
-                      </label>
-                      <label className={`flex items-center ${selectedOnlineOption === 'LIVE視聴（2会場）' ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}>
-                        <input
-                          type="checkbox"
-                          value="福岡"
-                          checked={selectedOnlineOption === 'LIVE視聴（2会場）' ? true : onlineLiveVenues.includes('福岡')}
-                          disabled={selectedOnlineOption === 'LIVE視聴（2会場）'}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setOnlineLiveVenues([...onlineLiveVenues, '福岡']);
-                            } else {
-                              setOnlineLiveVenues(onlineLiveVenues.filter(v => v !== '福岡'));
-                            }
-                          }}
-                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:bg-indigo-300"
-                        />
-                        <span className="ml-2 text-gray-700">福岡</span>
-                      </label>
+                      {(() => {
+                        const tokyoEnded = venueMaster.find(v => v.name === '東京')?.is_recruitment_ended;
+                        const isTokyoDisabled = selectedOnlineOption === 'LIVE視聴（2会場）' || tokyoEnded;
+                        return (
+                          <label className={`flex items-center ${isTokyoDisabled ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}>
+                            <input
+                              type="checkbox"
+                              value="東京"
+                              checked={selectedOnlineOption === 'LIVE視聴（2会場）' ? true : onlineLiveVenues.includes('東京')}
+                              disabled={!!isTokyoDisabled}
+                              onChange={(e) => {
+                                if (e.target.checked) setOnlineLiveVenues([...onlineLiveVenues, '東京']);
+                                else setOnlineLiveVenues(onlineLiveVenues.filter(v => v !== '東京'));
+                              }}
+                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:bg-indigo-300"
+                            />
+                            <span className="ml-2 text-gray-700">東京 {tokyoEnded && <span className="text-red-500 text-xs">(募集終了)</span>}</span>
+                          </label>
+                        );
+                      })()}
+                      {(() => {
+                        const fukuokaEnded = venueMaster.find(v => v.name === '福岡')?.is_recruitment_ended;
+                        const isFukuokaDisabled = selectedOnlineOption === 'LIVE視聴（2会場）' || fukuokaEnded;
+                        return (
+                          <label className={`flex items-center ${isFukuokaDisabled ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}>
+                            <input
+                              type="checkbox"
+                              value="福岡"
+                              checked={selectedOnlineOption === 'LIVE視聴（2会場）' ? true : onlineLiveVenues.includes('福岡')}
+                              disabled={!!isFukuokaDisabled}
+                              onChange={(e) => {
+                                if (e.target.checked) setOnlineLiveVenues([...onlineLiveVenues, '福岡']);
+                                else setOnlineLiveVenues(onlineLiveVenues.filter(v => v !== '福岡'));
+                              }}
+                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:bg-indigo-300"
+                            />
+                            <span className="ml-2 text-gray-700">福岡 {fukuokaEnded && <span className="text-red-500 text-xs">(募集終了)</span>}</span>
+                          </label>
+                        );
+                      })()}
                     </div>
                   </div>
                 )}
@@ -619,16 +635,17 @@ export default function Home() {
                   {venueMaster.length > 0 ? (
                     <>
                       {venueMaster.map((v) => (
-                        <label key={v.name} className="flex items-center">
+                        <label key={v.name} className={`flex items-center ${v.is_recruitment_ended ? 'opacity-50 cursor-not-allowed' : ''}`}>
                           <input
                             type="checkbox"
                             name="venue"
                             value={v.name}
                             checked={selectedVenues.includes(v.name)}
+                            disabled={!!v.is_recruitment_ended}
                             onChange={(e) => handleVenueChange(v.name, e.target.checked)}
-                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:bg-gray-200"
                           />
-                          <span className="ml-2 text-gray-700">{v.name}</span>
+                          <span className="ml-2 text-gray-700">{v.name} {v.is_recruitment_ended && <span className="text-red-500 text-xs">(募集終了)</span>}</span>
                         </label>
                       ))}
                     </>
@@ -689,7 +706,7 @@ export default function Home() {
 
                         if (selectedVenues.length === 0) {
                           // ケース 1: 会場が選択されていない -> すべて有効
-                          isDisabled = false;
+                          isDisabled = !!s.is_recruitment_ended; // 募集終了なら無効
                         } else if (selectedVenues.includes('参加しない') && selectedVenues.length === 1) {
                           // ケース 2: 「参加しない」のみ選択 -> 「参加しない」のみ許可
                           isDisabled = s.name !== '参加しません';
@@ -699,7 +716,8 @@ export default function Home() {
                             isDisabled = false; // 「なし」は常に許可
                           } else {
                             // 対応を確認 (例: 「東京」が選択 -> 「懇親会東京のみ」有効)
-                            isDisabled = !selectedVenues.some(lv => s.name.includes(lv));
+                            // さらに、募集終了している場合は無効
+                            isDisabled = !selectedVenues.some(lv => s.name.includes(lv)) || !!s.is_recruitment_ended;
                           }
                         }
 
@@ -710,9 +728,9 @@ export default function Home() {
                               checked={selectedSocialVenues.includes(s.name)}
                               disabled={isDisabled}
                               onChange={(e) => handleSocialChange(s.name, e.target.checked)}
-                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:bg-gray-200"
                             />
-                            <span className="ml-2 text-gray-700">{s.name}</span>
+                            <span className="ml-2 text-gray-700">{s.name} {s.is_recruitment_ended && <span className="text-red-500 text-xs">(募集終了)</span>}</span>
                           </label>
                         );
                       })}
