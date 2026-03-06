@@ -1276,7 +1276,11 @@ export default function AdminDashboard() {
             rO = resO.nextRow; seqO = resO.nextSeq;
 
             resO = renderBlock(rO, 8, '経営幹部', onlineGroups.executive, seqO);
+            rO = resO.nextRow; seqO = resO.nextSeq;
+
+            resO = renderBlock(rO, 8, 'GoGo 55000 ご紹介', onlineGroups.referral, seqO);
             rO = resO.nextRow;
+
             if (rO > maxRow) maxRow = rO;
 
             // Render Remarks if exists

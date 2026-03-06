@@ -97,7 +97,10 @@ export async function POST(request: Request) {
                         socialMatch = true;
                     }
 
-                    const rankMatch = (rankId ? String(p.rank_id) === rankId : !p.rank_id);
+                    const rankName = app.applied_rank_name || app.members?.ranks?.name || '一般';
+                    const rankMatch = rankId
+                        ? ((p.rank_id && String(p.rank_id) === String(rankId)) || (!p.rank_id && p.name && p.name.includes(rankName)))
+                        : !p.rank_id;
 
                     return venueMatch && socialMatch && rankMatch;
                 }) || null;

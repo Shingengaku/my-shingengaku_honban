@@ -211,7 +211,9 @@ export async function POST(request: Request) {
                 }
 
                 // ランクのマッチ
-                const rankMatch = (rankId ? String(p.rank_id) === rankId : !p.rank_id);
+                const rankMatch = rankId
+                    ? ((p.rank_id && String(p.rank_id) === String(rankId)) || (!p.rank_id && p.name && p.name.includes(rankName)))
+                    : !p.rank_id;
 
                 return venueMatch && socialMatch && rankMatch;
             }) || null;
@@ -226,7 +228,9 @@ export async function POST(request: Request) {
         const tags: string[] = [];
         let remarks = userRemarks ? userRemarks + '\n' : ''; // ユーザー入力の備考を先頭に追加
 
-        if (!matchedProduct) {
+        if (venue === 'none' || venue === '参加しない') {
+            tags.push('不参加');
+        } else if (!matchedProduct) {
             remarks += '【要確認】商品マスタに対象の商品のお申し込みがありません。\n';
         }
         if (!term_id) {

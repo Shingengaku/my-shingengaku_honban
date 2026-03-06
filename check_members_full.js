@@ -31,21 +31,19 @@ const supabaseAdmin = createClient(
 );
 
 async function main() {
-    console.log('--- Members Table Columns ---');
+    console.log('Checking members names...');
     const { data: members, error } = await supabaseAdmin
         .from('members')
-        .select('*')
-        .limit(1);
+        .select('id, name, email, is_tokushin')
+        .limit(20);
 
     if (error) {
-        console.error(error);
+        console.error('Error:', error);
     } else {
-        if (members.length > 0) {
-            console.log('Keys:', Object.keys(members[0]).join(', '));
-            console.log('Sample Row:', members[0]);
-        } else {
-            console.log('Table is empty');
-        }
+        console.log('Members check:');
+        members.forEach(m => {
+            console.log(`Name: '${m.name}', Email: ${m.email}, is_tokushin: ${m.is_tokushin}`);
+        });
     }
 }
 

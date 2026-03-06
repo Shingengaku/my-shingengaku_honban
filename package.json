@@ -15,10 +15,13 @@
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.90.1",
     "dotenv": "^17.2.3",
+    "exceljs": "^4.4.0",
     "next": "16.1.1",
+    "pg": "^8.18.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "resend": "^6.7.0"
+    "resend": "^6.7.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
