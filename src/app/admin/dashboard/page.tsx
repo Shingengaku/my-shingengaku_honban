@@ -805,10 +805,15 @@ export default function AdminDashboard() {
         let newVenue = '';
         let newSocial = '';
         let newParticipationType: 'venue' | 'online' = 'venue';
+        let newTotalAmount: number | undefined = undefined;
 
         if (product) {
             if (product.venue_lecture) newVenue = product.venue_lecture;
             if (product.venue_social) newSocial = product.venue_social;
+
+            const lectureFee = Number(product.lecture_fee) || 0;
+            const socialFee = Number(product.social_fee) || 0;
+            newTotalAmount = lectureFee + socialFee;
 
             // 参加タイプの自動判定
             if (product.name?.includes('LIVE') || product.name?.includes('オンライン')) {
@@ -839,7 +844,8 @@ export default function AdminDashboard() {
             applied_rank_name: parsed ? parsed.rank : prev.applied_rank_name,
             venue: parsed ? parsed.venue : (newVenue || prev.venue),
             social_venue: parsed ? parsed.social : (newSocial || prev.social_venue),
-            participation_type: newParticipationType
+            participation_type: newParticipationType,
+            total_amount: newTotalAmount !== undefined ? newTotalAmount : prev.total_amount
         }));
     };
 
@@ -1847,7 +1853,7 @@ export default function AdminDashboard() {
                             <button onClick={() => exportCSV(false)} className="px-4 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm w-48 mb-1">全データCSV出力</button>
                             <button onClick={() => exportCSV(true)} className="px-4 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm w-48 mb-1">表示中のみCSV出力</button>
                             <button onClick={handleSimpleExcelExport} className="px-4 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm w-48 mb-1">簡易エクセル出力(A4)</button>
-                            <button onClick={handleFullExcelExport} className="px-4 py-1.5 bg-teal-600 text-white rounded-md hover:bg-teal-700 text-sm w-48">詳細エクセル出力</button>
+                            <button disabled className="px-4 py-1.5 bg-gray-400 text-white rounded-md cursor-not-allowed text-sm w-48">詳細エクセル出力</button>
                         </div>
                     </div>
 
