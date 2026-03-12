@@ -526,6 +526,34 @@ export default function AdminDashboard() {
         updateStatusBatch(Array.from(selectedIds), 'unpaid');
     };
 
+    const duplicateSelected = async () => {
+        if (selectedIds.size === 0) return;
+        if (!confirm(`選択した${selectedIds.size}件を複製して新しく追加しますか？\n（決済ステータスは「未決済」にリセットされます）`)) return;
+
+        setLoading(true);
+        try {
+            const res = await fetch('/api/admin/applications/duplicate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: Array.from(selectedIds) }),
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                alert(data.message || '複製しました');
+                setSelectedIds(new Set()); // 選択解除
+                fetchApplications(); // データ再取得
+            } else {
+                alert(`複製に失敗しました: ${data.error || '不明なエラー'}`);
+            }
+        } catch (e) {
+            alert('エラーが発生しました');
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const updateStatusBatch = async (ids: string[], status: string) => {
         try {
             const res = await fetch('/api/admin/applications/update', {
@@ -1087,7 +1115,8 @@ export default function AdminDashboard() {
                 return normalizeKana(a.furigana).localeCompare(normalizeKana(b.furigana), 'ja');
             };
 
-            const uniqueApps = deduplicateApps(apps);
+            // キャンセルされたデータは含まないようにする
+            const uniqueApps = deduplicateApps(apps).filter(a => a.payment_status !== 'cancelled');
 
             // Filter Lists
             const rawTokyo = uniqueApps.filter(a => {
@@ -1874,6 +1903,9 @@ export default function AdminDashboard() {
                                 </button>
                                 <button onClick={markAsUnpaid} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">
                                     選択した{selectedIds.size} 件を「未決済」に戻す
+                                </button>
+                                <button onClick={duplicateSelected} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 ml-4 shadow">
+                                    選択した{selectedIds.size} 件を「複製」する
                                 </button>
                             </div>
                         )}

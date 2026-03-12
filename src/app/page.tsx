@@ -722,15 +722,22 @@ export default function Home() {
                         }
 
                         return (
-                          <label key={s.name} className={`flex items-center ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                          <label key={s.name} className={`flex items-start ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} py-1`}>
                             <input
                               type="checkbox"
                               checked={selectedSocialVenues.includes(s.name)}
                               disabled={isDisabled}
                               onChange={(e) => handleSocialChange(s.name, e.target.checked)}
-                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:bg-gray-200"
+                              className="mt-0.5 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:bg-gray-200 shrink-0"
                             />
-                            <span className="ml-2 text-gray-700">{s.name} {s.is_recruitment_ended && <span className="text-red-500 text-xs">(募集終了)</span>}</span>
+                            <div className="ml-2 flex flex-col">
+                              <span className="text-gray-700">{s.name}</span>
+                              {s.is_recruitment_ended && (
+                                <span className="text-red-500 text-xs mt-0.5">
+                                  締切後のお申込みのため、お席が確約できません。事務局へ別途ご連絡ください。（info@shingengaku.com）
+                                </span>
+                              )}
+                            </div>
                           </label>
                         );
                       })}
