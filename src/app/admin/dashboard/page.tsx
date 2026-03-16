@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
@@ -2081,6 +2081,12 @@ export default function AdminDashboard() {
                                                 ) : (
                                                     <span className="px-2 py-0.5 text-[10px] bg-gray-50 text-gray-500 border border-gray-200 rounded">テストデータ</span>
                                                 )}
+                                                {app.tags?.includes('receipted') && (
+                                                    <span className="px-2 py-0.5 mt-1 text-[10px] bg-blue-50 text-blue-600 border border-blue-200 rounded">領収書 済</span>
+                                                )}
+                                                {app.tags?.includes('invoiced') && (
+                                                    <span className="px-2 py-0.5 mt-1 text-[10px] bg-sky-50 text-sky-600 border border-sky-200 rounded">請求書 済</span>
+                                                )}
                                             </div>
                                         </td>
 
@@ -2170,6 +2176,13 @@ export default function AdminDashboard() {
                                             <div className="flex gap-2">
                                                 <button onClick={() => handleResend(app.id)} className="text-gray-500 hover:text-gray-900 text-xs text-left">再送</button>
                                                 <button onClick={() => handlePreviewEmail(app.id)} className="text-blue-500 hover:text-blue-900 text-xs text-left">👁 閲覧</button>
+                                            </div>
+                                            <div className="pt-1 border-t border-gray-100 mt-1 space-y-1">
+                                                <button onClick={() => {
+                                                    const url = `${window.location.origin}/receipt/${app.id}`;
+                                                    navigator.clipboard.writeText(url).then(() => alert('お客様用 書類発行URLをコピーしました。\n' + url));
+                                                }} className="text-indigo-600 hover:text-indigo-900 text-xs text-left block w-full">📋 書類URLコピー</button>
+                                                <button onClick={() => window.open(`/receipt/${app.id}?admin=true`, '_blank')} className="text-teal-600 hover:text-teal-900 text-xs text-left block w-full">📄 (管理用)書類作成</button>
                                             </div>
                                             <div className="pt-1 border-t border-gray-100 mt-1">
                                                 <button onClick={() => handleDeleteApp(app.id)} className="text-red-500 hover:text-red-700 text-xs text-left font-bold flex items-center">
