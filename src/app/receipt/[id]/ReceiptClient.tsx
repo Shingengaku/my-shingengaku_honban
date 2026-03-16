@@ -382,7 +382,7 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
             <style>{`
                 @media print {
                     @page {
-                        size: 296.93mm 209.97mm;
+                        size: 209.97mm 296.93mm;
                         margin: 0;
                     }
                     body {
@@ -392,17 +392,15 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                 }
             `}</style>
             {/* print:block で印刷時は常に表示、print:m-0で余白リセット */}
-            <div className="w-[296.93mm] h-[209.97mm] mx-auto bg-white sm:shadow-lg sm:border sm:border-gray-300 p-[15mm] sm:p-[20mm] print:shadow-none print:border-none print:m-0 relative font-serif text-gray-900 box-border overflow-hidden flex flex-col">
+            <div className="w-[210mm] h-[297mm] mx-auto bg-white sm:shadow-lg sm:border sm:border-gray-300 p-[20mm] print:shadow-none print:border-none print:m-0 relative font-serif text-gray-900 box-border overflow-hidden flex flex-col">
                 
-                {/* 帳票ヘッダー (PNG再現) */}
-                <div className="flex justify-between items-start mb-6 pt-2">
-                    <div className="w-1/2">
-                    </div>
-                    <div className="text-right w-1/2 mt-4">
-                        <h2 className="text-4xl tracking-[1em] mb-4 pr-10">
+                {/* ヘッダー: タイトルと発行日 */}
+                <div className="flex justify-end items-start mb-10">
+                    <div className="text-right">
+                        <h2 className="text-4xl tracking-[1em] mb-4 pr-1">
                             {docType === 'receipt' ? '領 収 書' : '請 求 書'}
                         </h2>
-                        <div className="flex justify-end gap-2 pr-4 mt-8">
+                        <div className="flex justify-end gap-2 mt-8">
                             <span className="text-sm tracking-widest mt-0.5">発行日</span>
                             <span className="text-base min-w-[120px] pb-1 font-mono">{issueDate.replace(/-/g, '/')}</span>
                         </div>
@@ -410,13 +408,13 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                 </div>
 
                 {/* 宛名表示 */}
-                <div className="mb-10 w-[75%] border-b-2 border-slate-900 pb-1 flex items-end ml-4 mt-8">
+                <div className="mb-12 w-[75%] border-b-2 border-slate-900 pb-1 flex items-end ml-4">
                     <span className="text-3xl font-bold tracking-widest px-2">{addressee}</span>
                     <span className="text-xl ml-6 mb-0.5">{honorific}</span>
                 </div>
 
                 {/* 金額・但し書き エリア */}
-                <div className="mb-12 space-y-8 pl-8 mt-10">
+                <div className="mb-12 space-y-8 pl-8">
                     <div className="flex items-end">
                         <span className="text-2xl font-bold tracking-[0.5em] w-24 pb-1">金 額</span>
                         <div className="border-b-2 border-slate-900 min-w-[300px] w-1/2 text-center pb-1">
@@ -442,13 +440,13 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                 {/* 下部領域: 内訳(左) & 会社情報・印(右) */}
                 <div className="mt-auto flex justify-between items-end relative pb-2 px-2">
                     
-                    {/* 内訳テーブル (PGN再現) */}
-                    <div className="w-64 border-[1.5px] border-slate-900 bg-white z-10">
-                        <div className="text-center border-b-[1.5px] border-slate-900 py-1.5 tracking-widest font-bold text-sm bg-gray-50">内訳</div>
-                        
-                        <div className="flex text-xs text-center border-b border-slate-900 bg-gray-50">
-                            <div className="w-16 border-r border-slate-900 py-1 text-[11px]">税率</div>
-                            <div className="flex-1 py-1 text-[11px]">税抜金額</div>
+                    {/* 内訳テーブル - PNG山形通りの3列 (税率 / 税別金額 / 消費税額) */}
+                    <div className="border border-gray-900 text-sm" style={{width: '220px'}}>
+                        {/* ヘッダー行 */}
+                        <div className="border-b border-gray-900 flex">
+                            <div className="w-12 text-center py-1 border-r border-gray-900 text-xs">税率</div>
+                            <div className="flex-1 text-center py-1 border-r border-gray-900 text-xs">税別金額</div>
+                            <div className="flex-1 text-center py-1 text-xs">消費税額</div>
                         </div>
 
                         {renderRates.map((rate, index) => {
@@ -457,18 +455,13 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                             const rateTax = (taxInfo[rate] && taxInfo[rate].tax) || 0;
                             
                             return (
-                                <div key={rate} className={`flex text-xs border-slate-900 ${!isLast ? 'border-b' : ''}`}>
-                                    <div className="w-16 text-center border-r border-slate-900 flex flex-col justify-center">
-                                        <div className="py-1.5 border-b border-slate-900 h-1/2 flex items-center justify-center font-bold tracking-widest">{rate}%</div>
-                                        <div className="py-1 h-1/2 flex items-center justify-center text-[10px]">消費税額</div>
+                                <div key={rate} className={`flex ${!isLast ? 'border-b border-gray-900' : ''}`}>
+                                    <div className="w-12 text-center border-r border-gray-900 py-1.5 text-xs font-bold tracking-widest">{rate}%</div>
+                                    <div className="flex-1 text-right border-r border-gray-900 py-1.5 pr-2 font-mono text-xs">
+                                        {rateBase > 0 ? `¥${rateBase.toLocaleString()}` : ''}
                                     </div>
-                                    <div className="flex-1 font-mono text-right flex flex-col justify-center">
-                                        <div className="py-1.5 border-b border-slate-900 pr-3 h-1/2 flex items-center justify-end">
-                                            {rateBase > 0 ? `¥${rateBase.toLocaleString()}` : ''}
-                                        </div>
-                                        <div className="py-1 pr-3 h-1/2 flex items-center justify-end">
-                                            {rateTax > 0 ? `¥${rateTax.toLocaleString()}` : ''}
-                                        </div>
+                                    <div className="flex-1 text-right py-1.5 pr-2 font-mono text-xs">
+                                        {rateTax > 0 ? `¥${rateTax.toLocaleString()}` : ''}
                                     </div>
                                 </div>
                             );
@@ -476,25 +469,21 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                     </div>
 
                     {/* 会社情報 & 角印 */}
-                    <div className="text-right leading-loose tracking-wider relative pr-4 text-sm mt-4">
-                        <p className="font-bold text-lg mb-2">株式会社フィールドオブドリームス</p>
+                    <div className="text-right text-sm leading-relaxed tracking-wider relative" style={{minWidth:'200px'}}>
+                        <p className="font-bold text-base mb-1">株式会社フィールドオブドリームス</p>
                         <p>〒810-0044</p>
                         <p>福岡市中央区六本松2-3-6 9F</p>
                         <p>T2290001075481</p>
                         <p>TEL: 092-791-4547</p>
+                        <p>FAX: 092-791-4548</p>
                         
-                        {/* 角印画像: /images/hanko.png が存在すると仮定し、ここに重ねる。実際のパスが異なる場合はユーザー環境に合わせて変更 */}
+                        {/* 角印画像 */}
                         <img 
                             src="/images/hanko.png" 
                             alt=""
-                            className="absolute bottom-[-5px] right-2 w-20 h-20 opacity-90" 
-                            style={{ 
-                                mixBlendMode: 'multiply',
-                            }}
-                            onError={(e) => { 
-                                // 画像パスがない場合のフォールバック（透明や空にする等）
-                                e.currentTarget.style.display = 'none'; 
-                            }} 
+                            className="absolute bottom-0 left-0 w-20 h-20" 
+                            style={{ mixBlendMode: 'multiply' }}
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }} 
                         />
                     </div>
 
