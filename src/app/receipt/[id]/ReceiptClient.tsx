@@ -311,75 +311,69 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
 
                 {/* 5. 内訳テーブル（左下） */}
                 {/* 左から 25mm（宛名と同じライン） */}
-                <div style={{ position: 'absolute', bottom: '30mm', left: '25mm', width: '75mm', fontSize: '11px' }}>
-                    <div style={{ borderBottom: '1px solid #111', paddingBottom: '3px', marginBottom: '0', display: 'flex' }}>
-                        <span style={{ flex: 1, textAlign: 'center', letterSpacing: '0.5em' }}>内訳</span>
-                        <span style={{ flex: 1 }}></span>
-                    </div>
-                    {/* 10% */}
-                    <div style={{ display: 'flex', borderBottom: '1px solid #555' }}>
-                        <div style={{ flex: 1, borderRight: '1px solid #fff', padding: '3px 2px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '5px' }}>
-                                <span>税率</span>
-                                <span>税別金額</span>
-                            </div>
+                <div style={{ position: 'absolute', bottom: '30mm', left: '25mm', width: '75mm', fontSize: '11px', letterSpacing: '0.1em' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '4px', letterSpacing: '0.4em' }}>内訳</div>
+                    <div style={{ borderTop: '1.5px solid #222', width: '100%' }}></div>
+                    
+                    {/* 10%ブロック */}
+                    <div style={{ padding: '6px 0 2px 0' }}>
+                        <div style={{ display: 'flex', marginBottom: '2px' }}>
+                            <span style={{ width: '45px' }}>税率</span>
+                            <span style={{ flex: 1, paddingLeft: '10px' }}>税別金額</span>
                         </div>
-                    </div>
-                    <div style={{ display: 'flex', borderBottom: '1px solid #555' }}>
-                        <div style={{ flex: 1, padding: '4px 2px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '5px', paddingRight: '10px' }}>
-                                <span style={{ fontFamily: 'sans-serif' }}>10%</span>
-                                <span style={{ fontFamily: 'sans-serif', textAlign: 'right' }}>
-                                    {(taxInfo[10]?.amount > 0) ? `¥${taxInfo[10].base.toLocaleString()}` : ''}
-                                </span>
-                            </div>
+                        <div style={{ display: 'flex', marginBottom: '4px' }}>
+                            <span style={{ width: '45px', fontFamily: 'sans-serif' }}>10%</span>
+                            <span style={{ flex: 1, textAlign: 'right', fontFamily: 'sans-serif', paddingRight: '10px' }}>
+                                {(taxInfo[10]?.amount > 0) ? `¥${taxInfo[10].base.toLocaleString()}` : ''}
+                            </span>
                         </div>
-                    </div>
-                    <div style={{ display: 'flex', borderBottom: '1px solid #555' }}>
-                        <div style={{ flex: 1, padding: '4px 2px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '5px', paddingRight: '10px' }}>
-                                <span>消費税額</span>
-                                <span style={{ fontFamily: 'sans-serif', textAlign: 'right' }}>
-                                    {(taxInfo[10]?.amount > 0) ? `¥${taxInfo[10].tax.toLocaleString()}` : ''}
-                                </span>
-                            </div>
+                        {/* ★ここの線は右側のみ（「税率」列の下には引かない） */}
+                        <div style={{ display: 'flex' }}>
+                            <div style={{ width: '45px' }}></div>
+                            <div style={{ flex: 1, borderTop: '1px solid #222' }}></div>
+                        </div>
+                        <div style={{ display: 'flex', marginTop: '4px', marginBottom: '2px' }}>
+                            <span style={{ width: '60px' }}>消費税額</span>
+                            <span style={{ flex: 1, textAlign: 'right', fontFamily: 'sans-serif', paddingRight: '10px' }}>
+                                {(taxInfo[10]?.amount > 0) ? `¥${taxInfo[10].tax.toLocaleString()}` : ''}
+                            </span>
                         </div>
                     </div>
                     
-                    {/* 8% */}
-                    <div style={{ display: 'flex', borderBottom: '1px solid #555' }}>
-                        <div style={{ flex: 1, borderRight: '1px solid #fff', padding: '3px 2px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '5px' }}>
-                                <span>税率</span>
-                                <span>税別金額</span>
-                            </div>
+                    <div style={{ borderTop: '1.5px solid #222', width: '100%' }}></div>
+
+                    {/* 8%ブロック */}
+                    <div style={{ padding: '6px 0 2px 0' }}>
+                        <div style={{ display: 'flex', marginBottom: '2px' }}>
+                            <span style={{ width: '45px' }}>税率</span>
+                            <span style={{ flex: 1, paddingLeft: '10px' }}>税別金額</span>
+                        </div>
+                        <div style={{ display: 'flex', marginBottom: '4px' }}>
+                            <span style={{ width: '45px', fontFamily: 'sans-serif' }}>8%</span>
+                            <span style={{ flex: 1, textAlign: 'right', fontFamily: 'sans-serif', paddingRight: '10px' }}>
+                                {(taxInfo[8]?.amount > 0) ? `¥${taxInfo[8].base.toLocaleString()}` : ''}
+                            </span>
+                        </div>
+                        {/* ★ここの線は右側のみ */}
+                        <div style={{ display: 'flex' }}>
+                            <div style={{ width: '45px' }}></div>
+                            <div style={{ flex: 1, borderTop: '1px solid #222' }}></div>
+                        </div>
+                        <div style={{ display: 'flex', marginTop: '4px', marginBottom: '2px' }}>
+                            <span style={{ width: '60px' }}>消費税額</span>
+                            <span style={{ flex: 1, textAlign: 'right', fontFamily: 'sans-serif', paddingRight: '10px' }}>
+                                {(taxInfo[8]?.amount > 0) ? `¥${taxInfo[8].tax.toLocaleString()}` : ''}
+                            </span>
                         </div>
                     </div>
-                    <div style={{ display: 'flex', borderBottom: '1px solid #555' }}>
-                        <div style={{ flex: 1, padding: '4px 2px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '5px', paddingRight: '10px' }}>
-                                <span style={{ fontFamily: 'sans-serif' }}>8%</span>
-                                <span style={{ fontFamily: 'sans-serif', textAlign: 'right' }}>
-                                    {(taxInfo[8]?.amount > 0) ? `¥${taxInfo[8].base.toLocaleString()}` : ''}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <div style={{ display: 'flex', borderBottom: '1px solid #555' }}>
-                        <div style={{ flex: 1, padding: '4px 2px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '5px', paddingRight: '10px' }}>
-                                <span>消費税額</span>
-                                <span style={{ fontFamily: 'sans-serif', textAlign: 'right' }}>
-                                    {(taxInfo[8]?.amount > 0) ? `¥${taxInfo[8].tax.toLocaleString()}` : ''}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
+
+                    <div style={{ borderTop: '1.5px solid #222', width: '100%' }}></div>
                 </div>
 
                 {/* 6. 会社情報・社印（右下） */}
-                <div style={{ position: 'absolute', bottom: '30mm', right: '35mm' }}>
-                    <div style={{ fontSize: '10px', lineHeight: '2.0', letterSpacing: '0.05em', position: 'relative', zIndex: 10 }}>
+                {/* 会社情報のブロックは広めに確保し、右端に社印を置く */}
+                <div style={{ position: 'absolute', bottom: '30mm', right: '35mm', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                    <div style={{ fontSize: '10px', lineHeight: '2.0', letterSpacing: '0.05em' }}>
                         <div style={{ fontWeight: 'bold', fontSize: '13px', marginBottom: '8px', letterSpacing: '0.1em' }}>
                             株式会社フィールドオブドリームス
                         </div>
@@ -391,19 +385,16 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                             <div style={{ fontFamily: 'sans-serif', fontSize: '10px' }}>FAX：092-791-4548</div>
                         </div>
                     </div>
-                    {/* 社印（文字にマルチプライで乗せる） */}
+                    {/* 社印（文字に被らないよう完全に右側に配置） */}
                     <img
                         src="/images/hanko.png"
-                        alt=""
+                        alt="社印"
                         style={{
-                            position: 'absolute',
-                            bottom: '0px',
-                            right: '-15px',
                             width: '65px',
                             height: '65px',
                             mixBlendMode: 'multiply',
                             opacity: 0.85,
-                            zIndex: 1
+                            transform: 'translateY(-10px)'
                         }}
                         onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
