@@ -121,6 +121,16 @@ export async function POST(request: Request) {
                 supabaseAdmin.from('app_settings').upsert({ key: 'base_social_fee_fukuoka', value: body.base_social_fee_fukuoka }, { onConflict: 'key' })
             );
         }
+        if (typeof body.tax_rate_lecture !== 'undefined') {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'tax_rate_lecture', value: body.tax_rate_lecture }, { onConflict: 'key' })
+            );
+        }
+        if (typeof body.tax_rate_social !== 'undefined') {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'tax_rate_social', value: body.tax_rate_social }, { onConflict: 'key' })
+            );
+        }
 
         await Promise.all(updates);
 

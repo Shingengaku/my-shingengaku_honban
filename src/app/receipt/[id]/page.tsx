@@ -32,19 +32,25 @@ export default async function ReceiptPage({ params, searchParams }: { params: Pr
     const { data: settingsData, error: settingsError } = await supabaseAdmin
         .from('app_settings')
         .select('*')
-        .in('key', ['payment_links', 'base_social_fee_tokyo', 'base_social_fee_fukuoka']);
+        .in('key', ['payment_links', 'base_social_fee_tokyo', 'base_social_fee_fukuoka', 'tax_rate_lecture', 'tax_rate_social']);
 
     let paymentLinks = [];
     let baseSocialFeeTokyo = 11000;
     let baseSocialFeeFukuoka = 13000;
+    let taxRateLecture = 10;
+    let taxRateSocial = 10;
 
     if (!settingsError && settingsData) {
         const linksSetting = settingsData.find(s => s.key === 'payment_links');
         const tokyoSetting = settingsData.find(s => s.key === 'base_social_fee_tokyo');
         const fukuokaSetting = settingsData.find(s => s.key === 'base_social_fee_fukuoka');
+        const taxLectureSetting = settingsData.find(s => s.key === 'tax_rate_lecture');
+        const taxSocialSetting = settingsData.find(s => s.key === 'tax_rate_social');
 
         if (tokyoSetting && tokyoSetting.value !== undefined) baseSocialFeeTokyo = Number(tokyoSetting.value);
         if (fukuokaSetting && fukuokaSetting.value !== undefined) baseSocialFeeFukuoka = Number(fukuokaSetting.value);
+        if (taxLectureSetting && taxLectureSetting.value !== undefined) taxRateLecture = Number(taxLectureSetting.value);
+        if (taxSocialSetting && taxSocialSetting.value !== undefined) taxRateSocial = Number(taxSocialSetting.value);
 
         if (linksSetting?.value) {
             try {
@@ -122,6 +128,8 @@ export default async function ReceiptPage({ params, searchParams }: { params: Pr
         applied_rank_name: rankName,
         lecture_fee,
         social_fee,
+        tax_rate_lecture: taxRateLecture,
+        tax_rate_social: taxRateSocial,
         total_amount_from_db,
         is_amount_mismatched,
         isAdmin

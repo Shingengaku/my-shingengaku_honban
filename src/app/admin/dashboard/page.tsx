@@ -599,16 +599,47 @@ export default function AdminDashboard() {
                 body: JSON.stringify({ ids: [id], is_duplicate_confirmed: true }),
             });
             if (res.ok) {
-                alert('確認済にしました');
-                setShowDuplicateModal(false);
-                fetchApplications();
+                alert('確認済みにしました');
+                fetchApplications(); // 再取得
             } else {
-                alert('更新に失敗しました');
+                alert('エラーが発生しました');
             }
         } catch (e) {
-            alert('エラーが発生しました');
+            alert('通信エラー');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // タグ削除機能（管理者が発行済みフラグを消す）
+    const handleRemoveTag = async (appId: string, currentTags: string[], tagToRemove: string, label: string) => {
+        if (!confirm(`この応募データの「${label}」を解除しますか？\n（解除すると再度お客様側から発行できるようになります）`)) return;
+
+        try {
+            const newTags = currentTags.filter(t => t !== tagToRemove);
+            
+            // mark APIを再利用して上書き
+            const res = await fetch('/api/receipt/mark', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: appId,
+                    type: 'receipt_issued', // ダミー（tagMapで判定されるが今回はtags配列で上書きするため影響小）
+                    tags: newTags,
+                    is_admin: true
+                })
+            });
+
+            if (res.ok) {
+                // ローカルのステートを更新してUIを即座に反映
+                setApps(apps.map(a => a.id === appId ? { ...a, tags: newTags } : a));
+                alert('解除しました');
+            } else {
+                const data = await res.json();
+                alert(`エラーが発生しました: ${data.error || '不明なエラー'}`);
+            }
+        } catch (e) {
+            alert('通信エラーが発生しました');
         }
     };
 
@@ -2088,22 +2119,46 @@ export default function AdminDashboard() {
                                                     <span className="px-2 py-0.5 text-[10px] bg-gray-50 text-gray-500 border border-gray-200 rounded">テストデータ</span>
                                                 )}
                                                 {app.tags?.includes('receipted') && (
-                                                    <span className="px-2 py-0.5 mt-1 text-[10px] bg-blue-50 text-blue-600 border border-blue-200 rounded">領収書(合) 済</span>
+                                                    <span 
+                                                        onClick={() => handleRemoveTag(app.id, app.tags || [], 'receipted', '領収書(合)')}
+                                                        className="px-2 py-0.5 mt-1 text-[10px] bg-blue-50 text-blue-600 border border-blue-200 rounded cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors block text-center"
+                                                        title="クリックで発行済を解除"
+                                                    >領収書(合) 済</span>
                                                 )}
                                                 {app.tags?.includes('receipted_lecture') && (
-                                                    <span className="px-2 py-0.5 mt-1 text-[10px] bg-blue-50 text-blue-600 border border-blue-200 rounded">領収(講) 済</span>
+                                                    <span 
+                                                        onClick={() => handleRemoveTag(app.id, app.tags || [], 'receipted_lecture', '領収(講)')}
+                                                        className="px-2 py-0.5 mt-1 text-[10px] bg-blue-50 text-blue-600 border border-blue-200 rounded cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors block text-center"
+                                                        title="クリックで発行済を解除"
+                                                    >領収(講) 済</span>
                                                 )}
                                                 {app.tags?.includes('receipted_social') && (
-                                                    <span className="px-2 py-0.5 mt-1 text-[10px] bg-blue-50 text-blue-600 border border-blue-200 rounded">領収(懇) 済</span>
+                                                    <span 
+                                                        onClick={() => handleRemoveTag(app.id, app.tags || [], 'receipted_social', '領収(懇)')}
+                                                        className="px-2 py-0.5 mt-1 text-[10px] bg-blue-50 text-blue-600 border border-blue-200 rounded cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors block text-center"
+                                                        title="クリックで発行済を解除"
+                                                    >領収(懇) 済</span>
                                                 )}
                                                 {app.tags?.includes('invoiced') && (
-                                                    <span className="px-2 py-0.5 mt-1 text-[10px] bg-sky-50 text-sky-600 border border-sky-200 rounded">請求書(合) 済</span>
+                                                    <span 
+                                                        onClick={() => handleRemoveTag(app.id, app.tags || [], 'invoiced', '請求書(合)')}
+                                                        className="px-2 py-0.5 mt-1 text-[10px] bg-sky-50 text-sky-600 border border-sky-200 rounded cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors block text-center"
+                                                        title="クリックで発行済を解除"
+                                                    >請求書(合) 済</span>
                                                 )}
                                                 {app.tags?.includes('invoiced_lecture') && (
-                                                    <span className="px-2 py-0.5 mt-1 text-[10px] bg-sky-50 text-sky-600 border border-sky-200 rounded">請求(講) 済</span>
+                                                    <span 
+                                                        onClick={() => handleRemoveTag(app.id, app.tags || [], 'invoiced_lecture', '請求(講)')}
+                                                        className="px-2 py-0.5 mt-1 text-[10px] bg-sky-50 text-sky-600 border border-sky-200 rounded cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors block text-center"
+                                                        title="クリックで発行済を解除"
+                                                    >請求(講) 済</span>
                                                 )}
                                                 {app.tags?.includes('invoiced_social') && (
-                                                    <span className="px-2 py-0.5 mt-1 text-[10px] bg-sky-50 text-sky-600 border border-sky-200 rounded">請求(懇) 済</span>
+                                                    <span 
+                                                        onClick={() => handleRemoveTag(app.id, app.tags || [], 'invoiced_social', '請求(懇)')}
+                                                        className="px-2 py-0.5 mt-1 text-[10px] bg-sky-50 text-sky-600 border border-sky-200 rounded cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors block text-center"
+                                                        title="クリックで発行済を解除"
+                                                    >請求(懇) 済</span>
                                                 )}
                                             </div>
                                         </td>

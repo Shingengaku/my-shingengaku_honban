@@ -10,6 +10,8 @@ export interface ReceiptData {
     social_venue: string;
     lecture_fee: number;
     social_fee: number;
+    tax_rate_lecture: number;
+    tax_rate_social: number;
     total_amount_from_db?: number;
     is_amount_mismatched?: boolean;
     tags: string[];
@@ -25,6 +27,8 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
     const [docType, setDocType] = useState<'receipt' | 'invoice'>('receipt');
     const [splitType, setSplitType] = useState<SplitType>('combined');
     const [addressee, setAddressee] = useState(data.input_name);
+    const [honorific, setHonorific] = useState('御中');
+    const [description, setDescription] = useState('受講費用・懇親会費用として');
     
     // 日付の初期値は今日
     const today = new Date().toISOString().split('T')[0];
@@ -69,6 +73,36 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
     if (splitType === 'combined') totalAmount = data.lecture_fee + data.social_fee;
     else if (splitType === 'lecture') totalAmount = data.lecture_fee;
     else if (splitType === 'social') totalAmount = data.social_fee;
+
+    // 税計算 (内税)
+    const taxInfo: { [key: number]: { amount: number, base: number, tax: number } } = {
+        10: { amount: 0, base: 0, tax: 0 },
+        8: { amount: 0, base: 0, tax: 0 }
+    };
+
+    if (splitType === 'combined' || splitType === 'lecture') {
+        const rate = Number(data.tax_rate_lecture) || 10;
+        if (!taxInfo[rate]) taxInfo[rate] = { amount: 0, base: 0, tax: 0 };
+        taxInfo[rate].amount += data.lecture_fee;
+    }
+    if (splitType === 'combined' || splitType === 'social') {
+        const rate = Number(data.tax_rate_social) || 10;
+        if (!taxInfo[rate]) taxInfo[rate] = { amount: 0, base: 0, tax: 0 };
+        taxInfo[rate].amount += data.social_fee;
+    }
+
+    Object.keys(taxInfo).forEach(key => {
+        const rateObj = taxInfo[Number(key)];
+        if (rateObj.amount > 0) {
+            rateObj.base = Math.round(rateObj.amount / (1 + (Number(key) / 100)));
+            rateObj.tax = rateObj.amount - rateObj.base;
+        }
+    });
+
+    const ratesConfigured = Object.keys(taxInfo).map(Number).filter(k => taxInfo[k].amount > 0).sort((a, b) => b - a);
+    
+    // 規定で10%と8%の行枠をPNGフォーマット通りに用意する
+    const renderRates = [10, 8];
 
     const handleGenerate = async () => {
         // お客様側で既に発行済みの場合はブロック（管理者はスルー可能）
@@ -233,14 +267,42 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                                 </div>
                             </div>
 
+                            <div className="flex gap-2 items-end">
+                                <div className="flex-1">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        宛名 <span className="text-xs text-gray-500">（会社名などに変更可能です）</span>
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        value={addressee}
+                                        onChange={(e) => setAddressee(e.target.value)}
+                                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border"
+                                    />
+                                </div>
+                                <div className="w-24">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">敬称</label>
+                                    <select 
+                                        value={honorific} 
+                                        onChange={(e) => setHonorific(e.target.value)}
+                                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border bg-white"
+                                    >
+                                        <option value="御中">御中</option>
+                                        <option value="様">様</option>
+                                        <option value="">なし</option>
+                                        <option value="行">行</option>
+                                        <option value="殿">殿</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    宛名 <span className="text-xs text-gray-500">（会社名などに変更可能です）</span>
+                                    但し書き
                                 </label>
                                 <input 
                                     type="text" 
-                                    value={addressee}
-                                    onChange={(e) => setAddressee(e.target.value)}
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
                                     className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border"
                                 />
                             </div>
@@ -316,134 +378,137 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                 </div>
             </div>
 
-            {/* ！！！ 帳票プレビュー・印刷領域（ここがA4印刷される） ！！！ */}
+            {/* ！！！ 帳票プレビュー・印刷領域（ここが指定サイズで印刷される） ！！！ */}
+            <style>{`
+                @media print {
+                    @page {
+                        size: 296.93mm 209.97mm;
+                        margin: 0;
+                    }
+                    body {
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                }
+            `}</style>
             {/* print:block で印刷時は常に表示、print:m-0で余白リセット */}
-            <div className="max-w-[210mm] mx-auto bg-white sm:shadow-lg sm:border sm:border-gray-300 min-h-[297mm] p-[15mm] sm:p-[20mm] print:shadow-none print:border-none print:p-0 print:m-0">
+            <div className="w-[296.93mm] h-[209.97mm] mx-auto bg-white sm:shadow-lg sm:border sm:border-gray-300 p-[15mm] sm:p-[20mm] print:shadow-none print:border-none print:p-0 print:m-0 relative font-serif text-gray-900 box-border overflow-hidden">
                 
-                {/* 帳票ヘッダー */}
-                <div className="flex justify-between items-end border-b-2 border-gray-800 pb-2 mb-8">
-                    <h2 className="text-3xl font-serif tracking-widest text-gray-800">
-                        {docType === 'receipt' ? '領 収 書' : '請 求 書'}
-                    </h2>
-                    <div className="text-right text-gray-700">
-                        <p className="text-sm border-b border-gray-400 inline-block min-w-[120px] pb-1">
-                            No. {data.id.substring(0, 8).toUpperCase()}
-                        </p>
-                        <p className="text-sm mt-2">
-                            発行日: {issueDate.replace(/-/g, '/')}
-                        </p>
+                {/* 帳票ヘッダー (PNG再現) */}
+                <div className="flex justify-between items-start mb-6 pt-4">
+                    <div className="w-1/2">
+                    </div>
+                    <div className="text-right w-1/2 mt-8">
+                        <h2 className="text-4xl tracking-[1em] mb-4 pr-4">
+                            {docType === 'receipt' ? '領収書' : '請求書'}
+                        </h2>
+                        <div className="flex justify-end gap-2 pr-4 mt-10">
+                            <span className="text-sm">発行日</span>
+                            <span className="text-base min-w-[120px] pb-1">{issueDate.replace(/-/g, '/')}</span>
+                        </div>
                     </div>
                 </div>
 
-                <div className="flex justify-between items-start mb-12">
-                    {/* 宛名表示 */}
-                    <div className="w-1/2">
-                        <div className="border-b border-gray-800 pb-1 mb-2 text-xl text-gray-800 font-serif">
-                            <span className="font-bold">{addressee || '　　　　　　'}</span> <span className="text-lg">様</span>
+                {/* 宛名表示 */}
+                <div className="mb-10 w-2/3 border-b border-gray-900 pb-1 flex items-end">
+                    <span className="text-2xl font-bold tracking-widest px-2">{addressee}</span>
+                    <span className="text-xl ml-4 mb-0.5">{honorific}</span>
+                </div>
+
+                {/* 金額・但し書き エリア */}
+                <div className="mb-20 space-y-8 pl-4">
+                    <div className="flex items-center">
+                        <span className="text-2xl font-bold tracking-[0.5em] w-24">金額</span>
+                        <div className="border-b-2 border-gray-900 min-w-[300px] text-center pb-1">
+                            <span className="text-3xl font-bold font-mono px-4">¥{totalAmount.toLocaleString()} -</span>
                         </div>
                         {docType === 'receipt' ? (
-                            <p className="text-sm text-gray-600 mt-4 leading-relaxed">
-                                下記の金額を正に領収いたしました。<br/>
-                                支払方法: {paymentMethod}
-                            </p>
-                        ) : (
-                            <p className="text-sm text-gray-600 mt-4 leading-relaxed">
-                                下記の通りご請求申し上げます。
-                            </p>
-                        )}
+                            <span className="text-sm text-gray-600 ml-4 mb-2 -translate-y-2">※お支払方法: {paymentMethod}</span>
+                        ) : null}
                     </div>
 
-                    {/* 発行元情報（※適宜ダミー、後で自社フォーマットに従って差し替えるためのプレースホルダー） */}
-                    <div className="w-1/2 text-right text-sm text-gray-700 leading-relaxed">
-                        <p className="font-bold text-lg mb-2">神言学 運営事務局</p>
-                        <p>〒100-0000</p>
-                        <p>東京都千代田区〇〇 1-2-3</p>
-                        <p>ビル名 4F</p>
-                        <p>Email: info@example.com</p>
-                        <p>登録番号: T1234567890123</p>
+                    <div className="flex items-start">
+                        <span className="text-xl tracking-[1em] w-24 mt-2">但し</span>
+                        <div className="border-b border-gray-900 min-w-[300px] text-center pb-1">
+                            <span className="text-xl tracking-wider px-2">{description || '　　　　　　　　　　　　　'}</span>
+                        </div>
+                    </div>
+
+                    <div className="pl-24 pt-4 tracking-widest">
+                        {docType === 'receipt' ? '上記正に領収いたしました。' : '上記の通りご請求申し上げます。'}
                     </div>
                 </div>
 
-                {/* 金額ハイライト */}
-                <div className="bg-gray-100 p-6 text-center mb-10 border border-gray-300">
-                    <p className="text-sm text-gray-600 mb-2">
-                        {docType === 'receipt' ? '領収金額' : 'ご請求金額'}
-                    </p>
-                    <p className="text-4xl font-bold font-serif text-gray-800 tracking-wider">
-                        {formatCurrency(totalAmount)} <span className="text-xl font-normal">-</span>
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">（消費税 10% 込）</p>
-                </div>
+                {/* 下部領域: 内訳(左) & 会社情報・印(右) */}
+                <div className="flex justify-between items-end mt-20 relative">
+                    
+                    {/* 内訳テーブル (PGN再現) */}
+                    <div className="w-64 border border-gray-900">
+                        <div className="text-center border-b border-gray-900 py-1 tracking-widest font-bold">内訳</div>
+                        
+                        <div className="flex text-sm text-center border-b border-gray-900 py-1">
+                            <div className="w-16 border-r border-gray-900">税率</div>
+                            <div className="flex-1">税別金額</div>
+                        </div>
 
-                {/* 明細テーブル */}
-                <div className="mb-12">
-                    <h3 className="text-lg font-bold text-gray-800 mb-2 border-l-4 border-gray-800 pl-2">内訳明細</h3>
-                    <table className="w-full border-collapse border border-gray-800 text-sm">
-                        <thead>
-                            <tr className="bg-gray-100 font-bold border-b border-gray-800">
-                                <th className="p-3 text-left border-r border-gray-800">品目 / 詳細</th>
-                                <th className="p-3 text-center border-r border-gray-800 w-24">数量</th>
-                                <th className="p-3 text-right w-40">金額（税込）</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {/* 受講費の行 */}
-                            {(splitType === 'combined' || splitType === 'lecture') && data.lecture_fee > 0 && (
-                                <tr className="border-b border-gray-300">
-                                    <td className="p-3 border-r border-gray-800">
-                                        神言学 集中講座 受講費<br/>
-                                        <span className="text-xs text-gray-500">属性: {data.applied_rank_name} / 会場: {data.venue}</span>
-                                    </td>
-                                    <td className="p-3 text-center border-r border-gray-800">1</td>
-                                    <td className="p-3 text-right font-mono">{formatCurrency(data.lecture_fee)}</td>
-                                </tr>
-                            )}
+                        {renderRates.map((rate, index) => {
+                            const isLast = index === renderRates.length - 1;
+                            const rateBase = (taxInfo[rate] && taxInfo[rate].base) || 0;
+                            const rateTax = (taxInfo[rate] && taxInfo[rate].tax) || 0;
                             
-                            {/* 懇親会費の行 */}
-                            {(splitType === 'combined' || splitType === 'social') && data.social_fee > 0 && (
-                                <tr className="border-b border-gray-300">
-                                    <td className="p-3 border-r border-gray-800">
-                                        懇親会 参加費<br/>
-                                        <span className="text-xs text-gray-500">会場: {data.social_venue}</span>
-                                    </td>
-                                    <td className="p-3 text-center border-r border-gray-800">1</td>
-                                    <td className="p-3 text-right font-mono">{formatCurrency(data.social_fee)}</td>
-                                </tr>
-                            )}
+                            return (
+                                <div key={rate} className={`flex text-sm border-gray-900 ${!isLast ? 'border-b' : ''}`}>
+                                    <div className="w-16 text-center border-r border-gray-900">
+                                        <div className="py-2 border-b border-gray-900">{rate}%</div>
+                                        <div className="py-2 text-xs">消費税額</div>
+                                    </div>
+                                    <div className="flex-1 font-mono text-right pr-4">
+                                        <div className="py-2 border-b border-gray-900">
+                                            {rateBase > 0 ? `¥${rateBase.toLocaleString()}` : ''}
+                                        </div>
+                                        <div className="py-2">
+                                            {rateTax > 0 ? `¥${rateTax.toLocaleString()}` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
 
-                            {/* 手数料や割引などの空き行（必要に応じて） */}
-                            {totalAmount === 0 && (
-                                <tr className="border-b border-gray-300 text-gray-400">
-                                    <td className="p-3 border-r border-gray-800 italic">該当する費用項目がありません</td>
-                                    <td className="p-3 text-center border-r border-gray-800">-</td>
-                                    <td className="p-3 text-right font-mono">¥0</td>
-                                </tr>
-                            )}
+                    {/* 会社情報 & 角印 */}
+                    <div className="text-right leading-loose tracking-wider relative pr-4">
+                        <p className="font-bold text-lg mb-2">株式会社フィールドオブドリームス</p>
+                        <p>〒810-0044</p>
+                        <p>福岡市中央区六本松2-3-6 9F</p>
+                        <p>T2290001075481</p>
+                        <p>TEL: 092-791-4547</p>
+                        <p>FAX: 092-791-4548</p>
+                        
+                        {/* 角印画像: /images/hanko.png が存在すると仮定し、ここに重ねる。実際のパスが異なる場合はユーザー環境に合わせて変更 */}
+                        <img 
+                            src="/images/hanko.png" 
+                            alt="社印"
+                            className="absolute bottom-[-10px] right-[-10px] w-24 h-24 opacity-90mix-blend-multiply" 
+                            style={{ 
+                                mixBlendMode: 'multiply',
+                            }}
+                            onError={(e) => { 
+                                // 画像パスがない場合のフォールバック（透明や空にする等）
+                                e.currentTarget.style.display = 'none'; 
+                            }} 
+                        />
+                    </div>
 
-                            {/* 合計行 */}
-                            <tr className="border-t-2 border-gray-800 font-bold bg-gray-50">
-                                <td colSpan={2} className="p-3 text-right border-r border-gray-800">合計</td>
-                                <td className="p-3 text-right font-mono text-lg">{formatCurrency(totalAmount)}</td>
-                            </tr>
-                        </tbody>
-                    </table>
                 </div>
-
-                {/* 備考・フッター */}
-                <div className="text-xs text-gray-600 leading-relaxed">
-                    <p className="font-bold mb-1">【備考】</p>
-                    {docType === 'invoice' ? (
-                        <>
-                            <p>・お支払いは、記載の期日までにお願いいたします。</p>
-                            <p>・振込手数料は貴社にてご負担くださいますようお願い申し上げます。</p>
-                        </>
-                    ) : (
-                        <>
-                            <p>・本領収書は電子的に発行されたものであり、印紙の貼付は省略しております。</p>
-                        </>
-                    )}
-                </div>
-
+                
+                {/* 備考（必要に応じて） */}
+                {docType === 'invoice' && (
+                    <div className="mt-8 text-xs text-gray-700 leading-relaxed border-t border-gray-400 pt-4">
+                        <p className="font-bold mb-1">【備考】</p>
+                        <p>・お支払いは、記載の期日までにお願いいたします。</p>
+                        <p>・振込手数料は貴社にてご負担くださいますようお願い申し上げます。</p>
+                    </div>
+                )}
             </div>
 
         </div>

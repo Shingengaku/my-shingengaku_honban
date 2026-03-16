@@ -10,7 +10,9 @@ export default function GlobalSettingsPage() {
         application_title: '',
         application_title_size: 'text-3xl',
         base_social_fee_tokyo: 11000,
-        base_social_fee_fukuoka: 13000
+        base_social_fee_fukuoka: 13000,
+        tax_rate_lecture: 10,
+        tax_rate_social: 10
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -37,7 +39,9 @@ export default function GlobalSettingsPage() {
                         application_title: data.application_title || '',
                         application_title_size: data.application_title_size || 'text-3xl',
                         base_social_fee_tokyo: data.base_social_fee_tokyo !== undefined ? Number(data.base_social_fee_tokyo) : 11000,
-                        base_social_fee_fukuoka: data.base_social_fee_fukuoka !== undefined ? Number(data.base_social_fee_fukuoka) : 13000
+                        base_social_fee_fukuoka: data.base_social_fee_fukuoka !== undefined ? Number(data.base_social_fee_fukuoka) : 13000,
+                        tax_rate_lecture: data.tax_rate_lecture !== undefined ? Number(data.tax_rate_lecture) : 10,
+                        tax_rate_social: data.tax_rate_social !== undefined ? Number(data.tax_rate_social) : 10
                     });
                 }
             } catch (e) {
@@ -171,6 +175,42 @@ export default function GlobalSettingsPage() {
                                         onChange={(e) => setSettings({ ...settings, base_social_fee_fukuoka: Number(e.target.value) })}
                                     />
                                     <span className="ml-2 text-gray-600">円</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="border-t pt-6"></div>
+
+                    {/* 税率設定 */}
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900 mb-2">消費税率マスタ（領収書・請求書印字用）</h2>
+                        <p className="text-sm text-gray-600 mb-4">
+                            書類発行にて、受講・懇親会別に内税を逆算して表示するための税率（パーセント、整数）を設定します。
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">受講費 税率（%）</label>
+                                <div className="flex items-center">
+                                    <input
+                                        type="number"
+                                        className="w-full p-2 border rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-right"
+                                        value={settings.tax_rate_lecture}
+                                        onChange={(e) => setSettings({ ...settings, tax_rate_lecture: Number(e.target.value) })}
+                                    />
+                                    <span className="ml-2 text-gray-600">%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">懇親会費 税率（%）</label>
+                                <div className="flex items-center">
+                                    <input
+                                        type="number"
+                                        className="w-full p-2 border rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-right"
+                                        value={settings.tax_rate_social}
+                                        onChange={(e) => setSettings({ ...settings, tax_rate_social: Number(e.target.value) })}
+                                    />
+                                    <span className="ml-2 text-gray-600">%</span>
                                 </div>
                             </div>
                         </div>
