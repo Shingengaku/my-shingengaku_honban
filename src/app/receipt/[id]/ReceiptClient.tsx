@@ -10,15 +10,20 @@ export interface ReceiptData {
     social_venue: string;
     lecture_fee: number;
     social_fee: number;
+    total_amount_from_db?: number;
+    is_amount_mismatched?: boolean;
     tags: string[];
     created_at: string;
     applied_rank_name: string;
-    isAdmin: boolean; // 管理者からのアクセスかどうか（trueの場合は再発行制限を無視できる等）
+    isAdmin: boolean;
 }
+
+export type SplitType = 'combined' | 'lecture' | 'social';
 
 export default function ReceiptClient({ data }: { data: ReceiptData }) {
     // 状態管理
     const [docType, setDocType] = useState<'receipt' | 'invoice'>('receipt');
+    const [splitType, setSplitType] = useState<SplitType>('combined');
     const [addressee, setAddressee] = useState(data.input_name);
     
     // 日付の初期値は今日
@@ -33,22 +38,43 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
     const [errorMsg, setErrorMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
 
-    // 発行済みチェック
-    const isReceiptIssued = data.tags.includes('receipted');
-    const isInvoiceIssued = data.tags.includes('invoiced');
+    // 発行済みタグ
+    const isDocIssued = (checkDocType: 'receipt' | 'invoice', checkSplitType: SplitType) => {
+        const prefix = checkDocType === 'receipt' ? 'receipted' : 'invoiced';
+        
+        // 1. 指定のタグがそのまま付いているか
+        let exactTag = prefix;
+        if (checkSplitType === 'lecture') exactTag += '_lecture';
+        if (checkSplitType === 'social') exactTag += '_social';
+        
+        if (data.tags.includes(exactTag)) return true;
+
+        // 2. 「合算」で発行しようとしているのに、すでに合算発行済みか（上記でカバー済みだが念の為）または「単独」で発行済みか
+        if (checkSplitType === 'combined') {
+            if (data.tags.includes(prefix + '_lecture') || data.tags.includes(prefix + '_social')) return true;
+        }
+
+        // 3. 「単独」で発行しようとしているのに、すでに「合算」で発行済みか
+        if (checkSplitType !== 'combined') {
+            if (data.tags.includes(prefix)) return true;
+        }
+
+        return false;
+    };
+
+    const isCurrentDocIssued = isDocIssued(docType, splitType);
 
     // 計算
-    const totalAmount = data.lecture_fee + data.social_fee;
+    let totalAmount = 0;
+    if (splitType === 'combined') totalAmount = data.lecture_fee + data.social_fee;
+    else if (splitType === 'lecture') totalAmount = data.lecture_fee;
+    else if (splitType === 'social') totalAmount = data.social_fee;
 
     const handleGenerate = async () => {
         // お客様側で既に発行済みの場合はブロック（管理者はスルー可能）
         if (!data.isAdmin) {
-            if (docType === 'receipt' && isReceiptIssued) {
-                setErrorMsg('この領収書は既に発行済みです。再発行が必要な場合は管理者へお問い合わせください。');
-                return;
-            }
-            if (docType === 'invoice' && isInvoiceIssued) {
-                setErrorMsg('この請求書は既に発行済みです。再発行が必要な場合は管理者へお問い合わせください。');
+            if (isCurrentDocIssued) {
+                setErrorMsg(`対象の${docType === 'receipt' ? '領収書' : '請求書'}（${splitType === 'combined' ? '合算' : (splitType === 'lecture' ? '受講費のみ' : '懇親会費のみ')}）は既に発行済み、または競合する種類の書類が発行済みです。再発行が必要な場合は管理者へお問い合わせください。`);
                 return;
             }
         }
@@ -59,12 +85,15 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
 
         try {
             // 発行記録（印）をつけるAPIを呼ぶ
+            const apiTypeBase = docType === 'receipt' ? 'receipt_issued' : 'invoice_issued';
+            const apiTypeModifier = splitType === 'combined' ? '' : (splitType === 'lecture' ? '_lecture' : '_social');
+            
             const res = await fetch('/api/receipt/mark', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     id: data.id,
-                    type: docType === 'receipt' ? 'receipt_issued' : 'invoice_issued',
+                    type: apiTypeBase + apiTypeModifier,
                     is_admin: data.isAdmin
                 })
             });
@@ -112,16 +141,23 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                     </h1>
 
                     {data.isAdmin && (
+                        <>
                         <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
                             <strong>管理者モード:</strong> 発行制限テストなどを無視して作成可能です。お客様画面と同じレイアウトを確認できます。
                         </div>
+                        {data.is_amount_mismatched && (
+                            <div className="mb-6 p-4 bg-red-100 border border-red-300 rounded text-sm font-bold text-red-800">
+                                ⚠️ 金額アンマッチ警告: 商品マスタおよび設定から自動算出した合計金額（{formatCurrency(data.lecture_fee + data.social_fee)}）と、決済時の登録額（{formatCurrency(data.total_amount_from_db || 0)}）が一致していません。<br />
+                                イレギュラーな決済や割引が行われている可能性があります。内容を確認して、お客様にお渡しする前に管理画面等で正しい書類金額になっているか確認してください。
+                            </div>
+                        )}
+                        </>
                     )}
 
-                    {!data.isAdmin && (isReceiptIssued || isInvoiceIssued) && (
+                    {!data.isAdmin && isCurrentDocIssued && (
                         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded text-sm text-red-800">
                             <strong>※ご注意:</strong><br/>
-                            {isReceiptIssued && '・領収書は既に発行済みです。'}<br/>
-                            {isInvoiceIssued && '・請求書は既に発行済みです。'}<br/>
+                            対象の{docType === 'receipt' ? '領収書' : '請求書'}は既に発行済みです。<br/>
                             再発行をご希望の場合は、主催者（管理者）までお問い合わせください。
                         </div>
                     )}
@@ -152,6 +188,48 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                                         />
                                         <span className="ml-2">請求書</span>
                                     </label>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">発行対象の費用</label>
+                                <div className="flex gap-4">
+                                    <label className="flex items-center">
+                                        <input 
+                                            type="radio" 
+                                            name="splitType" 
+                                            className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                                            checked={splitType === 'combined'}
+                                            onChange={() => setSplitType('combined')}
+                                        />
+                                        <span className="ml-2">合算</span>
+                                    </label>
+                                    
+                                    {data.lecture_fee > 0 && (
+                                        <label className="flex items-center">
+                                            <input 
+                                                type="radio" 
+                                                name="splitType" 
+                                                className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                                                checked={splitType === 'lecture'}
+                                                onChange={() => setSplitType('lecture')}
+                                            />
+                                            <span className="ml-2">受講費のみ</span>
+                                        </label>
+                                    )}
+
+                                    {data.social_fee > 0 && (
+                                        <label className="flex items-center">
+                                            <input 
+                                                type="radio" 
+                                                name="splitType" 
+                                                className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                                                checked={splitType === 'social'}
+                                                onChange={() => setSplitType('social')}
+                                            />
+                                            <span className="ml-2">懇親会費のみ</span>
+                                        </label>
+                                    )}
                                 </div>
                             </div>
 
@@ -220,9 +298,9 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                         
                         <button
                             onClick={handleGenerate}
-                            disabled={isGenerating || (!data.isAdmin && ((docType === 'receipt' && isReceiptIssued) || (docType === 'invoice' && isInvoiceIssued)))}
+                            disabled={isGenerating || (!data.isAdmin && isCurrentDocIssued)}
                             className={`px-8 py-3 text-white font-bold rounded shadow-lg text-lg transition-colors ${
-                                isGenerating || (!data.isAdmin && ((docType === 'receipt' && isReceiptIssued) || (docType === 'invoice' && isInvoiceIssued)))
+                                isGenerating || (!data.isAdmin && isCurrentDocIssued)
                                 ? 'bg-gray-400 cursor-not-allowed' 
                                 : 'bg-indigo-600 hover:bg-indigo-700'
                             }`}
@@ -310,7 +388,7 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                         </thead>
                         <tbody>
                             {/* 受講費の行 */}
-                            {data.lecture_fee > 0 && (
+                            {(splitType === 'combined' || splitType === 'lecture') && data.lecture_fee > 0 && (
                                 <tr className="border-b border-gray-300">
                                     <td className="p-3 border-r border-gray-800">
                                         神言学 集中講座 受講費<br/>
@@ -322,7 +400,7 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                             )}
                             
                             {/* 懇親会費の行 */}
-                            {data.social_fee > 0 && (
+                            {(splitType === 'combined' || splitType === 'social') && data.social_fee > 0 && (
                                 <tr className="border-b border-gray-300">
                                     <td className="p-3 border-r border-gray-800">
                                         懇親会 参加費<br/>

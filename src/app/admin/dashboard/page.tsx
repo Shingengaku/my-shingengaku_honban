@@ -157,6 +157,8 @@ export default function AdminDashboard() {
     // 設定モーダルの状慁E
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [paymentLinksData, setPaymentLinksData] = useState<PaymentLinkItem[]>([]);
+    const [baseSocialFeeTokyo, setBaseSocialFeeTokyo] = useState<number>(11000);
+    const [baseSocialFeeFukuoka, setBaseSocialFeeFukuoka] = useState<number>(13000);
 
     // メールチE��プレート�E状慁E
     const [emailTemplate, setEmailTemplate] = useState({ subject: '', body: '' }); // マッチした場吁E
@@ -427,6 +429,10 @@ export default function AdminDashboard() {
                 setEmailTemplateFreeOnline(data.email_template_free_online || DEFAULT_TEMPLATE_FREE_ONLINE);
                 setEmailTemplateResend(data.email_template_resend || DEFAULT_TEMPLATE_RESEND);
                 setEmailTemplateForgotPass(data.email_template_forgot_pass || DEFAULT_TEMPLATE_FORGOT_PASS);
+
+                // 基本懇親会費マスタをロード
+                if (data.base_social_fee_tokyo !== undefined) setBaseSocialFeeTokyo(Number(data.base_social_fee_tokyo));
+                if (data.base_social_fee_fukuoka !== undefined) setBaseSocialFeeFukuoka(Number(data.base_social_fee_fukuoka));
 
 
                 if (data.product_name_master) {
@@ -2082,10 +2088,22 @@ export default function AdminDashboard() {
                                                     <span className="px-2 py-0.5 text-[10px] bg-gray-50 text-gray-500 border border-gray-200 rounded">テストデータ</span>
                                                 )}
                                                 {app.tags?.includes('receipted') && (
-                                                    <span className="px-2 py-0.5 mt-1 text-[10px] bg-blue-50 text-blue-600 border border-blue-200 rounded">領収書 済</span>
+                                                    <span className="px-2 py-0.5 mt-1 text-[10px] bg-blue-50 text-blue-600 border border-blue-200 rounded">領収書(合) 済</span>
+                                                )}
+                                                {app.tags?.includes('receipted_lecture') && (
+                                                    <span className="px-2 py-0.5 mt-1 text-[10px] bg-blue-50 text-blue-600 border border-blue-200 rounded">領収(講) 済</span>
+                                                )}
+                                                {app.tags?.includes('receipted_social') && (
+                                                    <span className="px-2 py-0.5 mt-1 text-[10px] bg-blue-50 text-blue-600 border border-blue-200 rounded">領収(懇) 済</span>
                                                 )}
                                                 {app.tags?.includes('invoiced') && (
-                                                    <span className="px-2 py-0.5 mt-1 text-[10px] bg-sky-50 text-sky-600 border border-sky-200 rounded">請求書 済</span>
+                                                    <span className="px-2 py-0.5 mt-1 text-[10px] bg-sky-50 text-sky-600 border border-sky-200 rounded">請求書(合) 済</span>
+                                                )}
+                                                {app.tags?.includes('invoiced_lecture') && (
+                                                    <span className="px-2 py-0.5 mt-1 text-[10px] bg-sky-50 text-sky-600 border border-sky-200 rounded">請求(講) 済</span>
+                                                )}
+                                                {app.tags?.includes('invoiced_social') && (
+                                                    <span className="px-2 py-0.5 mt-1 text-[10px] bg-sky-50 text-sky-600 border border-sky-200 rounded">請求(懇) 済</span>
                                                 )}
                                             </div>
                                         </td>
@@ -2163,8 +2181,39 @@ export default function AdminDashboard() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 align-top">
-                                            <div>¥{app.total_amount.toLocaleString()}</div>
-                                            <div className="text-xs text-gray-400 select-all cursor-pointer truncate max-w-[150px]" title={displayProductName}>{displayProductName}</div>
+                                            <div className="flex flex-col items-start gap-1">
+                                                <span>¥{app.total_amount.toLocaleString()}</span>
+                                                {(() => {
+                                                    // receipt/page.tsx と同等の金額マッチ判定
+                                                    let isMismatched = false;
+                                                    const targetKeyName = `【${rankName}】${app.venue === 'both' ? '東京・福岡講演参加' : (app.venue === 'tokyo' ? '東京講演参加' : '福岡講演参加')}/${app.social_venue === 'tokyo' ? '懇親会東京のみ' : (app.social_venue === 'fukuoka' ? '懇親会福岡のみ' : (app.social_venue === 'both' ? '懇親会両方' : '懇親会なし'))}`;
+                                                    const matchedLink = paymentLinksData.find(p => p.name === targetKeyName || p.key === app.payment_key);
+                                                    
+                                                    if (matchedLink && (Number(matchedLink.lecture_fee) > 0 || Number(matchedLink.social_fee) > 0)) {
+                                                        const expectedTotal = Number(matchedLink.lecture_fee || 0) + Number(matchedLink.social_fee || 0);
+                                                        if (expectedTotal !== app.total_amount) isMismatched = true;
+                                                    } else {
+                                                        // Fallback logic check
+                                                        let expectedSocial = 0;
+                                                        if (app.social_venue === 'tokyo' || app.social_venue === 'both') expectedSocial = baseSocialFeeTokyo;
+                                                        else if (app.social_venue === 'fukuoka') expectedSocial = baseSocialFeeFukuoka;
+                                                        
+                                                        const lecture = app.total_amount - expectedSocial;
+                                                        if (lecture < 0 && app.total_amount > 0) isMismatched = true;
+                                                    }
+                                                    
+                                                    if (isMismatched) {
+                                                        return (
+                                                            <div className="flex items-center gap-1 text-[10px] bg-red-100 text-red-700 border border-red-200 px-1.5 py-0.5 rounded shadow-sm" title="商品マスタや設定からの算出額と実際の決済額が一致していません。割引や例外的な決済の可能性があります。">
+                                                                <span>⚠️</span>
+                                                                <span className="font-bold">金額アンマッチ</span>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return null;
+                                                })()}
+                                            </div>
+                                            <div className="text-xs text-gray-400 select-all cursor-pointer truncate max-w-[150px] mt-1" title={displayProductName}>{displayProductName}</div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex flex-col space-y-1 align-top">
                                             <div className="space-x-2">

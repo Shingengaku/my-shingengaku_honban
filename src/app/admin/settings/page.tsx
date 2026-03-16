@@ -8,7 +8,9 @@ export default function GlobalSettingsPage() {
         application_text: '',
         application_active: true,
         application_title: '',
-        application_title_size: 'text-3xl'
+        application_title_size: 'text-3xl',
+        base_social_fee_tokyo: 11000,
+        base_social_fee_fukuoka: 13000
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -33,7 +35,9 @@ export default function GlobalSettingsPage() {
                         application_text: data.application_text || '',
                         application_active: data.application_active !== false, // デフォルトは true
                         application_title: data.application_title || '',
-                        application_title_size: data.application_title_size || 'text-3xl'
+                        application_title_size: data.application_title_size || 'text-3xl',
+                        base_social_fee_tokyo: data.base_social_fee_tokyo !== undefined ? Number(data.base_social_fee_tokyo) : 11000,
+                        base_social_fee_fukuoka: data.base_social_fee_fukuoka !== undefined ? Number(data.base_social_fee_fukuoka) : 13000
                     });
                 }
             } catch (e) {
@@ -134,6 +138,42 @@ export default function GlobalSettingsPage() {
                             </select>
                         </div>
                         <p className="text-xs text-gray-500 mt-1">※タイトルの文字サイズを選択できます。</p>
+                    </div>
+
+                    <div className="border-t pt-6"></div>
+
+                    {/* 領収書算出用 基本懇親会費設定 */}
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900 mb-2">基本懇親会費マスタ（領収書算出用）</h2>
+                        <p className="text-sm text-gray-600 mb-4">
+                            商品マスタ（各料金設定）に懇親会費の内訳が未登録だった場合に、合算額から差し引いて受講費を逆算するための基本金額です。
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">東京会場 懇親会費（税込）</label>
+                                <div className="flex items-center">
+                                    <input
+                                        type="number"
+                                        className="w-full p-2 border rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-right"
+                                        value={settings.base_social_fee_tokyo}
+                                        onChange={(e) => setSettings({ ...settings, base_social_fee_tokyo: Number(e.target.value) })}
+                                    />
+                                    <span className="ml-2 text-gray-600">円</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">福岡会場 懇親会費（税込）</label>
+                                <div className="flex items-center">
+                                    <input
+                                        type="number"
+                                        className="w-full p-2 border rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-right"
+                                        value={settings.base_social_fee_fukuoka}
+                                        onChange={(e) => setSettings({ ...settings, base_social_fee_fukuoka: Number(e.target.value) })}
+                                    />
+                                    <span className="ml-2 text-gray-600">円</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="border-t pt-6"></div>

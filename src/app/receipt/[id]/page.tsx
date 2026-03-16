@@ -32,24 +32,35 @@ export default async function ReceiptPage({ params, searchParams }: { params: Pr
     const { data: settingsData, error: settingsError } = await supabaseAdmin
         .from('app_settings')
         .select('*')
-        .eq('key', 'payment_links')
-        .single();
+        .in('key', ['payment_links', 'base_social_fee_tokyo', 'base_social_fee_fukuoka']);
 
     let paymentLinks = [];
-    if (!settingsError && settingsData?.value) {
-        try {
-            paymentLinks = JSON.parse(settingsData.value);
-            if (!Array.isArray(paymentLinks)) {
-                // オブジェクト形式から配列に変換（レガシー対応）
-                paymentLinks = Object.entries(paymentLinks).map(([k, v]) => ({
-                    name: k,
-                    lecture_fee: 0,
-                    social_fee: 0,
-                    url: v
-                }));
+    let baseSocialFeeTokyo = 11000;
+    let baseSocialFeeFukuoka = 13000;
+
+    if (!settingsError && settingsData) {
+        const linksSetting = settingsData.find(s => s.key === 'payment_links');
+        const tokyoSetting = settingsData.find(s => s.key === 'base_social_fee_tokyo');
+        const fukuokaSetting = settingsData.find(s => s.key === 'base_social_fee_fukuoka');
+
+        if (tokyoSetting && tokyoSetting.value !== undefined) baseSocialFeeTokyo = Number(tokyoSetting.value);
+        if (fukuokaSetting && fukuokaSetting.value !== undefined) baseSocialFeeFukuoka = Number(fukuokaSetting.value);
+
+        if (linksSetting?.value) {
+            try {
+                paymentLinks = JSON.parse(linksSetting.value);
+                if (!Array.isArray(paymentLinks)) {
+                    // オブジェクト形式から配列に変換（レガシー対応）
+                    paymentLinks = Object.entries(paymentLinks).map(([k, v]) => ({
+                        name: k,
+                        lecture_fee: 0,
+                        social_fee: 0,
+                        url: v
+                    }));
+                }
+            } catch (e) {
+                console.error('Failed to parse payment_links settings', e);
             }
-        } catch (e) {
-            console.error('Failed to parse payment_links settings', e);
         }
     }
 
@@ -66,14 +77,39 @@ export default async function ReceiptPage({ params, searchParams }: { params: Pr
     const targetKeyName = `【${rankName}】${venueStr}/${socialStr}`;
     let lecture_fee = 0;
     let social_fee = 0;
+    const total_amount_from_db = Number(appData.total_amount) || 0;
+    let is_amount_mismatched = false;
 
-    const matchedLink = paymentLinks.find((p: any) => p.name === targetKeyName);
-    if (matchedLink) {
+    const matchedLink = paymentLinks.find((p: any) => p.name === targetKeyName || p.name === appData.payment_key);
+    
+    if (matchedLink && (Number(matchedLink.lecture_fee) > 0 || Number(matchedLink.social_fee) > 0)) {
+        // マスタに内訳が正しく登録されている場合
         lecture_fee = Number(matchedLink.lecture_fee) || 0;
         social_fee = Number(matchedLink.social_fee) || 0;
+        
+        // マスタの合計値とDBの記録額が違う場合はアンマッチとする
+        if (lecture_fee + social_fee !== total_amount_from_db) {
+            is_amount_mismatched = true;
+        }
     } else {
-        // 設定が見つからない場合は、古い total_amount があればそれを受講費とする（フォールバック）
-        lecture_fee = Number(appData.total_amount) || 0;
+        // マスタが見つからない、または内訳が未設定(0円)の旧データの場合
+        // 固定の基本懇親会費ルールで逆算する
+        if (appData.social_venue === 'tokyo' || appData.social_venue === 'both') {
+            social_fee = baseSocialFeeTokyo;
+        } else if (appData.social_venue === 'fukuoka') {
+            social_fee = baseSocialFeeFukuoka;
+        } else {
+            social_fee = 0;
+        }
+
+        lecture_fee = total_amount_from_db - social_fee;
+        
+        // マイナスになってしまうなど異常な場合はアンマッチとして総額を受講費に戻す
+        if (lecture_fee < 0) {
+            lecture_fee = total_amount_from_db;
+            social_fee = 0;
+            is_amount_mismatched = true;
+        }
     }
 
     const receiptData = {
@@ -86,6 +122,8 @@ export default async function ReceiptPage({ params, searchParams }: { params: Pr
         applied_rank_name: rankName,
         lecture_fee,
         social_fee,
+        total_amount_from_db,
+        is_amount_mismatched,
         isAdmin
     };
 

@@ -111,6 +111,16 @@ export async function POST(request: Request) {
                 supabaseAdmin.from('app_settings').upsert({ key: 'application_title_size', value: body.application_title_size }, { onConflict: 'key' })
             );
         }
+        if (typeof body.base_social_fee_tokyo !== 'undefined') {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'base_social_fee_tokyo', value: body.base_social_fee_tokyo }, { onConflict: 'key' })
+            );
+        }
+        if (typeof body.base_social_fee_fukuoka !== 'undefined') {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'base_social_fee_fukuoka', value: body.base_social_fee_fukuoka }, { onConflict: 'key' })
+            );
+        }
 
         await Promise.all(updates);
 
