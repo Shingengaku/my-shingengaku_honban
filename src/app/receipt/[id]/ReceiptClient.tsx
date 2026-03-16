@@ -397,7 +397,7 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                             height: '65px',
                             mixBlendMode: 'multiply',
                             opacity: 0.85,
-                            transform: 'translateY(-10px)'
+                            transform: 'translateY(12px)'
                         }}
                         onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
