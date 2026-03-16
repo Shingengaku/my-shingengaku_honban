@@ -231,25 +231,24 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                 style={{ 
                     width: '296.93mm', 
                     height: '209.97mm', 
-                    fontFamily: '"MS Mincho", "Noto Serif JP", serif', // 明朝体ベース
-                    color: '#222',
-                    overflow: 'hidden'
+                    fontFamily: '"MS Mincho", "Noto Serif JP", serif',
+                    color: '#222'
                 }}
             >
                 {/* 1. タイトル（ページ全体のど真ん中） */}
                 <div style={{ position: 'absolute', top: '35mm', left: 0, right: 0, textAlign: 'center' }}>
-                    <span style={{ fontSize: '38px', letterSpacing: '0.5em', marginLeft: '0.5em' /* letter-spacingのオフセット補正 */ }}>
+                    <span style={{ fontSize: '38px', fontWeight: 'bold', letterSpacing: '0.5em', marginLeft: '0.5em' }}>
                         {docType === 'receipt' ? '領 収 書' : '請 求 書'}
                     </span>
                 </div>
 
                 {/* 2. 発行日（右上寄り） */}
                 <div style={{ position: 'absolute', top: '55mm', right: '35mm', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-                    <span style={{ fontSize: '13px', letterSpacing: '0.1em' }}>発行日</span>
+                    <span style={{ fontSize: '14px', letterSpacing: '0.1em' }}>発行日</span>
                     <span style={{ 
-                        fontSize: '13px', 
-                        borderBottom: '1px solid #222', 
-                        width: '130px', 
+                        fontSize: '15px', 
+                        borderBottom: '1.2px solid #222', 
+                        width: '135px', 
                         paddingBottom: '2px', 
                         textAlign: 'center' 
                     }}>
@@ -257,31 +256,29 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                     </span>
                 </div>
 
-                {/* 3. 宛名（左上寄り） */}
-                <div style={{ position: 'absolute', top: '75mm', left: '25mm' }}>
-                    <div style={{ borderBottom: '1.5px solid #222', paddingBottom: '4px', display: 'inline-flex', alignItems: 'flex-end' }}>
-                        <span style={{ fontSize: '20px', fontWeight: 'bold', letterSpacing: '0.1em', padding: '0 5px' }}>
+                {/* 3. 宛名（左上寄り）／下線は「領」の手前くらいまで */}
+                <div style={{ position: 'absolute', top: '75mm', left: '25mm', width: '105mm' }}>
+                    <div style={{ borderBottom: '1.5px solid #222', paddingBottom: '4px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '20px', fontWeight: 'bold', letterSpacing: '0.1em', padding: '0 5px', flex: 1 }}>
                             {addressee}
                         </span>
-                        <span style={{ fontSize: '15px', marginLeft: '12px', paddingRight: '5px' }}>
+                        <span style={{ fontSize: '15px', paddingRight: '5px' }}>
                             {honorific}
                         </span>
                     </div>
                 </div>
 
                 {/* 4. メインブロック：3本の長い罫線の部分 */}
-                {/* 線のスタート位置：左から 62mm (-25mm のインデントよりさらに右) */}
-                <div style={{ position: 'absolute', top: '100mm', left: '62mm', right: '35mm' }}>
+                {/* 線のスタート位置：左から 62mm、少し上に移動(90mm)、横幅は発行日くらいまで(185mm) */}
+                <div style={{ position: 'absolute', top: '90mm', left: '62mm', width: '185mm' }}>
                     
                     {/* 太線 1 */}
-                    <div style={{ borderTop: '2px solid #222', width: '100%' }}></div>
+                    <div style={{ borderTop: '3px solid #111', width: '100%' }}></div>
                     
                     {/* 金額の行 */}
                     <div style={{ display: 'flex', alignItems: 'center', height: '14mm', paddingLeft: '5mm' }}>
                         <div style={{ fontSize: '15px', letterSpacing: '0.5em', width: '50px' }}>金額</div>
-                        {/* 金額は少し右寄りに置かれている（ここではフレックス構成で整える） */}
                         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-                            {/* フォントサイズ24px程度の金額表示（サンセリフ系） */}
                             <span style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'sans-serif', transform: 'translateY(1px)' }}>
                                 ¥{totalAmount.toLocaleString()}
                             </span>
@@ -289,7 +286,7 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                     </div>
 
                     {/* 太線 2 */}
-                    <div style={{ borderTop: '2px solid #222', width: '100%' }}></div>
+                    <div style={{ borderTop: '3px solid #111', width: '100%' }}></div>
 
                     {/* 但し書きの行 */}
                     <div style={{ display: 'flex', alignItems: 'center', height: '12mm', paddingLeft: '5mm' }}>
@@ -300,7 +297,7 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                     </div>
 
                     {/* 太線 3 */}
-                    <div style={{ borderTop: '2px solid #222', width: '100%' }}></div>
+                    <div style={{ borderTop: '3px solid #111', width: '100%' }}></div>
 
                     {/* 確認テキスト（3本目の線のすぐ下） */}
                     <div style={{ paddingTop: '8px', fontSize: '13px', letterSpacing: '0.1em' }}>
@@ -333,9 +330,12 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                             <div style={{ flex: 1, borderTop: '1px solid #222' }}></div>
                         </div>
                         <div style={{ display: 'flex', marginTop: '4px', marginBottom: '2px' }}>
-                            <span style={{ width: '60px' }}>消費税額</span>
-                            <span style={{ flex: 1, textAlign: 'right', fontFamily: 'sans-serif', paddingRight: '10px' }}>
-                                {(taxInfo[10]?.amount > 0) ? `¥${taxInfo[10].tax.toLocaleString()}` : ''}
+                            <span style={{ width: '45px' }}></span>
+                            <span style={{ flex: 1, display: 'flex', paddingLeft: '10px' }}>
+                                <span style={{ flex: 1 }}>消費税額</span>
+                                <span style={{ textAlign: 'right', fontFamily: 'sans-serif', paddingRight: '10px' }}>
+                                    {(taxInfo[10]?.amount > 0) ? `¥${taxInfo[10].tax.toLocaleString()}` : ''}
+                                </span>
                             </span>
                         </div>
                     </div>
@@ -360,9 +360,12 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                             <div style={{ flex: 1, borderTop: '1px solid #222' }}></div>
                         </div>
                         <div style={{ display: 'flex', marginTop: '4px', marginBottom: '2px' }}>
-                            <span style={{ width: '60px' }}>消費税額</span>
-                            <span style={{ flex: 1, textAlign: 'right', fontFamily: 'sans-serif', paddingRight: '10px' }}>
-                                {(taxInfo[8]?.amount > 0) ? `¥${taxInfo[8].tax.toLocaleString()}` : ''}
+                            <span style={{ width: '45px' }}></span>
+                            <span style={{ flex: 1, display: 'flex', paddingLeft: '10px' }}>
+                                <span style={{ flex: 1 }}>消費税額</span>
+                                <span style={{ textAlign: 'right', fontFamily: 'sans-serif', paddingRight: '10px' }}>
+                                    {(taxInfo[8]?.amount > 0) ? `¥${taxInfo[8].tax.toLocaleString()}` : ''}
+                                </span>
                             </span>
                         </div>
                     </div>
