@@ -2,11 +2,13 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { notFound } from 'next/navigation';
 import ReceiptClient from './ReceiptClient';
 
-// Next.js 13+ Server Component
-export default async function ReceiptPage({ params, searchParams }: { params: { id: string }, searchParams: { [key: string]: string | string[] | undefined } }) {
-    const { id } = params;
+// Next.js 15 Server Component
+export default async function ReceiptPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+    const { id } = await params;
+    
     // 管理者フラグ
-    const isAdmin = searchParams.admin === 'true';
+    const awaitedSearchParams = await searchParams;
+    const isAdmin = awaitedSearchParams.admin === 'true';
 
     // データベースから情報を取得
     const { data: appData, error } = await supabaseAdmin
