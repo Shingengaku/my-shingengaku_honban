@@ -2231,7 +2231,7 @@ export default function AdminDashboard() {
                                                     const url = `${window.location.origin}/receipt/${app.id}`;
                                                     navigator.clipboard.writeText(url).then(() => alert('お客様用 書類発行URLをコピーしました。\n' + url));
                                                 }} className="text-indigo-600 hover:text-indigo-900 text-xs text-left block w-full">📋 書類URLコピー</button>
-                                                <button onClick={() => window.open(`/receipt/${app.id}?admin=true`, '_blank')} className="text-teal-600 hover:text-teal-900 text-xs text-left block w-full">📄 (管理用)書類作成</button>
+                                                <button onClick={() => window.open(`/receipt/${app.id}?admin=true`, '_blank')} className="text-teal-600 hover:text-teal-900 text-xs text-left block w-full">📄 (管理用)プレビュー・作成</button>
                                             </div>
                                             <div className="pt-1 border-t border-gray-100 mt-1">
                                                 <button onClick={() => handleDeleteApp(app.id)} className="text-red-500 hover:text-red-700 text-xs text-left font-bold flex items-center">
