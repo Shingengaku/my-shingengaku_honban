@@ -872,6 +872,12 @@ export default function AdminDashboard() {
         let newParticipationType: 'venue' | 'online' = 'venue';
         let newTotalAmount: number | undefined = undefined;
 
+        // オンライン系商品かどうかを判定するヘルパー
+        // 「LIVE」(英字)・「ライブ」(日本語)・「オンライン」・「アーカイブ」のいずれかを含む場合はオンライン
+        const isOnlineProduct = (name: string) =>
+            name.includes('LIVE') || name.includes('ライブ') ||
+            name.includes('オンライン') || name.includes('アーカイブ');
+
         if (product) {
             if (product.venue_lecture) newVenue = product.venue_lecture;
             if (product.venue_social) newSocial = product.venue_social;
@@ -880,13 +886,13 @@ export default function AdminDashboard() {
             const socialFee = Number(product.social_fee) || 0;
             newTotalAmount = lectureFee + socialFee;
 
-            // 参加タイプの自動判定
-            if (product.name?.includes('LIVE') || product.name?.includes('オンライン')) {
+            // 参加タイプの自動判定（商品名から統一ヘルパーで判定）
+            if (isOnlineProduct(product.name || '')) {
                 newParticipationType = 'online';
                 // オンラインの場合、会場名は「LIVE視聴」などをセット（もしマスタにあれば維持、なければ自動設定）
                 // ただし、product.venue_lectureが空でないならそれを優先
                 if (!newVenue) {
-                    if (product.name?.includes('LIVE')) {
+                    if (product.name?.includes('LIVE') || product.name?.includes('ライブ')) {
                         newVenue = 'LIVE視聴';
                     } else if (product.name?.includes('アーカイブ')) {
                         newVenue = 'アーカイブ視聴';
@@ -894,8 +900,8 @@ export default function AdminDashboard() {
                 }
             }
         } else {
-            // マスタにない場合も商品名から推測
-            if (key.includes('LIVE') || key.includes('オンライン')) {
+            // マスタにない場合も商品名（key）から同ヘルパーで推測
+            if (isOnlineProduct(key)) {
                 newParticipationType = 'online';
             }
         }
