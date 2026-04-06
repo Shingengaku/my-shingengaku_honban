@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getSocialOptionsForLecture } from '@/lib/venueUtils';
+import * as XLSX from 'xlsx';
 import {
     DndContext,
     closestCenter,
@@ -57,6 +58,11 @@ interface Rank {
 // 複数選択用のヘルパーコンポーネント
 // 複数選択用のヘルパーコンポーネント (修正版: detailsタグを使用せず、確実な制御を行う)
 import { useRef } from 'react';
+
+// 一意なキー（複合キー）を生成する共通関数
+const generateProductKey = (p: Partial<PaymentLinkItem>) => {
+    return `${p.name || ''}|${p.rank_id || ''}|${p.venue_lecture || ''}|${p.venue_social || ''}`;
+};
 
 function MultiSelectVenue({
     value,
@@ -478,22 +484,28 @@ export default function ProductMasterPage() {
         const name = newItem.name?.trim();
         if (!name) return;
 
-        // 重複チェック
-        if (paymentLinks.some(p => p.key === name)) {
-            alert('既に同じ商品名が存在します');
+        // 複合キーによる重複チェック
+        const key = generateProductKey({
+            name: name,
+            rank_id: newItem.rank_id,
+            venue_lecture: newItem.venue_lecture,
+            venue_social: newItem.venue_social
+        });
+        if (paymentLinks.some(p => p.key === key)) {
+            alert('同じ商品名・属性・会場の組み合わせが既に存在します');
             return;
         }
 
         const addedItem: PaymentLinkItem = {
             name: name,
-            key: name,
+            key: key,
             url: newItem.url || '',
             lecture_fee: newItem.lecture_fee || '0',
             social_fee: newItem.social_fee || '0',
-            venue_lecture: newItem.venue_lecture,
-            venue_social: newItem.venue_social,
-            rank_id: newItem.rank_id,
-            product_code: newItem.product_code
+            venue_lecture: newItem.venue_lecture || '',
+            venue_social: newItem.venue_social || '',
+            rank_id: newItem.rank_id || '',
+            product_code: newItem.product_code || ''
         };
 
         const newLinks = [...paymentLinks, addedItem];
@@ -521,8 +533,8 @@ export default function ProductMasterPage() {
             const currentItem = newData[index];
             const updatedItem = { ...currentItem, ...updates };
 
-            if (updates.name !== undefined) {
-                updatedItem.key = updates.name;
+            if (updates.name !== undefined || updates.rank_id !== undefined || updates.venue_lecture !== undefined || updates.venue_social !== undefined) {
+                updatedItem.key = generateProductKey(updatedItem);
             }
 
             // コード変更時にURLを自動生成
@@ -550,8 +562,8 @@ export default function ProductMasterPage() {
 
         if (over && active.id !== over.id) {
             setPaymentLinks((items) => {
-                const oldIndex = items.findIndex((item) => item.name === active.id); // 名前をIDとして使用
-                const newIndex = items.findIndex((item) => item.name === over.id);
+                const oldIndex = items.findIndex((item) => item.key === active.id); // 複合キーをIDとして使用
+                const newIndex = items.findIndex((item) => item.key === over.id);
                 return arrayMove(items, oldIndex, newIndex);
             });
         }
@@ -594,67 +606,108 @@ export default function ProductMasterPage() {
         const file = e.target.files[0];
         e.target.value = '';
 
-        if (!confirm('CSVをインポートして一覧に追加・更新しますか？\\n※反映するにはインポート後に画面下の「設定を保存する」を押す必要があります。')) return;
+        if (!confirm('CSV または Excelファイルをインポートして一覧に追加・更新しますか？\n※反映するにはインポート後に画面下の「設定を保存する」を押す必要があります。')) return;
 
-        const text = await file.text();
-        const cleanText = text.replace(/^\\uFEFF/, '');
-        const lines = cleanText.split(/\\r?\\n/).filter(line => line.trim() !== '');
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const uint8 = new Uint8Array(arrayBuffer);
+            const isCSV = file.name.toLowerCase().endsWith('.csv');
 
-        if (lines.length < 2) return;
-
-        const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-        // マッピング
-        const headerMap: Record<string, string> = {
-            '商品名': 'name', '商品コード': 'product_code', 'URL': 'url',
-            '属性ID': 'rank_id', '講義会場': 'venue_lecture', '懇親会会場': 'venue_social',
-            '受講料': 'lecture_fee', '懇親会費': 'social_fee'
-        };
-
-        const mappedHeaders = headers.map(h => headerMap[h] || h);
-
-        const newItems: PaymentLinkItem[] = [];
-
-        for (let i = 1; i < lines.length; i++) {
-            const vals = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-            if (vals.length < mappedHeaders.length) continue;
-
-            const obj: any = {};
-            mappedHeaders.forEach((h, idx) => obj[h] = vals[idx]);
-
-            if (!obj.name) continue;
-
-            newItems.push({
-                name: obj.name,
-                key: obj.name,
-                product_code: obj.product_code,
-                url: obj.url,
-                rank_id: obj.rank_id,
-                venue_lecture: obj.venue_lecture,
-                venue_social: obj.venue_social,
-                lecture_fee: obj.lecture_fee || '0',
-                social_fee: obj.social_fee || '0'
-            });
-        }
-
-        // マージロジック: 名前が存在する場合は更新、存在しない場合は追加
-        // ローカルで行います。
-        const merged = [...paymentLinks];
-        let addedCount = 0;
-        let updatedCount = 0;
-
-        newItems.forEach(newItem => {
-            const idx = merged.findIndex(p => p.name === newItem.name);
-            if (idx >= 0) {
-                merged[idx] = { ...merged[idx], ...newItem };
-                updatedCount++;
+            let workbook;
+            if (isCSV) {
+                // CSVの場合は UTF-8 か Shift-JIS かを判定して読み込む
+                let content = '';
+                try {
+                    const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
+                    content = utf8Decoder.decode(uint8);
+                } catch (e) {
+                    const sjisDecoder = new TextDecoder('shift-jis');
+                    content = sjisDecoder.decode(uint8);
+                }
+                workbook = XLSX.read(content, { type: 'string' });
             } else {
-                merged.push(newItem);
-                addedCount++;
+                // Excel (.xlsx) の場合はバイナリとして読み込む
+                workbook = XLSX.read(arrayBuffer, { type: 'array' });
             }
-        });
 
-        setPaymentLinks(merged);
-        alert(`インポート完了: 追加 ${addedCount}件, 更新 ${updatedCount}件\\n内容を確認し、問題なければ「設定を保存する」ボタンを押してください。`);
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+            if (!jsonData || jsonData.length === 0) {
+                alert('データが見つかりませんでした');
+                return;
+            }
+
+            // ヘッダーマッピングの強化版（空白・大文字小文字・類似語を許容）
+            const normalize = (s: string) => s.trim().replace(/\s+/g, '').replace(/　/g, '');
+            const headerAliases: Record<string, string> = {
+                '商品名': 'name', '名称': 'name', '項目名': 'name',
+                '商品コード': 'product_code', 'コード': 'product_code', '管理コード': 'product_code',
+                'URL': 'url', 'リンク': 'url', '決済リンク': 'url',
+                '属性ID': 'rank_id', 'ランクID': 'rank_id', '対象ID': 'rank_id',
+                '講義会場': 'venue_lecture', '会場': 'venue_lecture', '講義': 'venue_lecture',
+                '懇親会会場': 'venue_social', '懇親会': 'venue_social', '宴会': 'venue_social',
+                '受講料': 'lecture_fee', '金額': 'lecture_fee', '講義費': 'lecture_fee',
+                '懇親会費': 'social_fee', '宴会費': 'social_fee'
+            };
+
+            const newItems: PaymentLinkItem[] = (jsonData as any[]).map(row => {
+                const obj: any = {};
+                // キー（日本語ヘッダー）を内部用キーに変換
+                Object.entries(row).forEach(([k, v]) => {
+                    const cleanK = normalize(k);
+                    const mappedKey = headerAliases[cleanK] || cleanK;
+                    obj[mappedKey] = v;
+                });
+
+                if (!obj.name) return null;
+
+                const item: any = {
+                    name: String(obj.name).trim(),
+                    product_code: obj.product_code ? String(obj.product_code).trim() : '',
+                    url: obj.url ? String(obj.url).trim() : '',
+                    rank_id: obj.rank_id ? String(obj.rank_id).trim() : '',
+                    venue_lecture: obj.venue_lecture ? String(obj.venue_lecture).trim() : '',
+                    venue_social: obj.venue_social ? String(obj.venue_social).trim() : '',
+                    lecture_fee: String(obj.lecture_fee || '0'),
+                    social_fee: String(obj.social_fee || '0')
+                };
+
+                // インポート時に一意なキーを生成
+                item.key = generateProductKey(item);
+                return item as PaymentLinkItem;
+            }).filter(Boolean) as PaymentLinkItem[];
+
+            if (newItems.length === 0) {
+                const detectedHeaders = jsonData.length > 0 ? Object.keys(jsonData[0] as object).join(', ') : 'なし';
+                alert(`取り込み可能な有効なデータがありませんでした。\n\n【原因のヒント】\nファイル内の「商品名」列が正しく認識されていない可能性があります。\n\n検出された項目名: [${detectedHeaders}]\n※ガイドに記載の項目名と一致しているかご確認ください。`);
+                return;
+            }
+
+            // マージロジック
+            const merged = [...paymentLinks];
+            let addedCount = 0;
+            let updatedCount = 0;
+
+            newItems.forEach(newItem => {
+                const idx = merged.findIndex(p => p.key === newItem.key);
+                if (idx >= 0) {
+                    merged[idx] = { ...merged[idx], ...newItem };
+                    updatedCount++;
+                } else {
+                    merged.push(newItem);
+                    addedCount++;
+                }
+            });
+
+            setPaymentLinks(merged);
+            alert(`インポート完了: 追加 ${addedCount}件, 更新 ${updatedCount}件\n内容を確認し、問題なければ「設定を保存する」ボタンを押してください。`);
+
+        } catch (error) {
+            console.error('Import error:', error);
+            alert('ファイルの読み込み中にエラーが発生しました');
+        }
     };
 
     return (
@@ -674,7 +727,49 @@ export default function ProductMasterPage() {
                     </div>
                 </div>
 
-                <div className="bg-blue-50 p-4 rounded-md mb-6 text-sm text-blue-900 border border-blue-200">
+                <div className="flex flex-col gap-4 mb-6">
+                    <div className="bg-blue-50 p-4 rounded-md text-sm text-blue-900 border border-blue-200 shadow-sm transition-all hover:border-blue-300">
+                        <details>
+                            <summary className="font-bold cursor-pointer hover:text-blue-700 select-none flex items-center gap-2 outline-none">
+                                <span className="text-xl">📘</span>
+                                <span>CSV / Excel インポート操作ガイド（インポート前にご確認ください）</span>
+                            </summary>
+                            <div className="mt-4 space-y-4 pl-4 border-l-2 border-blue-200 animate-fade-in text-gray-700">
+                                <div>
+                                    <p className="font-bold text-blue-800 mb-1">■ 推奨フォーマット</p>
+                                    <p>`.xlsx (Excel)` または `.csv (UTF-8)`</p>
+                                </div>
+                                <div>
+                                    <p className="font-bold text-blue-800 mb-1">■ 1行目（ヘッダー項目名）</p>
+                                    <p>以下の項目名が認識されます：</p>
+                                    <ul className="list-disc pl-5 mt-1 text-xs grid grid-cols-2 gap-1">
+                                        <li><strong>商品名</strong> (必須/更新キー)</li>
+                                        <li><strong>受講料</strong> (必須)</li>
+                                        <li><strong>懇親会費</strong> (必須)</li>
+                                        <li><strong>商品コード</strong> (任意)</li>
+                                        <li><strong>講義会場</strong> (任意)</li>
+                                        <li><strong>懇親会会場</strong> (任意)</li>
+                                        <li><strong>属性ID</strong> (任意)</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <p className="font-bold text-blue-800 mb-1">■ 各項目の書き方ルール</p>
+                                    <ul className="list-disc pl-5 text-xs space-y-2">
+                                        <li><strong>データの識別</strong>: 「<strong>商品名・属性ID・講義会場・懇親会会場</strong>」の組み合わせが完全に一致する場合にのみ、既存データの上書き更新となります。それ以外（例：同じ名前で会場だけが違う）は別々の商品として新規登録されます。</li>
+                                        <li><strong>会場の複数指定</strong>: 複数の会場を許可する場合、「<strong>東京・福岡</strong>」のように「<strong>・</strong>（中黒）」で繋いでください。</li>
+                                        <li><strong>会場名の特殊指定</strong>: 「<strong>参加しない</strong>」または「<strong>ー</strong>（全角ダッシュ）」が使用可能です。オンラインのみの場合は、講義会場に「<strong>オンライン</strong>」、懇親会会場に「<strong>ー</strong>」を指定するのが一般的です。</li>
+                                        <li><strong>属性ID</strong>: 属性管理画面で設定されている数値（1, 2...）を直接指定します。空欄の場合は「一般（属性なし）」扱いとなります。</li>
+                                    </ul>
+                                </div>
+                                <div className="bg-amber-50 p-2 rounded border border-amber-100 text-[11px]">
+                                    <p className="font-bold text-amber-800">⚠️ インポート後の注意</p>
+                                    <p>ファイルを取り込んだ直後は画面上の表示が更新されるだけで、データベースには保存されていません。必ず最後に画面右下の「<strong>設定を保存する</strong>」ボタンを押して確定させてください。</p>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+
+                    <div className="bg-blue-50 p-4 rounded-md text-sm text-blue-900 border border-blue-200 shadow-sm transition-all hover:border-blue-300">
                     <details>
                         <summary className="font-bold cursor-pointer hover:text-blue-700 select-none flex items-center gap-2 outline-none">
                             <span className="text-xl">💡</span>
@@ -696,6 +791,7 @@ export default function ProductMasterPage() {
                         </div>
                     </details>
                 </div>
+            </div>
 
                 <div className="bg-white rounded-lg shadow p-6">
                     <div className="mb-6 bg-blue-50 p-4 rounded text-sm text-blue-800">

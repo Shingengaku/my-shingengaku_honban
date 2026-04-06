@@ -2,21 +2,40 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-// 引用符とカンマに関してCSVを手動で解析するヘルパー
-function parseCSV(text: string) {
-    // BOMがあれば削除
-    const cleanText = text.replace(/^\uFEFF/, '');
-    const lines = cleanText.split(/\r?\n/).filter(line => line.trim() !== '');
+import * as XLSX from 'xlsx';
 
-    if (lines.length === 0) return { headers: [], records: [] };
+// 堅牢なファイル解析（CSV/Excel両対応、Shift-JIS対応）
+function parseFile(buffer: ArrayBuffer, fileName: string) {
+    const uint8 = new Uint8Array(buffer);
+    const isCSV = fileName.toLowerCase().endsWith('.csv');
 
-    // カンマで分割し、囲みの引用符を削除する単純なパーサー
-    // 注: 引用符内のカンマは正しく処理されません。
-    // 堅牢なCSV解析にはライブラリが推奨されますが、単純なリストにはこれで十分です。
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    let workbook;
+    if (isCSV) {
+        // CSVの場合は UTF-8 か Shift-JIS かを判定して読み込む
+        let content = '';
+        try {
+            const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
+            content = utf8Decoder.decode(uint8);
+        } catch (e) {
+            const sjisDecoder = new TextDecoder('shift-jis');
+            content = sjisDecoder.decode(uint8);
+        }
+        workbook = XLSX.read(content, { type: 'string' });
+    } else {
+        // Excel (.xlsx) の場合はバイナリとして読み込む
+        workbook = XLSX.read(buffer, { type: 'array' });
+    }
 
-    // ヘッダー名をキーにマップ
-    // 期待値: 氏名, ふりがな, メールアドレス, ランク(属性), 期
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+    if (!jsonData || jsonData.length === 0) return { headers: [], records: [] };
+
+    // ヘッダー（1行目のキー）を取得
+    const rawHeaders = Object.keys(jsonData[0] as object);
+
+    // ヘッダー名を内部キーにマップ
     const keyMap: Record<string, string> = {
         '氏名': 'name',
         '名前': 'name',
@@ -32,29 +51,17 @@ function parseCSV(text: string) {
         '特進': 'is_tokushin'
     };
 
-    const mappedHeaders = headers.map(h => keyMap[h] || h);
+    const mappedHeaders = rawHeaders.map(h => keyMap[h.trim()] || h.trim());
 
-    const records = [];
-    for (let i = 1; i < lines.length; i++) {
-        const line = lines[i];
-        // 値を分割してクリーニング
-        const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-
-        // 末尾の空行を許可
-        if (values.length === 1 && values[0] === '') continue;
-
-        if (values.length < mappedHeaders.length) {
-            // 列数不足
-            records.push({ _error: `列数不足 (項目数: ${values.length}, ヘッダー数: ${mappedHeaders.length})`, _raw: line });
-            continue;
-        }
-
-        const row: any = {};
-        mappedHeaders.forEach((header, index) => {
-            row[header] = values[index];
+    const records = (jsonData as any[]).map(row => {
+        const obj: any = {};
+        Object.entries(row).forEach(([k, v]) => {
+            const mappedKey = keyMap[k.trim()] || k.trim();
+            obj[mappedKey] = v;
         });
-        records.push(row);
-    }
+        return obj;
+    });
+
     return { headers: mappedHeaders, records };
 }
 
@@ -68,8 +75,8 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'ファイルがアップロードされていません' }, { status: 400 });
         }
 
-        const text = await file.text();
-        const { headers, records } = parseCSV(text);
+        const buffer = await file.arrayBuffer();
+        const { headers, records } = parseFile(buffer, file.name);
 
         const errors = [];
 
@@ -180,14 +187,18 @@ export async function POST(request: Request) {
 
             // 特進フラグの解析: "特進" string, "true", "TRUE", "1" -> true
             // 空文字, "false", "0" -> false
+            // 特進フラグの解析: 文字列, 数値, 真偽値のいずれも考慮
             let isTokushinBool = false;
-            if (typeof is_tokushin === 'string') {
-                const val = is_tokushin.trim();
-                if (val === '特進' || val.toLowerCase() === 'true' || val === '1' || val === 'あり') {
+            const tVal = is_tokushin;
+            if (typeof tVal === 'string') {
+                const s = tVal.trim();
+                if (s === '特進' || s.toLowerCase() === 'true' || s === '1' || s === 'あり') {
                     isTokushinBool = true;
                 }
-            } else if (typeof is_tokushin === 'boolean') {
-                isTokushinBool = is_tokushin;
+            } else if (typeof tVal === 'number') {
+                if (tVal === 1) isTokushinBool = true;
+            } else if (typeof tVal === 'boolean') {
+                isTokushinBool = tVal;
             }
 
             upsertData.push({

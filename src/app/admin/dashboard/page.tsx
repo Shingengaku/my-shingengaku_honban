@@ -3,8 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getPaymentKey } from '@/lib/payment';
-import { matchProduct, getVenueDisplayName, isOnlineVenue, getSocialOptionsForLecture } from '@/lib/venueUtils';
+import { matchProduct, getVenueDisplayName, isOnlineVenue, getSocialOptionsForLecture, normalizeVenue } from '@/lib/venueUtils';
 
 // 型定義
 interface Application {
@@ -34,6 +33,7 @@ interface Application {
         furigana: string;
         is_tokushin?: boolean;
         ranks?: {
+            id: number;
             name: string;
             sort_order: number;
         }
@@ -906,21 +906,24 @@ export default function AdminDashboard() {
     };
 
     const handleKeyChange = (key: string) => {
-        const parsed = parseKey(key);
-        if (parsed) {
-            const product = paymentLinksData.find(p => p.key === key || p.name === key);
-            const amount = product ? (Number(product.lecture_fee) || 0) + (Number(product.social_fee) || 0) : editForm.total_amount;
+        // 商品マスタから直接検索 (名称一致)
+        const product = paymentLinksData.find(p => p.name === key || p.key === key);
+        
+        if (product) {
+            const rankName = ranks.find(r => String(r.id) === String(product.rank_id))?.name || '';
+            const amount = (Number(product.lecture_fee) || 0) + (Number(product.social_fee) || 0);
             
             setEditForm(prev => ({
                 ...prev,
                 payment_key: key,
-                applied_rank_name: parsed.rank,
-                venue: parsed.venue,
-                social_venue: parsed.social,
+                applied_rank_name: rankName || prev.applied_rank_name,
+                venue: product.venue_lecture || prev.venue,
+                social_venue: product.venue_social || prev.social_venue,
                 total_amount: amount,
-                participation_type: (parsed.venue.includes('LIVE') || parsed.venue.includes('ライブ')) ? 'online' : 'venue'
+                participation_type: (product.venue_lecture?.includes('LIVE') || product.venue_lecture?.includes('ライブ')) ? 'online' : 'venue'
             }));
         } else {
+            // マスタにない場合はキーのみ更新
             setEditForm(prev => ({ ...prev, payment_key: key }));
         }
     };
@@ -1495,15 +1498,25 @@ export default function AdminDashboard() {
         }
     };
 
-    const handleTruncate = async () => {
-        if (!confirm('【危険】全てのデータを削除しますか？\n（復元できません）')) return;
+    const handleTruncate = async (e: React.MouseEvent) => {
+        // Ctrlキーが押されていない場合は無視
+        if (!e.ctrlKey) {
+            alert('一括削除を実行するには、Ctrlキー（Macの場合はCommandキー/Ctrlキー）を押しながらクリックしてください。');
+            return;
+        }
+
+        if (!confirm('【最重要・危険】全ての申込データを削除しますか？\n（復元できません。本当に実行する場合のみOKを押してください）')) return;
+        
         setLoading(true);
         try {
-            // Implementation of truncate... (Assuming simple API call)
-            // Check lines 1453 for original handleDelete?
-            await fetch('/api/admin/applications/truncate', { method: 'POST' });
-            alert('全データを削除しました');
-            fetchApplications();
+            const res = await fetch('/api/admin/applications/truncate', { method: 'POST' });
+            if (res.ok) {
+                alert('全データを削除しました');
+                fetchApplications();
+            } else {
+                const data = await res.json();
+                alert(`削除に失敗しました: ${data.error || '不明なエラー'}`);
+            }
         } catch (e) {
             alert('エラー');
         } finally {
@@ -1935,7 +1948,7 @@ export default function AdminDashboard() {
 
                     {/* データリセットボタン (右端) */}
                     <div className="flex justify-end pt-2 border-t border-gray-100 mt-2">
-                        <button onClick={handleTruncate} className="px-2 py-1 text-xs text-red-500 hover:text-red-700 border border-red-200 rounded hover:bg-red-50" title="Ctrlキーを押しながらクリチE��">
+                        <button onClick={(e) => handleTruncate(e)} className="px-2 py-1 text-xs text-red-500 hover:text-red-700 border border-red-200 rounded hover:bg-red-50" title="【重要】Ctrlキー（MacはCommand）を押しながらクリックして、全ての申込データを一括削除します">
                             データをリセット(削除)
                         </button>
                     </div>
@@ -1957,7 +1970,7 @@ export default function AdminDashboard() {
                             </div>
                         )}
                     </div>
-                    <button onClick={handleTruncate} className="hidden" title="Moved to filter bar"></button>
+                    <button onClick={(e) => handleTruncate(e)} className="hidden" title="Moved to filter bar"></button>
                 </div>
             </div>
 
@@ -2210,21 +2223,33 @@ export default function AdminDashboard() {
                                             <div className="flex flex-col items-start gap-1">
                                                 <span>¥{app.total_amount.toLocaleString()}</span>
                                                 {(() => {
-                                                    // receipt/page.tsx と同等の金額マッチ判定
                                                     let isMismatched = false;
-                                                    const targetKeyName = `【${rankName}】${app.venue === 'both' ? '東京・福岡講演参加' : (app.venue === 'tokyo' ? '東京講演参加' : '福岡講演参加')}/${app.social_venue === 'tokyo' ? '懇親会東京のみ' : (app.social_venue === 'fukuoka' ? '懇親会福岡のみ' : (app.social_venue === 'both' ? '懇親会両方' : '懇親会なし'))}`;
-                                                    const matchedLink = paymentLinksData.find(p => p.name === targetKeyName || p.key === app.payment_key);
+                                                    // 商品マスタとのマッチング
+                                                    const matchedLink = matchProduct(paymentLinksData, {
+                                                        venue: app.venue || '',
+                                                        social_venue: app.social_venue || '',
+                                                        participation_type: app.participation_type || 'venue',
+                                                        online_venues: app.online_venues,
+                                                        rank_id: app.members?.ranks?.id ? String(app.members.ranks.id) : undefined,
+                                                        rank_name: rankName,
+                                                        payment_key: app.payment_key
+                                                    });
                                                     
                                                     if (matchedLink && (Number(matchedLink.lecture_fee) > 0 || Number(matchedLink.social_fee) > 0)) {
                                                         const expectedTotal = Number(matchedLink.lecture_fee || 0) + Number(matchedLink.social_fee || 0);
                                                         if (expectedTotal !== app.total_amount) isMismatched = true;
                                                     } else {
-                                                        // Fallback logic check
+                                                        // Fallback logic Check (旧データ・マスタ未登録時)
                                                         let expectedSocial = 0;
-                                                        if (app.social_venue === 'tokyo' || app.social_venue === 'both') expectedSocial = baseSocialFeeTokyo;
-                                                        else if (app.social_venue === 'fukuoka') expectedSocial = baseSocialFeeFukuoka;
+                                                        const normalizedSocial = normalizeVenue(app.social_venue);
+                                                        if (normalizedSocial === '東京' || normalizedSocial === '東京・福岡') {
+                                                            expectedSocial = baseSocialFeeTokyo;
+                                                        } else if (normalizedSocial === '福岡') {
+                                                            expectedSocial = baseSocialFeeFukuoka;
+                                                        }
                                                         
                                                         const lecture = app.total_amount - expectedSocial;
+                                                        // 0円お申込み（無料・未マッチング）は除外
                                                         if (lecture < 0 && app.total_amount > 0) isMismatched = true;
                                                     }
                                                     

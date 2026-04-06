@@ -22,7 +22,21 @@ export function normalizeVenue(v: string | null | undefined): string {
     // 旧表記や表記ゆれの吸収
     if (v === '参加しません' || v === 'なし' || v === 'ー') return '参加しない';
     if (v === 'LIVE視聴（2会場）' || v === 'LIVE視聴(2会場)') return 'LIVE視聴';
-    if (v === '両方参加') return '東京・福岡';
+    
+    // 「両方参加」などの抽象的な表現を具体的な「東京・福岡」に統一
+    if (['両方参加', '両会場参加', '両会場', '懇親会両方', '懇親会参加両方'].some(s => v.includes(s))) {
+        return '東京・福岡';
+    }
+
+    // 「・」で区切られた複数会場の場合、順序を一定にする（例：福岡・東京 -> 東京・福岡）
+    // ただし、「LIVE視聴」などのオプションが含まれる場合は、一つの名称として扱うためスキップする
+    if (v.includes('・') && !v.includes('LIVE') && !v.includes('視聴')) {
+        const parts = v.split('・').map(p => p.trim()).filter(Boolean);
+        if (parts.length > 1) {
+            // 重複排除とソート（五十音順）
+            return Array.from(new Set(parts)).sort().join('・');
+        }
+    }
     
     return v;
 }
@@ -91,24 +105,76 @@ export function matchProduct(paymentLinks: any[], appData: {
     if (participationType === 'online') {
         searchSocialVenues.push('ー');
         searchSocialVenues.push('参加しない');
+        searchSocialVenues.push('参加不可'); // マスタ側で「参加不可」となっているケースに対応
     } else {
         searchSocialVenues.push(normalizedSocial);
         if (normalizedSocial === '参加しない') {
             searchSocialVenues.push('ー');
+            searchSocialVenues.push('参加不可');
         }
     }
 
-    // 3. 優先順位に従ってマッチング
+    // 3. 優先順位に従ってマッチング (スーパー照合: スペース、括弧、記号を問わない)
+    const superNormalize = (s: string) => {
+        if (!s) return '';
+        return s.replace(/\s+/g, '') // 全スペース削除
+                .replace(/[（［［｛〈]/g, '(') // 各種括弧を半角に
+                .replace(/[）］］｝〉]/g, ')')
+                .replace(/[・‐－\-、,.]/g, '') // 記号を削除して比較
+                .toLowerCase();
+    };
+
+    console.log(`[matchProduct] マッチング開始 (Rank: ${appData.rank_id}, Venue: ${normalizedVenue}, Type: ${participationType})`);
+
     for (const lec of searchLectureVenues) {
         for (const soc of searchSocialVenues) {
             const found = paymentLinks.find(p => {
-                const venueMatch = (p.venue_lecture === lec);
-                const socialMatch = (p.venue_social === soc);
-                const rankMatch = String(p.rank_id) === String(appData.rank_id);
+                const venueMatch = superNormalize(p.venue_lecture || '') === superNormalize(lec || '');
+                const socialMatch = superNormalize(p.venue_social || '') === superNormalize(soc || '');
+                const rankMatch = String(p.rank_id).trim() === String(appData.rank_id || '').trim();
                 return venueMatch && socialMatch && rankMatch;
             });
-            if (found) return found;
+            if (found) {
+                console.log(`[matchProduct] マッチ成功: ${found.name}`);
+                return found;
+            }
         }
+    }
+
+    // 4. 救済マッチング (フォールバック)
+    // 講義会場名や懇親会会場名の完全一致がなくても、ランクが合っていて、かつ「LIVE視聴」という単語が含まれていればマッチさせる
+    console.log(`[matchProduct] 厳密なマッチなし。救済マッチングを試みます...`);
+
+    const rescueFound = paymentLinks.find(p => {
+        const rankMatch = String(p.rank_id).trim() === String(appData.rank_id || '').trim();
+        if (!rankMatch) return false;
+
+        const pLec = superNormalize(p.venue_lecture || '');
+        if (participationType === 'online') {
+            // オンラインの場合、マスタ側に「live」が含まれていればOK
+            return pLec.includes('live') || pLec.includes('視聴');
+        } else {
+            // 会場参加の場合、マスタ側に会場名（例：東京、福岡）が含まれていればOK
+            return pLec.includes(superNormalize(normalizedVenue));
+        }
+    });
+
+    if (rescueFound) {
+        console.warn(`[matchProduct] 救済マッチ成功: ${rescueFound.name}`);
+        return rescueFound;
+    }
+
+    // マッチしなかった理由をコンソールに出力 (デバッグ用)
+    if (appData.venue !== '参加しない') {
+        console.error('【商品マッチング完全失敗】', {
+            入力: {
+                ランクID: appData.rank_id,
+                講義候補: searchLectureVenues,
+                懇親会候補: searchSocialVenues,
+                参加タイプ: participationType
+            },
+            マスタ件数: paymentLinks.length
+        });
     }
 
     return null;

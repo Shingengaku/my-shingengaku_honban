@@ -311,20 +311,45 @@ export default function MembersPage() {
                 </div>
 
                 {/* CSV Guide - Update text */}
-                <div className="mb-4 bg-white p-4 rounded shadow border-l-4 border-indigo-500">
-                    <h3 className="text-sm font-bold text-gray-800 mb-2">💡 CSVインポートの仕様・フォーマット</h3>
-                    <div className="text-sm text-gray-600 space-y-1">
-                        <p><strong>文字コード:</strong> UTF-8 (推奨) ※BOM付きも可</p>
-                        <p><strong>ヘッダー行:</strong> 必須 (1行目)</p>
-                        <ul className="list-disc list-inside ml-2 bg-gray-50 p-2 rounded mt-1 text-xs">
-                            <li><strong>氏名</strong>: 必須 (同姓同名かつ同じ期の場合は上書きされます)。</li>
-                            <li><strong>フリガナ</strong>: 任意。</li>
-                            <li><strong>メール</strong>: 必須。</li>
-                            <li><strong>属性</strong>: 任意。</li>
-                            <li><strong>期</strong>: 任意 (例: 「1期」「1」など)。※現在は数値変換可能なもののみ対応</li>
-                            <li><strong>特進</strong>: 任意 (例: 「特進」または「あり」で特進扱い)。</li>
-                        </ul>
-                    </div>
+                <div className="bg-blue-50 p-4 rounded-md mb-6 text-sm text-blue-900 border border-blue-200 shadow-sm transition-all hover:border-blue-300">
+                    <details>
+                        <summary className="font-bold cursor-pointer hover:text-blue-700 select-none flex items-center gap-2 outline-none">
+                            <span className="text-xl">📘</span>
+                            <span>受講生マスタ CSV / Excel インポート操作ガイド（インポート前にご確認ください）</span>
+                        </summary>
+                        <div className="mt-4 space-y-4 pl-4 border-l-2 border-blue-200 animate-fade-in text-gray-700">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <p className="font-bold text-blue-800 mb-1">■ 推奨フォーマット</p>
+                                    <p>`.xlsx (Excel)` または `.csv (UTF-8)`</p>
+                                </div>
+                                <div>
+                                    <p className="font-bold text-blue-800 mb-1">■ 1行目（ヘッダー項目名）</p>
+                                    <p>以下の項目名が認識されます：</p>
+                                    <ul className="list-disc pl-5 mt-1 text-xs grid grid-cols-2 gap-1">
+                                        <li><strong>氏名</strong> (必須)</li>
+                                        <li><strong>メールアドレス</strong> (必須)</li>
+                                        <li><strong>フリガナ</strong> (任意)</li>
+                                        <li><strong>属性/ランク</strong> (任意)</li>
+                                        <li><strong>期</strong> (任意)</li>
+                                        <li><strong>特進</strong> (任意)</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div>
+                                <p className="font-bold text-blue-800 mb-1">■ 各項目の書き方ルール</p>
+                                <ul className="list-disc pl-5 text-xs space-y-2">
+                                    <li><strong>氏名・期での重複判定</strong>: 同じ氏名かつ同じ期のデータが既に存在する場合、インポートモードの設定（上書き/スキップ）に従って処理されます。</li>
+                                    <li><strong>特進フラグ</strong>: 列の内容が「<strong>特進</strong>」「<strong>あり</strong>」「<strong>1</strong>」「<strong>true</strong>」のいずれかであれば、特進受講生として登録されます。</li>
+                                    <li><strong>属性・期</strong>: システムに登録されている名称と一致させるのが理想ですが、「1期」を「1」と書くなどの数値抽出による自動判別もサポートしています。</li>
+                                </ul>
+                            </div>
+                            <div className="bg-amber-50 p-2 rounded border border-amber-100 text-[11px]">
+                                <p className="font-bold text-amber-800">⚠️ インポートの実行</p>
+                                <p>ファイルを選択すると「インポート内容の確認」画面が表示されます。内容に問題がなければ「実行」ボタンを押すことで、データベースへ即時反映されます。</p>
+                            </div>
+                        </div>
+                    </details>
                 </div>
             </div>
 

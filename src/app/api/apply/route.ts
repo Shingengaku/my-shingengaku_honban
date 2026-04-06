@@ -81,10 +81,11 @@ export async function POST(request: Request) {
 
             if (member) {
                 rankId = member.ranks?.id ? String(member.ranks.id) : null;
-                rankName = member.ranks?.name || '一般';
+                rankName = member.ranks?.name || '受講生(属性未設定)'; // マスタに名前があればそれを使用
                 memberId = member.id;
             }
         } else {
+            // 一般（マスタ外）の場合
             if (introducer) {
                 rankName = '神言学未受講（ご紹介）';
             } else {
@@ -131,15 +132,29 @@ export async function POST(request: Request) {
         const adminEmail = settings.admin_email || process.env.ADMIN_EMAIL;
         const adminBccEmail = settings.admin_bcc_email || process.env.ADMIN_BCC_EMAIL;
 
+        // --- デバッグログ: マッチング前 ---
+        console.log(`[API/apply] マッチング実行中...`, {
+            email,
+            rank: { id: rankId, name: rankName },
+            participation: { type: participation_type, venues: online_venues || venue },
+            linksCount: paymentLinks.length
+        });
+
         // 3. 商品マッチング (共通ユーティリティを使用)
         const matchedProduct = matchProduct(paymentLinks, {
             venue,
-            social_venue,
+            social_venue: social_venue || 'ー',
             participation_type: participation_type || 'venue',
             online_venues,
             rank_id: rankId,
             rank_name: rankName
         });
+
+        if (matchedProduct) {
+            console.log(`[API/apply] マッチ成功: ${matchedProduct.name} (Price: ${Number(matchedProduct.lecture_fee) + Number(matchedProduct.social_fee)})`);
+        } else {
+            console.error(`[API/apply] マッチ失敗: 適切な商品が見つかりませんでした。`);
+        }
 
         const totalAmount = matchedProduct ? (Number(matchedProduct.lecture_fee) + Number(matchedProduct.social_fee)) : 0;
         const paymentUrl = matchedProduct?.url || null;
@@ -237,7 +252,7 @@ export async function POST(request: Request) {
             venue: displayVenue,
             social_venue: displaySocialVenue,
             amount: totalAmount.toLocaleString(),
-            payment_link_section: (matchedProduct && paymentUrl) ? paymentUrl : ''
+            payment_link_section: (matchedProduct && paymentUrl && totalAmount > 0) ? paymentUrl : ''
         };
 
         const emailSubject = template.subject;

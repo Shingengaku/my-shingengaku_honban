@@ -20,6 +20,7 @@ export async function GET() {
         furigana,
         is_tokushin,
         ranks (
+          id,
           name,
           base_fee,
           sort_order

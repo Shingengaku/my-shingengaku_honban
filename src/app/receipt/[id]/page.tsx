@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { notFound } from 'next/navigation';
 import ReceiptClient from './ReceiptClient';
+import { matchProduct, normalizeVenue } from '@/lib/venueUtils';
 
 // Next.js 15 Server Component
 export default async function ReceiptPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
@@ -17,6 +18,7 @@ export default async function ReceiptPage({ params, searchParams }: { params: Pr
             *,
             members (
                 ranks (
+                    id,
                     name
                 )
             )
@@ -70,24 +72,26 @@ export default async function ReceiptPage({ params, searchParams }: { params: Pr
         }
     }
 
-    // アプリケーション情報から、該当する金額を割り出す（payment.tsのロジックを応用）
+    // アプリケーション情報から、該当する金額を割り出す
     const rankName = appData.applied_rank_name || appData.members?.ranks?.name || '一般';
-    // 会場文字列の正規化
-    const venueStr = appData.venue === 'both' ? '東京・福岡講演参加' : (appData.venue === 'tokyo' ? '東京講演参加' : '福岡講演参加');
-    let socialStr = '懇親会なし';
-    if (appData.social_venue === 'tokyo') socialStr = '懇親会東京のみ';
-    if (appData.social_venue === 'fukuoka') socialStr = '懇親会福岡のみ';
-    if (appData.social_venue === 'both') socialStr = '懇親会両方';
+    const rankId = appData.members?.ranks?.id || null;
 
-    // テンプレートを照合して金額を取得
-    const targetKeyName = `【${rankName}】${venueStr}/${socialStr}`;
+    // 共通のマッチングロジックを使用
+    const matchedLink = matchProduct(paymentLinks, {
+        venue: appData.venue,
+        social_venue: appData.social_venue,
+        participation_type: appData.participation_type || 'venue',
+        online_venues: appData.online_venues,
+        rank_id: rankId,
+        rank_name: rankName,
+        payment_key: appData.payment_key
+    });
+
     let lecture_fee = 0;
     let social_fee = 0;
     const total_amount_from_db = Number(appData.total_amount) || 0;
     let is_amount_mismatched = false;
 
-    const matchedLink = paymentLinks.find((p: any) => p.name === targetKeyName || p.name === appData.payment_key);
-    
     if (matchedLink && (Number(matchedLink.lecture_fee) > 0 || Number(matchedLink.social_fee) > 0)) {
         // マスタに内訳が正しく登録されている場合
         lecture_fee = Number(matchedLink.lecture_fee) || 0;
@@ -100,9 +104,10 @@ export default async function ReceiptPage({ params, searchParams }: { params: Pr
     } else {
         // マスタが見つからない、または内訳が未設定(0円)の旧データの場合
         // 固定の基本懇親会費ルールで逆算する
-        if (appData.social_venue === 'tokyo' || appData.social_venue === 'both') {
+        const normalizedSocial = normalizeVenue(appData.social_venue);
+        if (normalizedSocial === '東京' || normalizedSocial === '東京・福岡') {
             social_fee = baseSocialFeeTokyo;
-        } else if (appData.social_venue === 'fukuoka') {
+        } else if (normalizedSocial === '福岡') {
             social_fee = baseSocialFeeFukuoka;
         } else {
             social_fee = 0;
@@ -126,6 +131,7 @@ export default async function ReceiptPage({ params, searchParams }: { params: Pr
         tags: appData.tags || [],
         created_at: appData.created_at,
         applied_rank_name: rankName,
+        participation_type: appData.participation_type || 'venue',
         lecture_fee,
         social_fee,
         tax_rate_lecture: taxRateLecture,
