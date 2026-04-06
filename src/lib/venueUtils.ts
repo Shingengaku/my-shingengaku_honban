@@ -20,7 +20,7 @@ export function normalizeVenue(v: string | null | undefined): string {
     if (VENUE_MAP[v]) return VENUE_MAP[v];
     
     // 旧表記や表記ゆれの吸収
-    if (v === '参加しません' || v === 'なし') return '参加しない';
+    if (v === '参加しません' || v === 'なし' || v === 'ー') return '参加しない';
     if (v === 'LIVE視聴（2会場）' || v === 'LIVE視聴(2会場)') return 'LIVE視聴';
     if (v === '両方参加') return '東京・福岡';
     
@@ -73,32 +73,73 @@ export function matchProduct(paymentLinks: any[], appData: {
         if (found) return found;
     }
 
-    // 2. 条件によるマッチング
-    return paymentLinks.find(p => {
-        // 会場判定
-        let venueMatch = false;
-        if (participationType === 'online') {
-            // オンラインの場合、「LIVE視聴」という名前の会場設定を探す
-            venueMatch = (p.venue_lecture === 'LIVE視聴' || p.venue_lecture === 'LIVE視聴（2会場）'); 
-        } else {
-            // 普通の会場参加
-            venueMatch = (p.venue_lecture === normalizedVenue);
+    // 2. 検索用の優先順位リストを作成
+    const searchLectureVenues: string[] = [];
+    if (participationType === 'online') {
+        // オンラインの場合は「詳細名」→「標準名」の順で探す
+        if (appData.online_venues) {
+            searchLectureVenues.push(`LIVE視聴（${appData.online_venues}）`);
+            searchLectureVenues.push(`LIVE視聴(${appData.online_venues})`);
         }
+        searchLectureVenues.push('LIVE視聴');
+        searchLectureVenues.push('LIVE視聴（2会場）');
+    } else {
+        searchLectureVenues.push(normalizedVenue);
+    }
 
-        // 懇親会判定
-        let socialMatch = false;
-        if (participationType === 'online') {
-            // オンラインに懇親会はないが、商品マスタ側が「ー」ならマッチとみなす
-            socialMatch = (p.venue_social === 'ー');
-        } else {
-            socialMatch = (p.venue_social === normalizedSocial);
+    const searchSocialVenues: string[] = [];
+    if (participationType === 'online') {
+        searchSocialVenues.push('ー');
+        searchSocialVenues.push('参加しない');
+    } else {
+        searchSocialVenues.push(normalizedSocial);
+        if (normalizedSocial === '参加しない') {
+            searchSocialVenues.push('ー');
         }
+    }
 
-        // ランク判定
-        const rankMatch = appData.rank_id
-            ? (String(p.rank_id) === String(appData.rank_id))
-            : (!p.rank_id && p.name?.includes(appData.rank_name || '一般'));
+    // 3. 優先順位に従ってマッチング
+    for (const lec of searchLectureVenues) {
+        for (const soc of searchSocialVenues) {
+            const found = paymentLinks.find(p => {
+                const venueMatch = (p.venue_lecture === lec);
+                const socialMatch = (p.venue_social === soc);
+                const rankMatch = String(p.rank_id) === String(appData.rank_id);
+                return venueMatch && socialMatch && rankMatch;
+            });
+            if (found) return found;
+        }
+    }
 
-        return venueMatch && socialMatch && rankMatch;
-    }) || null;
+    return null;
+}
+
+/**
+ * 指定された会場名がオンライン（LIVE視聴等）かどうかを判定します。
+ */
+export function isOnlineVenue(venueName: string | null | undefined): boolean {
+    if (!venueName) return false;
+    return venueName.includes('LIVE') || venueName === 'アーカイブ視聴';
+}
+
+/**
+ * 講義会場名から、選択可能な懇親会会場のリストを絞り込みます。
+ * 例: "東京・福岡" -> "東京メニュー", "福岡メニュー"を返す
+ */
+export function getSocialOptionsForLecture<T extends { id: number | string, name: string }>(
+    lectureVenueName: string | null | undefined,
+    socialVenues: T[]
+): T[] {
+    if (!lectureVenueName || lectureVenueName === '参加しない') return [];
+
+    let targetNames: string[] = [];
+    if (lectureVenueName.includes('・')) {
+        targetNames = lectureVenueName.split('・');
+    } else {
+        targetNames = [lectureVenueName];
+    }
+
+    return socialVenues.filter(sv => {
+        return targetNames.some(tn => sv.name.includes(tn) || tn.includes(sv.name));
+    });
 }

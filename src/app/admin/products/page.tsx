@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { getSocialOptionsForLecture } from '@/lib/venueUtils';
 import {
     DndContext,
     closestCenter,
@@ -540,36 +541,8 @@ export default function ProductMasterPage() {
     };
 
     const getSocialOptions = (lectureVenueName: string) => {
-        if (!lectureVenueName || lectureVenueName === '参加しない') return [];
         const socialVenues = venueList.filter(v => v.type === 'social');
-        //const notParticipating = "参加しない"; // Handled in Component now
-
-        // 講義が選択されていない場合、おそらくすべて返すべき？それともなし？ なしで。
-
-        let targetNames: string[] = [];
-        if (lectureVenueName.includes('・')) {
-            targetNames = lectureVenueName.split('・');
-        } else {
-            targetNames = [lectureVenueName];
-        }
-
-        // ロジック: 選択された講義会場のいずれかに一致する懇親会会場を返しますか？ (例: "東京"講義 -> "東京"懇親会)
-        // 現在のロジック: 講義会場名が含まれる、または文字列の一部であるものを確認します。
-        // 広げましょう: すべての懇親会会場を返しますか？ ユーザーがフィルタリングできます。
-        // 厳密なフィルタを作成すると、名前が不一致の場合に面倒になる可能性があります。
-        // しかし、以前のリクエストでは「排他制御」が求められました。
-        // 「参加しないを選ぶと登録された会場は選択できない」 -> "参加しない" ロジックがこれを処理します。
-        // 「東京を選ぶ -> 福岡の懇親会を選べない」?
-        // 名前の包含でフィルタリングしましょう。
-
-        // 講義ターゲットの1つと同じ名前を持つ、またはそれに含まれる懇親会会場をフィルタリングします。
-        // これは命名規則に依存しています。「東京」講義 -> 「東京」懇親会。
-
-        return socialVenues.filter(sv => {
-            // 懇親会会場名がターゲットリストに完全に含まれている場合
-            // または、懇親会会場名がターゲットの1つを含んでいる場合 (例: "東京懇親会" は "東京" を含む)
-            return targetNames.some(tn => sv.name.includes(tn) || tn.includes(sv.name));
-        });
+        return getSocialOptionsForLecture(lectureVenueName, socialVenues);
     };
 
     const handleDragEnd = (event: DragEndEvent) => {

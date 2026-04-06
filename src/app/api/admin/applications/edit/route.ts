@@ -161,6 +161,17 @@ export async function POST(request: Request) {
 
                 if (member_generation !== undefined && member_generation !== null) {
                     memberUpdates.generation = member_generation;
+
+                    // term_id も generation に合わせて同期する
+                    // terms テーブルで name = member_generation の行を検索
+                    const { data: termData } = await supabaseAdmin
+                        .from('terms')
+                        .select('id')
+                        .eq('name', String(member_generation))
+                        .single();
+                    if (termData?.id) {
+                        memberUpdates.term_id = termData.id;
+                    }
                 }
 
                 // アプリケーションで変更された場合、ふりがなを同期

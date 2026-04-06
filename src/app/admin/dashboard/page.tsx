@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getPaymentKey } from '@/lib/payment';
+import { matchProduct, getVenueDisplayName, isOnlineVenue, getSocialOptionsForLecture } from '@/lib/venueUtils';
 
 // 型定義
 interface Application {
@@ -26,6 +27,7 @@ interface Application {
     bcc_email?: string;
     tags?: string[]; // タグの文字列配列
     participation_type?: 'venue' | 'online'; // 参加タイプ
+    online_venues?: string | null;
     // リレーション
     members?: {
         generation?: number;
@@ -172,11 +174,7 @@ export default function AdminDashboard() {
 
     const [adminEmail, setAdminEmail] = useState('');
     const [adminBccEmail, setAdminBccEmail] = useState('');
-    const [productNameMaster, setProductNameMaster] = useState<{ venues: string[], socials: string[], names: string[] }>({
-        venues: ['東京講演参加', '福岡講演参加', '福岡・東京講演参加'],
-        socials: ['懇親会なし', '懇親会東京のみ', '懇親会福岡のみ', '懇親会両方'],
-        names: []
-    });
+    const [testEmail, setTestEmail] = useState('');
     const [venueList, setVenueList] = useState<Venue[]>([]);
     const [onlineOptionMaster, setOnlineOptionMaster] = useState<{ id: string, name: string }[]>([]);
     const [ranks, setRanks] = useState<{ id: number, name: string }[]>([]);
@@ -435,14 +433,6 @@ export default function AdminDashboard() {
                 if (data.base_social_fee_fukuoka !== undefined) setBaseSocialFeeFukuoka(Number(data.base_social_fee_fukuoka));
 
 
-                if (data.product_name_master) {
-                    const pm = data.product_name_master;
-                    setProductNameMaster({
-                        names: Array.isArray(pm.names) ? pm.names : [],
-                        venues: Array.isArray(pm.venues) ? pm.venues : ['東京講演参加', '福岡講演参加', '福岡・東京講演参加'],
-                        socials: Array.isArray(pm.socials) ? pm.socials : ['懇親会なし', '懇親会東京のみ', '懇親会福岡のみ', '懇親会両方'],
-                    });
-                }
                 const tm = data.term_master;
                 if (Array.isArray(tm)) {
                     setTermMaster(tm.map(Number).sort((a: number, b: number) => a - b));
@@ -455,6 +445,7 @@ export default function AdminDashboard() {
 
                 setAdminEmail(data.admin_email || '');
                 setAdminBccEmail(data.admin_bcc_email || '');
+                setTestEmail(data.test_email || '');
                 setApplicationActive(data.application_active !== false); // デフォルトtrue
 
                 if (openModal) {
@@ -483,7 +474,8 @@ export default function AdminDashboard() {
                 key: item.name,
                 url: item.url,
                 venue_lecture: item.venue_lecture,
-                venue_social: item.venue_social
+                venue_social: item.venue_social,
+                rank_id: item.rank_id || null
             }));
 
             const res = await fetch('/api/admin/settings', {
@@ -498,6 +490,7 @@ export default function AdminDashboard() {
                     email_template_forgot_pass: emailTemplateForgotPass,
                     admin_email: adminEmail,
                     admin_bcc_email: adminBccEmail,
+                    test_email: testEmail,
                     // application_active: applicationActive // Moved to Global Settings
                 })
             });
@@ -853,71 +846,83 @@ export default function AdminDashboard() {
 
     // Key解析 ('【Rank】Venue/Social') からフィールドを抽出するヘルパー
     const parseKey = (key: string) => {
-        const match = key.match(/^【(.+)】【(.+)】\/(.+)$/);
-        if (match) {
-            return {
-                rank: match[1],
-                venue: match[2],
-                social: match[3]
-            };
+        // 新フォーマット: 【属性】会場 / 懇親会
+        const newMatch = key.match(/^【(.+?)】(.+?) \/ (.+)$/);
+        if (newMatch) {
+            return { rank: newMatch[1], venue: newMatch[2], social: newMatch[3] };
+        }
+        // 旧フォーマット対応 (もしあれば)
+        const oldMatch = key.match(/^【(.+)】【(.+)】\/(.+)$/);
+        if (oldMatch) {
+            return { rank: oldMatch[1], venue: oldMatch[2], social: oldMatch[3] };
         }
         return null;
     };
 
-    const handleKeyChange = (key: string) => {
-        // 1. 商品マスタ (PaymentLinks) で検索を試みる
-        const product = paymentLinksData.find(p => p.key === key || p.name === key);
-        let newVenue = '';
-        let newSocial = '';
-        let newParticipationType: 'venue' | 'online' = 'venue';
-        let newTotalAmount: number | undefined = undefined;
+    // フィールド変更時の連動ロジック
+    const handleFieldChange = (field: string, value: any) => {
+        setEditForm(prev => {
+            const next = { ...prev, [field]: value };
+            
+            // 属性・会場が変更された場合は金額と商品キーを再計算
+            if (field === 'applied_rank_name' || field === 'venue' || field === 'social_venue') {
+                const rankName = next.applied_rank_name || '一般';
+                const venue = next.venue || '';
+                const social = next.social_venue || 'none';
+                
+                
+                const appRankId = ranks.find(r => r.name === rankName)?.id;
+                const matchData = {
+                    venue: venue,
+                    social_venue: social,
+                    participation_type: next.participation_type || 'venue',
+                    online_venues: next.online_venues,
+                    rank_id: appRankId ? String(appRankId) : null
+                };
+                const matchedProduct = matchProduct(paymentLinksData, matchData);
+                
+                if (matchedProduct) {
+                    next.payment_key = matchedProduct.name;
+                } else {
+                    next.payment_key = ''; // reset if not found explicitly
+                }
 
-        // オンライン系商品かどうかを判定するヘルパー
-        // 「LIVE」(英字)・「ライブ」(日本語)・「オンライン」・「アーカイブ」のいずれかを含む場合はオンライン
-        const isOnlineProduct = (name: string) =>
-            name.includes('LIVE') || name.includes('ライブ') ||
-            name.includes('オンライン') || name.includes('アーカイブ');
 
-        if (product) {
-            if (product.venue_lecture) newVenue = product.venue_lecture;
-            if (product.venue_social) newSocial = product.venue_social;
+                // オンライン判定の自動更新
+                const isOnline = venue.includes('LIVE') || venue.includes('ライブ') || 
+                                venue.includes('オンライン') || venue.includes('アーカイブ');
+                next.participation_type = isOnline ? 'online' : 'venue';
 
-            const lectureFee = Number(product.lecture_fee) || 0;
-            const socialFee = Number(product.social_fee) || 0;
-            newTotalAmount = lectureFee + socialFee;
-
-            // 参加タイプの自動判定（商品名から統一ヘルパーで判定）
-            if (isOnlineProduct(product.name || '')) {
-                newParticipationType = 'online';
-                // オンラインの場合、会場名は「LIVE視聴」などをセット（もしマスタにあれば維持、なければ自動設定）
-                // ただし、product.venue_lectureが空でないならそれを優先
-                if (!newVenue) {
-                    if (product.name?.includes('LIVE') || product.name?.includes('ライブ')) {
-                        newVenue = 'LIVE視聴';
-                    } else if (product.name?.includes('アーカイブ')) {
-                        newVenue = 'アーカイブ視聴';
-                    }
+                // 商品マスタから金額を取得
+                const product = matchedProduct;
+                if (product) {
+                    const lectureFee = Number(product.lecture_fee) || 0;
+                    const socialFee = Number(product.social_fee) || 0;
+                    next.total_amount = lectureFee + socialFee;
                 }
             }
-        } else {
-            // マスタにない場合も商品名（key）から同ヘルパーで推測
-            if (isOnlineProduct(key)) {
-                newParticipationType = 'online';
-            }
-        }
+            return next;
+        });
+    };
 
-        // 2. レガシーパース (keyにフォーマット情報が含まれている場合、それが優先またはフォールバックになる可能性があります)
+    const handleKeyChange = (key: string) => {
         const parsed = parseKey(key);
-
-        setEditForm(prev => ({
-            ...prev,
-            payment_key: key,
-            applied_rank_name: parsed ? parsed.rank : prev.applied_rank_name,
-            venue: parsed ? parsed.venue : (newVenue || prev.venue),
-            social_venue: parsed ? parsed.social : (newSocial || prev.social_venue),
-            participation_type: newParticipationType,
-            total_amount: newTotalAmount !== undefined ? newTotalAmount : prev.total_amount
-        }));
+        if (parsed) {
+            const product = paymentLinksData.find(p => p.key === key || p.name === key);
+            const amount = product ? (Number(product.lecture_fee) || 0) + (Number(product.social_fee) || 0) : editForm.total_amount;
+            
+            setEditForm(prev => ({
+                ...prev,
+                payment_key: key,
+                applied_rank_name: parsed.rank,
+                venue: parsed.venue,
+                social_venue: parsed.social,
+                total_amount: amount,
+                participation_type: (parsed.venue.includes('LIVE') || parsed.venue.includes('ライブ')) ? 'online' : 'venue'
+            }));
+        } else {
+            setEditForm(prev => ({ ...prev, payment_key: key }));
+        }
     };
 
     const submitEdit = async () => {
@@ -938,7 +943,8 @@ export default function AdminDashboard() {
                 payment_key: editForm.payment_key, // Include product name
                 cc_email: editForm.cc_email,
                 bcc_email: editForm.bcc_email,
-                participation_type: editForm.participation_type
+                participation_type: editForm.participation_type,
+                online_venues: editForm.online_venues
             };
 
             const res = await fetch('/api/admin/applications/edit', {
@@ -1058,7 +1064,7 @@ export default function AdminDashboard() {
         const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
 
         const header = [
-            'ID', '氏名', 'フリガナ', 'メールアドレス', '属性', '期', '特進', '会場', '懇親会', '合計金額', '支払状況', '環境', '申込日時', '備考', 'タグ', '参加タイプ'
+            'ID', '氏名', 'フリガナ', 'メールアドレス', '属性', '期', '特進', '会場', 'オンライン対象', '懇親会', '合計金額', '支払状況', '環境', '申込日時', '備考', 'タグ', '参加タイプ'
         ].join(',');
 
         const rows = targetApps.map(app => {
@@ -1080,6 +1086,7 @@ export default function AdminDashboard() {
                 `"${gen}"`,
                 `"${tokushin}"`,
                 `"${app.venue || ''}"`,
+                `"${app.online_venues || ''}"`,
                 `"${social}"`,
                 app.total_amount,
                 app.payment_status,
@@ -1416,6 +1423,7 @@ export default function AdminDashboard() {
                     { header: '期', key: 'gen', width: 8 },
                     { header: '特進', key: 'tokushin', width: 8 },
                     { header: '会場', key: 'venue', width: 15 },
+                    { header: 'オンライン対象', key: 'online', width: 15 },
                     { header: '懇親会', key: 'social', width: 15 },
                     { header: '金額', key: 'amount', width: 10 },
                     { header: '支払', key: 'payment', width: 10 },
@@ -1443,6 +1451,7 @@ export default function AdminDashboard() {
                         gen,
                         tokushin,
                         venue: app.venue || '',
+                        online: app.online_venues || '',
                         social,
                         amount: app.total_amount,
                         payment: app.payment_status,
@@ -1597,12 +1606,9 @@ export default function AdminDashboard() {
         if (filterVenueLecture.size > 0) {
             let v = app.venue || '';
 
-            // Normalize "No Participation" variations to 'none' for filtering locally
-            if (v === '参加しない' || v === '不参加' || v === 'none') v = 'none';
-            // Map known English keys to Japanese names for filtering
-            else if (v === 'tokyo') v = '東京';
-            else if (v === 'fukuoka') v = '福岡';
-            else if (v === 'both') v = '東京・福岡';
+            // 内部キー(tokyo等)が混在しているレガシーデータへの対応
+            const venueMap: Record<string, string> = { 'tokyo': '東京', 'fukuoka': '福岡', 'both': '東京・福岡', 'none': 'none' };
+            v = venueMap[v] || v;
 
             if (!filterVenueLecture.has(v)) {
                 return false;
@@ -1612,10 +1618,8 @@ export default function AdminDashboard() {
         // Venue (Social) Filter
         if (filterVenueSocial.size > 0) {
             let s = app.social_venue || 'none';
-            if (s === '参加しない' || s === '不参加' || s === 'none') s = 'none';
-            else if (s === 'tokyo') s = '東京';
-            else if (s === 'fukuoka') s = '福岡';
-            else if (s === 'both') s = '東京・福岡';
+            const socialMap: Record<string, string> = { 'tokyo': '東京', 'fukuoka': '福岡', 'both': '東京・福岡', 'none': 'none' };
+            s = socialMap[s] || s;
 
             if (!filterVenueSocial.has(s)) return false;
         }
@@ -2002,7 +2006,7 @@ export default function AdminDashboard() {
                             >
                                 期{getSortIcon('generation')}
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">会場 / 懇親会</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">会場 / オンライン / 懇親会</th>
                             <th
                                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                                 onClick={() => requestSort('total_amount')}
@@ -2027,75 +2031,34 @@ export default function AdminDashboard() {
                                 // 除外されているか確認
                                 const isIgnored = app.tags?.includes('ignore_duplicate');
 
-                                // 商品名のマッチングロジック
-                                let displayProductName = app.payment_key || '';
+                                // 商品名のマッチングロジック (venueUtilsの共通ロジックを使用)
                                 const appRankId = ranks.find(r => r.name === rankName)?.id;
-
-                                // アプリの会場名と商品マスタの会場名を照合
-                                // (注意: 商品マスタ側が「東京」で、アプリ側が「tokyo」の場合など正規化が必要だが、
-                                //  現状の保存ロジックではアプリ側に日本語が入ることもある、
-                                //  ここでは単純な文字列一致 + 既知の変換を試みる)
-                                const normalizeVenue = (v: string | undefined) => {
-                                    if (!v) return '';
-                                    if (v === 'tokyo') return '東京';
-                                    if (v === 'fukuoka') return '福岡';
-                                    if (v === 'both') return '福岡東京講演参加'; // または '東京福岡...'
-                                    if (v === 'none') return '参加しない';
-                                    return v;
+                                
+                                const matchData = {
+                                    venue: app.venue || '',
+                                    social_venue: app.social_venue || '',
+                                    participation_type: app.participation_type || 'venue',
+                                    online_venues: app.online_venues,
+                                    rank_id: appRankId ? String(appRankId) : null,
+                                    payment_key: app.payment_key
                                 };
-                                const appVL = normalizeVenue(app.venue);
-                                const appVS = normalizeVenue(app.social_venue);
 
-                                const matchedProduct = paymentLinksData.find(p => {
-                                    // ランク一致 (商品マスタにrank_idがない場合は誰でもマッチする可能性があるが、
-                                    //  通常は一般がnull。ここでは厳寁E��チェチE��)
-                                    const rankMatch = p.rank_id ? String(p.rank_id) === String(appRankId) : !appRankId; // appRankIdがない(一般)ならp.rank_idもなしか?
-                                    // 実際には 一般のみ rank_id = null で保存されていることが多い。
-                                    // rankName = '一般' のとき、rankId は undefined/null
-
-                                    // 会場一致
-                                    // 商品マスタの venue_lecture と app の venue を比較
-                                    // 商品マスタの venue_social と app の social_venue を比較
-                                    // (部分一致または正規化が必要)
-                                    const pVL = p.venue_lecture || '';
-                                    const pVS = p.venue_social || '';
-
-                                    const vMatch = pVL === appVL || pVL === app.venue; // 日本語またはコード
-                                    // 懇親会のマッチング (LIVEの場合は無視などあるが、ここでは単純比較)
-                                    const sMatch = pVS === appVS || pVS === app.social_venue;
-
-                                    return rankMatch && vMatch && sMatch;
-                                });
+                                const matchedProduct = matchProduct(paymentLinksData, matchData);
+                                let displayProductName = '';
 
                                 if (matchedProduct) {
                                     displayProductName = matchedProduct.name;
+                                } else if (app.payment_key) {
+                                    displayProductName = app.payment_key; // フォールバック
                                 } else {
-                                    // マッチしなかった場合、payment_keyを使わず、現在のAppチE�Eタから生�Eする
-                                    // (DBのpayment_keyが古く間違っている可能性があるため)
-                                    // getPaymentKey は tokyo/both 以外を福岡にしてしまうため、LIVE視聴などは考慮が必要
+                                    // マッチせず、保存された名前もない場合のフォールバック表示名
+                                    const vName = getVenueDisplayName(app.venue || '', app.participation_type || 'venue', app.online_venues);
+                                    let sName = app.social_venue || '懇親会なし';
+                                    if (sName === 'none' || sName === '参加しない') sName = '懇親会なし';
+                                    else if (sName === 'ー') sName = '';
+                                    else sName = '懇親会あり';
 
-                                    if (app.participation_type === 'online') {
-                                        displayProductName = `【${rankName}】LIVE視聴/懇親会なし`;
-                                    } else {
-                                        // 会場名が tokyo/fukuoka/both と一致しない場合、(参加しない: none)のハンドリング
-                                        // getPaymentKey は unknown を福岡にするので、ここで制御する
-                                        let vForKey = app.venue;
-                                        if (vForKey !== 'tokyo' && vForKey !== 'fukuoka' && vForKey !== 'both') {
-                                            if (vForKey === 'none' || vForKey === '参加しない') {
-                                                vForKey = 'none'; // getPaymentKeyはnoneを想定していない...
-                                                // getPaymentKey自体を修正するか、ここで手動生成するか、
-                                                // 安全のため手動生成に近い形をとる
-                                            }
-                                        }
-
-                                        // getPaymentKeyの挙動: tokyo->東京, both->福岡東京, それ以外->福岡
-                                        // 確実に変な値(noneなど)が福岡にならないようにする
-                                        if (vForKey === 'none') {
-                                            displayProductName = `【${rankName}】会場参加なし（${app.social_venue === 'none' ? '懇親会なし' : '懇親会あり'}）`;
-                                        } else {
-                                            displayProductName = getPaymentKey(rankName, app.venue || '', app.social_venue || '');
-                                        }
-                                    }
+                                    displayProductName = `【${rankName}】${vName}${sName ? '/' + sName : ''}`;
                                 }
 
                                 return (
@@ -2224,21 +2187,20 @@ export default function AdminDashboard() {
                                             <div className="text-sm text-gray-900">
                                                 <span className="font-bold text-xs text-gray-400 block">講義:</span>
                                                 {(() => {
-                                                    let vDisplay = app.venue === 'both' ? '東京福岡' : (app.venue === 'tokyo' ? '東京' : (app.venue === 'fukuoka' ? '福岡' : (app.venue === 'none' ? '参加しない' : (app.venue || '-'))));
-
-                                                    // LIVE視�Eの場合、備老E��ら会場名を抽出
-                                                    if (app.participation_type === 'online' || (app.venue && app.venue.includes('LIVE視聴'))) {
-                                                        const match = /【LIVE視聴会場】\\s*([^\\n]+)/.exec(app.remarks || '');
-                                                        if (match) {
-                                                            vDisplay += ` (${match[1].trim()})`;
-                                                        }
-                                                    }
-                                                    return vDisplay;
+                                                    const pType = app.participation_type || 'venue';
+                                                    if (pType === 'online') return '-';
+                                                    return getVenueDisplayName(app.venue || '', 'venue');
                                                 })()}
                                             </div>
+                                            {(app.online_venues || app.participation_type === 'online') && (
+                                                <div className="text-sm text-gray-900 mt-1">
+                                                    <span className="font-bold text-xs text-gray-400 block">オンライン対象:</span>
+                                                    {app.online_venues || '-'}
+                                                </div>
+                                            )}
                                             <div className="text-sm text-gray-900 mt-1">
-                                                <span className="font-bold text-xs text-gray-400 block">懇親会</span>
-                                                {app.social_venue === 'both' ? '東京・福岡' : (app.social_venue === 'tokyo' ? '東京' : (app.social_venue === 'fukuoka' ? '福岡' : (app.social_venue === 'none' ? '参加しない' : (app.social_venue || '-'))))}
+                                                <span className="font-bold text-xs text-gray-400 block">懇親会:</span>
+                                                {getVenueDisplayName(app.social_venue || '', 'venue')}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 align-top">
@@ -2356,27 +2318,6 @@ export default function AdminDashboard() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700">個別CC</label>
-                                        <input
-                                            className="border w-full p-2 rounded"
-                                            value={editForm.cc_email || ''}
-                                            onChange={e => setEditForm({ ...editForm, cc_email: e.target.value })}
-                                            placeholder="カンマ区切りで複数指定可"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700">個別BCC</label>
-                                        <input
-                                            className="border w-full p-2 rounded"
-                                            value={editForm.bcc_email || ''}
-                                            onChange={e => setEditForm({ ...editForm, bcc_email: e.target.value })}
-                                            placeholder="カンマ区切りで複数指定可"
-                                        />
-                                    </div>
-                                </div>
-
                                 {/* Product Name with Auto-Populate */}
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 text-indigo-700">商品名(属性/会場/懇親会を一括設定)</label>
@@ -2392,47 +2333,32 @@ export default function AdminDashboard() {
                                     </select>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700">参加タイプ</label>
-                                        <select
-                                            className="border w-full p-2 rounded"
-                                            value={editForm.participation_type || 'venue'}
-                                            onChange={(e) => {
-                                                const newType = e.target.value as 'venue' | 'online';
-                                                setEditForm({
-                                                    ...editForm,
-                                                    participation_type: newType,
-                                                    social_venue: newType === 'online' ? 'none' : editForm.social_venue,
-                                                    venue: '' // Reset venue to force re-selection
-                                                });
-                                            }}
-                                        >
-                                            <option value="venue">会場参加</option>
-                                            <option value="online">オンライン参加</option>
-                                        </select>
-                                    </div>
-                                    <div />
-                                </div>
+
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700">参加会場 (講義)</label>
                                         {/* オンラインの場合はテキスト入力（またはオンラインマスタ）簡易的に自由入力とする */}
                                         {editForm.participation_type === 'online' ? (
-                                            <input
-                                                className="border w-full p-2 rounded"
-                                                value={editForm.venue || ''}
-                                                placeholder="オンラインオプション名(例 LIVE視聴)"
-                                                onChange={(e) => setEditForm({ ...editForm, venue: e.target.value })}
-                                            />
+                                            <>
+                                                <input
+                                                    className="border w-full p-2 rounded bg-indigo-50"
+                                                    value={editForm.venue || ''}
+                                                    placeholder="オンラインオプション名(例 LIVE視聴)"
+                                                    onChange={(e) => handleFieldChange('venue', e.target.value)}
+                                                />
+                                                <input
+                                                    className="border w-full p-2 rounded mt-2 bg-indigo-50"
+                                                    value={editForm.online_venues || ''}
+                                                    placeholder="対象会場(例 東京・福岡)"
+                                                    onChange={(e) => setEditForm({...editForm, online_venues: e.target.value})}
+                                                />
+                                            </>
                                         ) : (
                                             <select
                                                 className="border w-full p-2 rounded"
                                                 value={editForm.venue || ''}
-                                                onChange={(e) => {
-                                                    setEditForm({ ...editForm, venue: e.target.value, social_venue: '' });
-                                                }}
+                                                onChange={(e) => handleFieldChange('venue', e.target.value)}
                                             >
                                                 <option value="">(選択なし)</option>
                                                 {venueList.filter(v => v.type === 'lecture').map(opt => (
@@ -2448,31 +2374,16 @@ export default function AdminDashboard() {
                                         <select
                                             className="border w-full p-2 rounded bg-white disabled:bg-gray-100"
                                             value={editForm.social_venue || ''}
-                                            onChange={e => setEditForm({ ...editForm, social_venue: e.target.value })}
+                                            onChange={e => handleFieldChange('social_venue', e.target.value)}
                                             disabled={!editForm.venue || editForm.participation_type === 'online'}
                                         >
                                             <option value="">(選択なし)</option>
                                             {(() => {
                                                 const lectureVenue = editForm.venue;
                                                 if (!lectureVenue) return null;
-
+                                                
                                                 const socialVenues = venueList.filter(v => v.type === 'social');
-                                                const notParticipating = "参加しない";
-                                                let available = [];
-
-                                                if (lectureVenue.includes('・')) {
-                                                    const parts = lectureVenue.split('・');
-                                                    available = socialVenues.filter(v =>
-                                                        v.name === lectureVenue ||
-                                                        parts.includes(v.name) ||
-                                                        v.name === notParticipating
-                                                    );
-                                                } else {
-                                                    available = socialVenues.filter(v =>
-                                                        v.name === lectureVenue ||
-                                                        v.name === notParticipating
-                                                    );
-                                                }
+                                                const available = getSocialOptionsForLecture(lectureVenue, socialVenues);
 
                                                 return (
                                                     <>
@@ -2493,16 +2404,16 @@ export default function AdminDashboard() {
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700">判定属性</label>
                                         <select
-                                            className="border w-full p-2 rounded"
+                                            className="border w-full p-2 rounded bg-indigo-50"
                                             value={editForm.applied_rank_name || ''}
-                                            onChange={e => setEditForm({ ...editForm, applied_rank_name: e.target.value })}
+                                            onChange={e => handleFieldChange('applied_rank_name', e.target.value)}
                                         >
                                             <option value="">(ランクなし)</option>
                                             {ranks.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-bold text-gray-700">合計金額</label>
+                                        <label className="block text-sm font-bold text-gray-700 text-indigo-700">合計金額 (自動計算/上書き可)</label>
                                         <input
                                             type="number"
                                             className="border w-full p-2 rounded"
@@ -2632,15 +2543,15 @@ export default function AdminDashboard() {
                                 />
                             </div>
                             <div className="mb-2">
-                                <label className="block text-sm text-gray-600 font-bold">管理者BCCメールアドレス</label>
+                                <label className="block text-sm text-gray-600 font-bold">テストメール送信先</label>
                                 <p className="text-xs text-gray-500 mb-1">
-                                    お申込み者（受講生）に送られるメールのBCCとして、このアドレスに送信されます（受信者は見えません）。
+                                    システムテスト用メールの送信先です。
                                 </p>
                                 <input
                                     className="border w-full p-2 rounded"
-                                    value={adminBccEmail}
-                                    onChange={e => setAdminBccEmail(e.target.value)}
-                                    placeholder="admin-bcc@example.com"
+                                    value={testEmail}
+                                    onChange={e => setTestEmail(e.target.value)}
+                                    placeholder="test@example.com"
                                 />
                             </div>
                         </div>
@@ -3014,6 +2925,23 @@ export default function AdminDashboard() {
                                     <option value="online">オンライン</option>
                                 </select>
                             </div>
+
+                            {createForm.participation_type === 'online' && (
+                                <div>
+                                    <label className="block text-sm text-gray-600">オンライン対象会場 <span className="text-red-500">*</span></label>
+                                    <select
+                                        className="border w-full p-2 rounded"
+                                        value={(createForm as any).online_venues || ''}
+                                        onChange={e => setCreateForm({ ...createForm, ...(e.target.value ? { online_venues: e.target.value as any } : { online_venues: undefined }) })}
+                                    >
+                                        <option value="">選択してください</option>
+                                        <option value="東京">東京</option>
+                                        <option value="福岡">福岡</option>
+                                        <option value="東京・福岡">東京・福岡</option>
+                                    </select>
+                                    <p className="text-xs text-gray-500 mt-1">LIVE視聴参加者がどの会場の配信を視聴するかを選択してください</p>
+                                </div>
+                            )}
 
                             <div>
                                 <label className="block text-sm text-gray-600 flex justify-between">

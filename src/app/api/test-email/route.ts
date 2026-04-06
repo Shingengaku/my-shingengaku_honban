@@ -56,6 +56,7 @@ export async function GET(request: Request) {
         settingsData?.forEach(row => {
             if (row.key === 'admin_email') settings.admin_email = row.value;
             if (row.key === 'admin_bcc_email') settings.admin_bcc_email = row.value;
+            if (row.key === 'test_email') settings.test_email = row.value;
         });
 
         const adminEmail = settings.admin_email;
@@ -63,6 +64,7 @@ export async function GET(request: Request) {
 
         results.checks.db_admin_email = adminEmail || 'NULL';
         results.checks.db_admin_bcc = adminBccEmail || 'NULL';
+        results.checks.db_test_email = settings.test_email || 'NULL';
 
         // 4. 検証用メール送信の試行
         if (apiKey) {
@@ -71,13 +73,15 @@ export async function GET(request: Request) {
             const fromHeader = `神言学事務局 <${senderEmail}>`;
             results.checks.final_from_header = fromHeader;
 
+            const testEmailTo = process.env.RESEND_TEST_EMAIL || settings.test_email || adminEmail || 't.matsumoto@f-o-dreams.com';
+
             const { data, error } = await resend.emails.send({
                 from: fromHeader,
-                to: ['t.matsumoto@f-o-dreams.com'],
-                cc: adminEmail ? [adminEmail] : undefined,
-                bcc: adminBccEmail ? [adminBccEmail] : undefined,
+                to: [testEmailTo],
+                cc: adminEmail && adminEmail !== testEmailTo ? [adminEmail] : undefined,
+                bcc: adminBccEmail && adminBccEmail !== testEmailTo ? [adminBccEmail] : undefined,
                 subject: '【テスト】神言学システムメール到達確認',
-                html: `<p>このメールが届けば、システムからの送信は正常です。</p><p>宛先: t.matsumoto@f-o-dreams.com</p><p>From: ${fromHeader}</p>`
+                html: `<p>このメールが届けば、システムからの送信は正常です。</p><p>宛先: ${testEmailTo}</p><p>From: ${fromHeader}</p>`
             });
 
             if (error) {

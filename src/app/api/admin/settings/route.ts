@@ -1,4 +1,4 @@
-
+﻿
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
@@ -89,6 +89,11 @@ export async function POST(request: Request) {
         if (typeof body.admin_bcc_email !== 'undefined') {
             updates.push(
                 supabaseAdmin.from('app_settings').upsert({ key: 'admin_bcc_email', value: body.admin_bcc_email }, { onConflict: 'key' })
+            );
+        }
+        if (typeof body.test_email !== 'undefined') {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'test_email', value: body.test_email }, { onConflict: 'key' })
             );
         }
         if (typeof body.application_text !== 'undefined') {

@@ -1,0 +1,40 @@
+{
+  "total": 194,
+  "issueTypeAndVenue": {
+    "count": 1,
+    "samples": [
+      {
+        "id": "00870edb-284a-4e25-93b3-8f4093573c71",
+        "input_name": "浅井大介",
+        "venue": "LIVE視聴",
+        "social_venue": "ー",
+        "applied_rank_name": "神言学未受講（ご紹介）",
+        "participation_type": "venue",
+        "created_at": "2026-03-04T01:46:18.630075+00:00",
+        "remarks": "【LIVE視聴会場】東京\n紹介者: 冨田顕子さん"
+      }
+    ]
+  },
+  "issueProductMismatch": {
+    "count": 1,
+    "samples": [
+      {
+        "id": "00870edb-284a-4e25-93b3-8f4093573c71",
+        "input_name": "浅井大介",
+        "venue": "LIVE視聴",
+        "social_venue": "ー",
+        "applied_rank_name": "神言学未受講（ご紹介）",
+        "participation_type": "venue",
+        "created_at": "2026-03-04T01:46:18.630075+00:00",
+        "remarks": "【LIVE視聴会場】東京\n紹介者: 冨田顕子さん"
+      }
+    ]
+  },
+  "issueOnlineSocial": {
+    "count": 0,
+    "samples": []
+  },
+  "missingType": {
+    "count": 0
+  }
+}

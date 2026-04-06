@@ -48,6 +48,9 @@ function SortableRow({ rank, onEdit, onDelete }: { rank: Rank, onEdit: (rank: Ra
             <td className="px-6 py-4 whitespace-nowrap text-center cursor-grab" {...attributes} {...listeners}>
                 <span className={`font-bold text-lg ${isSystemRank ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 group-hover:text-gray-600'}`}>⋮⋮</span>
             </td>
+            <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500 font-mono">
+                {rank.id}
+            </td>
             <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm font-medium text-gray-900">
                     {rank.name}
@@ -316,6 +319,7 @@ export default function RanksPage() {
                             <thead className="bg-gray-100">
                                 <tr>
                                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase w-16">移動</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase w-16">ID</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">属性名</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                                 </tr>

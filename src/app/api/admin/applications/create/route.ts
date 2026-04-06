@@ -79,6 +79,7 @@ export async function POST(request: Request) {
                 matched_member_id: targetMemberId,
                 remarks: remarks || null,
                 participation_type: participation_type || 'venue',
+                online_venues: body.online_venues || null,
                 cc_email: cc_email || null,
                 bcc_email: bcc_email || null,
                 environment: process.env.NODE_ENV === 'production' ? 'production' : 'development'

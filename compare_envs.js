@@ -25,13 +25,20 @@ async function checkAndApply() {
     }
 
     // 2. applications テーブルのカラムを確認
-    console.log("Checking applications table columns...");
-    // API経由でカラムを簡単にリストすることはできませんが、selectを試みてエラーになるかどうかを確認できます
-    const { error: err2 } = await prodClient.from('applications').select('participation_type, attend_social, social_venue').limit(1);
+    console.log("Checking applications table columns (PROD)...");
+    const { error: err2 } = await prodClient.from('applications').select('participation_type, attend_social, social_venue, online_venues').limit(1);
     if (err2) {
-        console.log("[MISSING] applications の一部のカラムがありません:", err2.message);
+        console.log("[MISSING] PROD: applications の一部のカラムがありません:", err2.message);
     } else {
-        console.log("[OK] participation_type, attend_social, social_venue カラムが存在します。");
+        console.log("[OK] PROD: participation_type, attend_social, social_venue, online_venues カラムが存在します。");
+    }
+
+    console.log("Checking applications table columns (TEST)...");
+    const { error: err3 } = await testClient.from('applications').select('participation_type, attend_social, social_venue, online_venues').limit(1);
+    if (err3) {
+        console.log("[MISSING] TEST: applications の一部のカラムがありません:", err3.message);
+    } else {
+        console.log("[OK] TEST: participation_type, attend_social, social_venue, online_venues カラムが存在します。");
     }
 
     // 3. アプリ設定の構造を確認 (通常JSONBなのでスキーマ構造の確認は難しいが、キーが存在するか確認する)

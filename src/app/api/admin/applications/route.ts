@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-import { getPaymentKey } from '@/lib/payment';
+
 
 export const dynamic = 'force-dynamic';
 
@@ -76,7 +76,7 @@ export async function GET() {
     return {
       ...app,
       members,
-      payment_key: app.payment_key || getPaymentKey(rankName, venue, social_venue)
+      payment_key: app.payment_key
     };
   });
 

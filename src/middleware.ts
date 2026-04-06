@@ -3,12 +3,14 @@ import type { NextRequest } from 'next/server';
 import { verifySession } from '@/lib/auth';
 
 export async function middleware(request: NextRequest) {
-    // パスが /admin で始まるか確認
-    if (request.nextUrl.pathname.startsWith('/admin')) {
+    // パスが /admin またはAPIルートの /api/admin で始まるか確認
+    if (request.nextUrl.pathname.startsWith('/admin') || request.nextUrl.pathname.startsWith('/api/admin')) {
         // ログインページと認証APIへのアクセスを許可
         if (
             request.nextUrl.pathname === '/admin/login' ||
-            request.nextUrl.pathname.startsWith('/api/admin/login')
+            request.nextUrl.pathname.startsWith('/api/admin/login') ||
+            request.nextUrl.pathname.startsWith('/api/admin/forgot-password') ||
+            request.nextUrl.pathname.startsWith('/api/admin/reset-password')
         ) {
             return NextResponse.next();
         }
@@ -35,5 +37,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/admin/:path*'],
+    matcher: ['/admin/:path*', '/api/admin/:path*'],
 };

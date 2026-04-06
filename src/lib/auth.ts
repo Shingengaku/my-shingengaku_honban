@@ -2,7 +2,7 @@
 const SECRET = process.env.SESSION_SECRET || 'fallback-secret-key-change-this-in-prod';
 
 // Web Crypto API helpers
-function bufferToBase64(buffer: ArrayBuffer): string {
+function bufferToBase64(buffer: ArrayBuffer | ArrayBufferLike): string {
     return btoa(String.fromCharCode(...new Uint8Array(buffer)))
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
@@ -67,8 +67,8 @@ export async function verifySession(token: string): Promise<string | null> {
         const isValid = await crypto.subtle.verify(
             'HMAC',
             key,
-            signature,
-            data
+            signature as BufferSource,
+            data as BufferSource
         );
 
         if (!isValid) return null;
