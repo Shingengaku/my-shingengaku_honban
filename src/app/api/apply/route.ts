@@ -2,18 +2,20 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { resend } from '@/lib/resend';
 import { processEmailTemplate, DEFAULT_EMAIL_TEMPLATE, DEFAULT_EMAIL_TEMPLATE_GENERAL, DEFAULT_EMAIL_TEMPLATE_NO_PARTICIPATION } from '@/lib/emailTemplate';
+import { normalizeVenue, getVenueDisplayName, matchProduct } from '@/lib/venueUtils';
 
 // 型定義
 interface ApplyRequest {
     name: string;
     furigana: string;
     email: string;
-    venue: string; // 'tokyo'（東京）, 'fukuoka'（福岡）, 'both'（両方）, 'none'（なし）
-    social_venue: string; // 'none'（なし）, 'tokyo'（東京）, 'fukuoka'（福岡）, 'both'（両方）
-    term_id?: string; // 非受講生の場合は任意
+    venue: string;
+    social_venue: string;
+    term_id?: string;
     introducer?: string;
     no_introducer?: boolean;
     participation_type?: string;
+    online_venues?: string;
     remarks?: string;
 }
 
@@ -34,19 +36,16 @@ interface AppSettings {
     admin_bcc_email?: string;
 }
 
-const venueDisplayMap: Record<string, string> = {
-    'tokyo': '東京',
-    'fukuoka': '福岡',
-    'both': '両方参加',
-    'none': '参加しません'
-};
-
 export async function POST(request: Request) {
     try {
         const body: ApplyRequest = await request.json();
-        let { name, furigana, email, venue, social_venue, term_id, introducer, no_introducer, participation_type, remarks: userRemarks } = body;
+        let { name, furigana, email, venue, social_venue, term_id, introducer, no_introducer, participation_type, online_venues, remarks: userRemarks } = body;
 
         // 0. データの正規化
+        // 会場名を日本語名に正規化
+        venue = normalizeVenue(venue);
+        social_venue = normalizeVenue(social_venue);
+
         if (name) {
             name = name.replace(/\s+/g, '');
         }
@@ -65,7 +64,6 @@ export async function POST(request: Request) {
 
         // 1. Membersマスタと照合 (受講生の場合のみ)
         if (term_id) {
-            // 条件: 名前 (スペース無視) AND 期 (term_id)
             const { data: allMembers, error: memberError } = await supabaseAdmin
                 .from('members')
                 .select('*, ranks(id, name)')
@@ -77,8 +75,6 @@ export async function POST(request: Request) {
             }
 
             const normalizedInputName = name.replace(/\s+/g, '');
-
-            // 名前でマッチング
             const member = allMembers?.find(m =>
                 m.name.replace(/\s+/g, '') === normalizedInputName
             ) || null;
@@ -89,14 +85,12 @@ export async function POST(request: Request) {
                 memberId = member.id;
             }
         } else {
-            // 一般参加者の場合、紹介者の有無で属性を自動決定
             if (introducer) {
                 rankName = '神言学未受講（ご紹介）';
             } else {
                 rankName = '神言学未受講（一般）';
             }
 
-            // 属性IDを取得
             try {
                 const { data: rankData } = await supabaseAdmin
                     .from('ranks')
@@ -106,11 +100,6 @@ export async function POST(request: Request) {
 
                 if (rankData) {
                     rankId = String(rankData.id);
-                } else {
-                    console.warn(`Rank not found for name: ${rankName}`);
-                    // フォールバック: 一般（何もしない、またはエラー？）
-                    // システム運用上、シードされているはずですが、なければ rankId=null で進みます（既存の一般扱い）
-                    // ただし、rankNameだけは上書きされているのでメールには記載されます。
                 }
             } catch (e) {
                 console.error('Rank lookup error:', e);
@@ -127,13 +116,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: '設定データの取得に失敗しました' }, { status: 500 });
         }
 
-        // 設定データを整形
-        const settings: Partial<AppSettings> & {
-            email_template?: any,
-            email_template_general?: any,
-            email_template_free?: any,
-            email_template_free_online?: any
-        } = {};
+        const settings: any = {};
         settingsData?.forEach(row => {
             if (row.key === 'payment_links') settings.payment_links = row.value;
             if (row.key === 'admin_email') settings.admin_email = row.value;
@@ -145,120 +128,46 @@ export async function POST(request: Request) {
         });
 
         const paymentLinks = settings.payment_links || [];
-        // 管理者メールの設定 (DB設定優先、なければ環境変数)
         const adminEmail = settings.admin_email || process.env.ADMIN_EMAIL;
         const adminBccEmail = settings.admin_bcc_email || process.env.ADMIN_BCC_EMAIL;
 
-        // 3. 商品マッチング
-        // 条件: 講義会場 AND 懇親会会場 AND 対象属性
-        // マッチしない場合は決済リンクなし (手動対応)
-        let matchedProduct: PaymentLinkItem | null = null;
-
-        // 一般の場合、rank_idがない商品を探す、または一般用のrank_idがあればそれを使う
-        // 現行の実装では rank_id が一致するかを見ている。
-        // 一般の人は rankId が null なので、商品マスタの rank_id も null (または undefined) のものとマッチするはず。
-
-        if (Array.isArray(paymentLinks)) {
-            // 検索用の会場名（コード→日本語変換を試みる）
-            const searchVenue = venueDisplayMap[venue] || venue;
-            const searchSocial = venueDisplayMap[social_venue] || social_venue;
-
-            matchedProduct = paymentLinks.find(p => {
-                // オンライン参加の特例: 複数会場選択時、商品側の名前や想定に両方が含まれているか確認
-                let effectiveVenue = venue;
-                let effectiveSearchVenue = searchVenue;
-
-                let onlineProductCategory = '';
-
-                if (participation_type === 'online') {
-                    const matchLive = /【LIVE視聴会場】\s*([^\n]+)/.exec(userRemarks || '');
-                    if (matchLive) {
-                        const liveVenues = matchLive[1].trim(); // e.g., "東京・福岡"
-                        // もし両方選択されている場合、商品は "東京・福岡" または "福岡・東京" を想定しているはず。
-                        effectiveVenue = liveVenues;
-                        effectiveSearchVenue = liveVenues;
-
-                        // LIVE視聴で複数会場選ばれたかどうかの判定用
-                        if (liveVenues.includes('・')) {
-                            onlineProductCategory = 'LIVE視聴（2会場）';
-                        } else {
-                            onlineProductCategory = 'LIVE視聴';
-                        }
-                    } else {
-                        onlineProductCategory = 'LIVE視聴';
-                    }
-                }
-
-                // 講義会場のマッチ: コード一致 または 日本語名一致
-                const venueMatch = (p.venue_lecture === venue) ||
-                    (p.venue_lecture === searchVenue) ||
-                    (p.venue_lecture === effectiveVenue) ||
-                    (p.venue_lecture === effectiveSearchVenue) ||
-                    (onlineProductCategory !== '' && p.venue_lecture === onlineProductCategory) ||
-                    (effectiveVenue === 'both' && (p.venue_lecture === '東京・福岡' || p.venue_lecture === '福岡・東京')) ||
-                    (effectiveVenue === '東京・福岡' && (p.venue_lecture === '東京・福岡' || p.venue_lecture === '福岡・東京')) ||
-                    (effectiveVenue === '福岡・東京' && (p.venue_lecture === '東京・福岡' || p.venue_lecture === '福岡・東京'));
-
-                // 懇親会会場のマッチ
-                let socialMatch = (p.venue_social === social_venue) ||
-                    (p.venue_social === searchSocial) ||
-                    (social_venue === 'both' && (p.venue_social === '東京・福岡' || p.venue_social === '福岡・東京'));
-
-                // オンライン参加の特例: 商品側の懇親会が「ー」ならマッチとみなす
-                // (ユーザー入力の social_venue は無視してよい、なぜならオンラインに懇親会はないから)
-                if (participation_type === 'online' && p.venue_social === 'ー') {
-                    socialMatch = true;
-                }
-
-                // ランクのマッチ
-                const rankMatch = rankId
-                    ? ((p.rank_id && String(p.rank_id) === String(rankId)) || (!p.rank_id && p.name && p.name.includes(rankName)))
-                    : !p.rank_id;
-
-                return venueMatch && socialMatch && rankMatch;
-            }) || null;
-        }
+        // 3. 商品マッチング (共通ユーティリティを使用)
+        const matchedProduct = matchProduct(paymentLinks, {
+            venue,
+            social_venue,
+            participation_type: participation_type || 'venue',
+            online_venues,
+            rank_id: rankId,
+            rank_name: rankName
+        });
 
         const totalAmount = matchedProduct ? (Number(matchedProduct.lecture_fee) + Number(matchedProduct.social_fee)) : 0;
         const paymentUrl = matchedProduct?.url || null;
-
         const paymentStatus = 'unpaid';
 
-        // 備考欄の作成 (紹介者情報など)
+        // 備考欄の作成
         const tags: string[] = [];
-        let remarks = userRemarks ? userRemarks + '\n' : ''; // ユーザー入力の備考を先頭に追加
+        let remarks = userRemarks ? userRemarks + '\n' : '';
 
-        if (venue === 'none' || venue === '参加しない') {
+        if (venue === '参加しない') {
             tags.push('不参加');
         } else if (!matchedProduct) {
             remarks += '【要確認】商品マスタに対象の商品のお申し込みがありません。\n';
         }
-        if (!term_id) {
-            // 一般参加者のみの備考（必要な場合）または特定のメッセージをスキップするか？
-            // 既存のロジックには「紹介者なし」または「未入力」に関するメッセージが含まれていました。
-            // 一般参加者向けの特定のメッセージは維持できますが、紹介者が存在する場合、タグロジックは共通であるべきです。
-        }
 
-        // 紹介タグロジック（共通）
         if (introducer) {
             remarks += `紹介者: ${introducer}\n`;
             tags.push('ご紹介');
-        } else {
-            if (!term_id) {
-                // 受講生はこのフィールドを持たないことが多いため、一般参加者の場合のみ「なし」または「未入力」を記録します。
-                if (no_introducer) {
-                    remarks += '紹介者: なし\n';
-                } else {
-                    remarks += '紹介者: 未入力\n';
-                }
+        } else if (!term_id) {
+            if (no_introducer) {
+                remarks += '紹介者: なし\n';
+            } else {
+                remarks += '紹介者: 未入力\n';
             }
         }
 
-        // remarks の末尾の改行を整理（オプション）
         remarks = remarks.trim();
-
-        // attend_social カラムの値を導出
-        const attendSocial = (social_venue && social_venue !== 'none' && social_venue !== '参加しない');
+        const attendSocial = (social_venue && social_venue !== '参加しない');
 
         // 4. DBに申込情報を保存
         const { error: insertError } = await supabaseAdmin
@@ -269,82 +178,52 @@ export async function POST(request: Request) {
                 input_email: email,
                 venue,
                 social_venue,
-                attend_social: attendSocial, // 必須カラムへの値追加
+                attend_social: attendSocial,
                 total_amount: totalAmount,
                 payment_status: paymentStatus,
                 matched_member_id: memberId,
                 applied_rank_name: rankName,
-
                 remarks: remarks || null,
                 tags: tags,
                 participation_type: participation_type || 'venue',
+                online_venues: online_venues || null,
                 environment: process.env.NODE_ENV === 'production' ? 'production' : 'development'
             });
 
         if (insertError) {
             console.error('Insert application error:', insertError);
-            return NextResponse.json({
-                error: '申込情報の保存に失敗しました',
-                details: insertError.message,
-                code: insertError.code,
-                hint: insertError.hint
-            }, { status: 500 });
+            return NextResponse.json({ error: '申込情報の保存に失敗しました' }, { status: 500 });
         }
 
-        // 5. メール送信
-        let displayVenue = venueDisplayMap[venue] || venue;
+        // 5. メール送信用の表示名作成
+        let displayVenue = getVenueDisplayName(venue, participation_type, online_venues);
+        let displaySocialVenue = (participation_type === 'online') ? 'ー' : social_venue;
 
-        // LIVE視聴の場合、備考から会場名を抽出して付記
-        // 改行や前後のスペースに強くする
-        if (participation_type === 'online') {
-            // 例: \n【LIVE視聴会場】東京
-            // または他のテキストが混ざっている場合もある
-            const match = /【LIVE視聴会場】\s*([^\n]+)/.exec(userRemarks || '');
-            if (match) {
-                const liveVenue = match[1].trim();
-                if (liveVenue) {
-                    if (!displayVenue) {
-                        displayVenue = liveVenue.includes('・') ? 'LIVE視聴（2会場）' : 'LIVE視聴';
-                    }
-                    if (!displayVenue.includes(`(${liveVenue})`)) {
-                        displayVenue = `${displayVenue} (${liveVenue})`;
-                    }
-                }
+        // 個別金額の付加
+        if (matchedProduct) {
+            const lectureFee = Number(matchedProduct.lecture_fee) || 0;
+            displayVenue += `（${lectureFee.toLocaleString()}円）`;
+            const socialFee = Number(matchedProduct.social_fee) || 0;
+            if (participation_type !== 'online' && social_venue !== '参加しない') {
+                displaySocialVenue += `（${socialFee.toLocaleString()}円）`;
             }
-        }
-        let displaySocialVenue = venueDisplayMap[social_venue] || social_venue;
-
-        // オンライン参加の場合は懇親会を「ー」と表記
-        if (participation_type === 'online') {
-            displaySocialVenue = 'ー';
+        } else {
+            if (venue === '参加しない') displayVenue += `（0円）`;
+            if (social_venue === '参加しない' && participation_type !== 'online') displaySocialVenue += `（0円）`;
         }
 
         let template;
-        // 参加しない場合のテンプレート判定
-        if (venue === 'none' || venue === '参加しない') {
+        if (venue === '参加しない') {
             template = DEFAULT_EMAIL_TEMPLATE_NO_PARTICIPATION;
         } else if (totalAmount === 0 && matchedProduct) {
             const dbTemplateVenue = settings.email_template_free;
             const dbTemplateOnline = settings.email_template_free_online;
-
-            let dbTemplate = dbTemplateVenue;
-            if (participation_type === 'online' && dbTemplateOnline && dbTemplateOnline.subject) {
-                dbTemplate = dbTemplateOnline;
-            }
-
-            // 0円用テンプレートがあればそれを使う。なければ一般用、あるいはデフォルトにフォールバック
-            if (dbTemplate && dbTemplate.subject) {
-                template = dbTemplate;
-            } else {
-                // フォールバック: 一般用を使うか、ここ専用のデフォルトを用意するか
-                // 今回は一般用または専用のデフォルト構造へ
-                template = {
-                    subject: '【神言学】お申込み受付完了のお知らせ',
-                    body: `{{name}} 様\n\n神言学講座へのお申込みありがとうございます。\n以下の内容で受付いたしました。\n\n--------------------------------\nお名前: {{name}}\n判定属性: {{rank}}\n参加会場: {{venue}}\n懇親会: {{social_venue}}\n合計金額: {{amount}} 円\n--------------------------------\n\n当日は会場にてお待ちしております。`
-                };
-            }
+            let dbTemplate = (participation_type === 'online' && dbTemplateOnline?.subject) ? dbTemplateOnline : dbTemplateVenue;
+            template = (dbTemplate && dbTemplate.subject) ? dbTemplate : {
+                subject: '【神言学】お申込み受付完了のお知らせ',
+                body: `{{name}} 様\n\n神言学講座へのお申込みありがとうございます。\n以下の内容で受付いたしました。\n\n--------------------------------\nお名前: {{name}}\n判定属性: {{rank}}\n参加会場: {{venue}}\n懇親会: {{social_venue}}\n合計金額: {{amount}} 円\n--------------------------------\n\n当日は会場にてお待ちしております。`
+            };
         } else if (matchedProduct) {
-            // DBの設定があっても、subjectがなければデフォルトを使う（空のJSON対策）
             const dbTemplate = settings.email_template;
             template = (dbTemplate && dbTemplate.subject) ? dbTemplate : DEFAULT_EMAIL_TEMPLATE;
         } else {
@@ -352,15 +231,13 @@ export async function POST(request: Request) {
             template = (dbTemplate && dbTemplate.subject) ? dbTemplate : DEFAULT_EMAIL_TEMPLATE_GENERAL;
         }
 
-        const paymentLinkSection = (matchedProduct && paymentUrl) ? paymentUrl : '';
-
         const vars = {
             name: name,
             rank: rankName,
             venue: displayVenue,
             social_venue: displaySocialVenue,
             amount: totalAmount.toLocaleString(),
-            payment_link_section: paymentLinkSection
+            payment_link_section: (matchedProduct && paymentUrl) ? paymentUrl : ''
         };
 
         const emailSubject = template.subject;
@@ -368,23 +245,12 @@ export async function POST(request: Request) {
 
         try {
             const fromEmail = process.env.FROM_EMAIL || 'noreply@resend.dev';
-            const apiKey = process.env.RESEND_API_KEY;
-            console.log('Attempting to send email:', {
-                to: email,
-                from: fromEmail,
-                hasApiKey: !!apiKey,
-                adminEmail,
-                adminBccEmail
-            });
-
-            // 宛先重複の排除
-            // adminEmail (CC) と adminBccEmail (BCC) が同じ場合、BCCからは除外する
             let finalBcc = adminBccEmail ? [adminBccEmail] : undefined;
             if (adminEmail && adminBccEmail && adminEmail.toLowerCase() === adminBccEmail.toLowerCase()) {
                 finalBcc = undefined;
             }
 
-            const emailResponse = await resend.emails.send({
+            await resend.emails.send({
                 from: `神言学事務局 <${fromEmail}>`,
                 to: [email],
                 cc: adminEmail ? [adminEmail] : undefined,
@@ -392,16 +258,9 @@ export async function POST(request: Request) {
                 subject: emailSubject,
                 text: emailContent,
             });
-            console.log('Email sent successfully:', emailResponse);
         } catch (emailError: any) {
             console.error('Email send error:', emailError);
-            // デバッグ: 何が起きているか確認するためにクライアントにエラーを返します
-            return NextResponse.json({
-                success: true,
-                message: 'Application received but email failed',
-                email_error: emailError.message,
-                email_error_full: JSON.stringify(emailError, Object.getOwnPropertyNames(emailError))
-            });
+            return NextResponse.json({ success: true, message: 'Application received but email failed' });
         }
 
         return NextResponse.json({ success: true, message: 'Application received', email_sent: true });

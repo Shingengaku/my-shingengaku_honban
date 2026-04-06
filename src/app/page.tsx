@@ -98,17 +98,7 @@ export default function Home() {
     fetchSettings();
   }, []);
 
-  // 東京・福岡両方がチェックされたら自動的に「LIVE視聴（2会場）」に切り替える
-  useEffect(() => {
-    if (
-      selectedOnlineOption === 'LIVE視聴' &&
-      onlineLiveVenues.includes('東京') &&
-      onlineLiveVenues.includes('福岡')
-    ) {
-      // 少し遅延を入れてUIのチラつきを防ぐ、あるいは即時反映
-      setSelectedOnlineOption('LIVE視聴（2会場）');
-    }
-  }, [onlineLiveVenues, selectedOnlineOption]);
+  // 東京・福岡両方がチェックされたら自動的に切り替えるロジックを廃止しました。
 
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -130,6 +120,7 @@ export default function Home() {
     let finalVenue = '';
     let finalSocialVenue = '';
     let additionalRemarks = '';
+    let onlineVenuesPayload: string | undefined = undefined;
 
     if (participationType === 'venue') {
       if (selectedSocialVenues.length === 0) {
@@ -138,7 +129,8 @@ export default function Home() {
         return;
       }
       finalVenue = selectedVenues.join('・');
-      finalSocialVenue = selectedSocialVenues.join('・');
+      // 懇親会会場名から「懇親会」などの余計な文字を削って正規化（例：東京懇親会 -> 東京）
+      finalSocialVenue = selectedSocialVenues.map(v => v.replace(/懇親会$/, '').replace('参加しません', '参加しない')).join('・');
       if (!finalVenue) { // 会場選択チェック
         setError('会場を選択してください');
         setLoading(false);
@@ -151,19 +143,21 @@ export default function Home() {
         setLoading(false);
         return;
       }
-      finalVenue = selectedOnlineOption;
-      finalSocialVenue = 'none'; // オンラインは懇親会なし
+      // 「LIVE視聴（2会場）」などの表記を「LIVE視聴」に統一
+      finalVenue = selectedOnlineOption.replace(/（2会場）|(\(2会場\))/, '');
+      finalSocialVenue = '参加しない'; // オンラインは懇親会なし
 
-      // LIVE視聴の場合の会場選択チェック
-      if (selectedOnlineOption === 'LIVE視聴' || selectedOnlineOption === 'LIVE視聴（2会場）') {
-        const liveVenuesToSubmit = selectedOnlineOption === 'LIVE視聴（2会場）' ? ['東京', '福岡'] : onlineLiveVenues;
+      // LIVE配信タイプの場合の会場選択チェック
+      const selectedOptionItem = onlineOptions.find(o => o.name === selectedOnlineOption);
+      if (selectedOptionItem?.type === 'live') {
+        const liveVenuesToSubmit = onlineLiveVenues;
 
         if (liveVenuesToSubmit.length === 0) {
           setError('LIVE視聴の参加会場を選択してください');
           setLoading(false);
           return;
         }
-        additionalRemarks = `\n【LIVE視聴会場】${liveVenuesToSubmit.join('・')}`;
+        onlineVenuesPayload = liveVenuesToSubmit.join('・');
       }
     }
 
@@ -177,7 +171,7 @@ export default function Home() {
         // 一般の場合は term_id を空にする
         term_id: isStudent ? formData.term_id : undefined,
         participation_type: participationType,
-        remarks: additionalRemarks ? (formData.remarks ? formData.remarks + additionalRemarks : additionalRemarks) : undefined
+        online_venues: onlineVenuesPayload
       };
 
       const res = await fetch('/api/apply', {
@@ -548,13 +542,9 @@ export default function Home() {
                     <option value="">視聴タイプを選択してください</option>
                     {onlineOptions.length > 0 ? (
                       onlineOptions.map((opt) => {
-                        // LIVE視聴（2会場）は、東京か福岡のどちらかが募集終了していれば選択不可にするか非表示にする
+                        // LIVE視聴（2会場）は廃止したため除外します。不要な場合は後でマスタ自体から削除します。
                         if (opt.name === 'LIVE視聴（2会場）') {
-                          const tokyoEnded = venueMaster.find(v => v.name === '東京')?.is_recruitment_ended;
-                          const fukuokaEnded = venueMaster.find(v => v.name === '福岡')?.is_recruitment_ended;
-                          if (tokyoEnded || fukuokaEnded) {
-                            return null; // 募集終了の会場がある場合はオプション自体を表示しない
-                          }
+                          return null; 
                         }
                         return (
                           <option key={opt.name} value={opt.name}>
@@ -569,57 +559,57 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* LIVE視聴時の追加会場選択 */}
-                {(selectedOnlineOption === 'LIVE視聴' || selectedOnlineOption === 'LIVE視聴（2会場）') && (
-                  <div className="bg-blue-50 p-4 rounded-md animate-fade-in">
-                    <span className="block text-sm font-medium text-gray-700 mb-2">
-                      参加会場
-                    </span>
-                    <p className="text-xs text-red-600 mb-2">※会場参加もお申込みされている場合、その会場を選択しないように注意してください。</p>
-                    <div className="flex space-x-6">
-                      {(() => {
-                        const tokyoEnded = venueMaster.find(v => v.name === '東京')?.is_recruitment_ended;
-                        const isTokyoDisabled = selectedOnlineOption === 'LIVE視聴（2会場）' || tokyoEnded;
-                        return (
-                          <label className={`flex items-center ${isTokyoDisabled ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}>
-                            <input
-                              type="checkbox"
-                              value="東京"
-                              checked={selectedOnlineOption === 'LIVE視聴（2会場）' ? true : onlineLiveVenues.includes('東京')}
-                              disabled={!!isTokyoDisabled}
-                              onChange={(e) => {
-                                if (e.target.checked) setOnlineLiveVenues([...onlineLiveVenues, '東京']);
-                                else setOnlineLiveVenues(onlineLiveVenues.filter(v => v !== '東京'));
-                              }}
-                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:bg-indigo-300"
-                            />
-                            <span className="ml-2 text-gray-700">東京 {tokyoEnded && <span className="text-red-500 text-xs">(募集終了)</span>}</span>
-                          </label>
-                        );
-                      })()}
-                      {(() => {
-                        const fukuokaEnded = venueMaster.find(v => v.name === '福岡')?.is_recruitment_ended;
-                        const isFukuokaDisabled = selectedOnlineOption === 'LIVE視聴（2会場）' || fukuokaEnded;
-                        return (
-                          <label className={`flex items-center ${isFukuokaDisabled ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}>
-                            <input
-                              type="checkbox"
-                              value="福岡"
-                              checked={selectedOnlineOption === 'LIVE視聴（2会場）' ? true : onlineLiveVenues.includes('福岡')}
-                              disabled={!!isFukuokaDisabled}
-                              onChange={(e) => {
-                                if (e.target.checked) setOnlineLiveVenues([...onlineLiveVenues, '福岡']);
-                                else setOnlineLiveVenues(onlineLiveVenues.filter(v => v !== '福岡'));
-                              }}
-                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:bg-indigo-300"
-                            />
-                            <span className="ml-2 text-gray-700">福岡 {fukuokaEnded && <span className="text-red-500 text-xs">(募集終了)</span>}</span>
-                          </label>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                )}
+                            {/* LIVEタイプの場合の追加会場選択 */}
+                            {(onlineOptions.find(o => o.name === selectedOnlineOption)?.type === 'live') && (
+                                <div className="bg-blue-50 p-4 rounded-md animate-fade-in">
+                                    <span className="block text-sm font-medium text-gray-700 mb-2">
+                                        参加会場
+                                    </span>
+                                    <p className="text-xs text-red-600 mb-2">※会場参加もお申込みされている場合、その会場を選択しないように注意してください。</p>
+                                    <div className="flex space-x-6">
+                                        {(() => {
+                                            const tokyoEnded = venueMaster.find(v => v.name === '東京')?.is_recruitment_ended;
+                                            const isTokyoDisabled = tokyoEnded;
+                                            return (
+                                                <label className={`flex items-center ${isTokyoDisabled ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}>
+                                                    <input
+                                                        type="checkbox"
+                                                        value="東京"
+                                                        checked={onlineLiveVenues.includes('東京')}
+                                                        disabled={!!isTokyoDisabled}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) setOnlineLiveVenues([...onlineLiveVenues, '東京']);
+                                                            else setOnlineLiveVenues(onlineLiveVenues.filter(v => v !== '東京'));
+                                                        }}
+                                                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:bg-indigo-300"
+                                                    />
+                                                    <span className="ml-2 text-gray-700">東京 {tokyoEnded && <span className="text-red-500 text-xs">(募集終了)</span>}</span>
+                                                </label>
+                                            );
+                                        })()}
+                                        {(() => {
+                                            const fukuokaEnded = venueMaster.find(v => v.name === '福岡')?.is_recruitment_ended;
+                                            const isFukuokaDisabled = fukuokaEnded;
+                                            return (
+                                                <label className={`flex items-center ${isFukuokaDisabled ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}>
+                                                    <input
+                                                        type="checkbox"
+                                                        value="福岡"
+                                                        checked={onlineLiveVenues.includes('福岡')}
+                                                        disabled={!!isFukuokaDisabled}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) setOnlineLiveVenues([...onlineLiveVenues, '福岡']);
+                                                            else setOnlineLiveVenues(onlineLiveVenues.filter(v => v !== '福岡'));
+                                                        }}
+                                                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:bg-indigo-300"
+                                                    />
+                                                    <span className="ml-2 text-gray-700">福岡 {fukuokaEnded && <span className="text-red-500 text-xs">(募集終了)</span>}</span>
+                                                </label>
+                                            );
+                                        })()}
+                                    </div>
+                                </div>
+                            )}
               </div>
             )}
 

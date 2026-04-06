@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { resend } from '@/lib/resend';
 import { processEmailTemplate, DEFAULT_EMAIL_TEMPLATE_RESEND, DEFAULT_EMAIL_TEMPLATE_NO_PARTICIPATION } from '@/lib/emailTemplate';
+import { normalizeVenue, getVenueDisplayName, matchProduct } from '@/lib/venueUtils';
 
 export async function POST(request: Request) {
     try {
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
         // 1. 申込データ取得
         const { data: app, error } = await supabaseAdmin
             .from('applications')
-            .select('*, members(*)')
+            .select('*, members(*, ranks(*))')
             .eq('id', id)
             .single();
 
@@ -36,79 +37,69 @@ export async function POST(request: Request) {
         const adminEmail = settings.admin_email || process.env.ADMIN_EMAIL;
         const adminBccEmail = settings.admin_bcc_email || process.env.ADMIN_BCC_EMAIL;
 
-        // 3. 支払いリンク情報
-        let paymentLink = null;
-        if (Array.isArray(paymentLinks)) {
-            paymentLink = paymentLinks.find((p: any) =>
-                (Number(p.lecture_fee) + Number(p.social_fee)) === app.total_amount &&
-                p.venue_lecture === app.venue &&
-                p.venue_social === app.social_venue
-            );
-        }
+        // 3. 商品マッチング (共通ユーティリティを使用)
+        const rankId = app.members?.ranks?.id ? String(app.members.ranks.id) : null;
+        const rankName = app.applied_rank_name || app.members?.ranks?.name || '一般';
+
+        const paymentLink = matchProduct(paymentLinks, {
+            venue: app.venue,
+            social_venue: app.social_venue,
+            participation_type: app.participation_type || 'venue',
+            online_venues: app.online_venues,
+            rank_id: rankId,
+            rank_name: rankName,
+            payment_key: app.payment_key
+        });
 
         const paymentUrl = paymentLink?.url || '';
 
         // テンプレート選択
         let template = settings.email_template_resend || DEFAULT_EMAIL_TEMPLATE_RESEND;
-        if (app.venue === 'none' || app.venue === '参加しない') {
+        if (app.venue === '参加しない') {
             template = DEFAULT_EMAIL_TEMPLATE_NO_PARTICIPATION;
         }
 
-        const venueDisplayMap: Record<string, string> = {
-            'tokyo': '東京',
-            'fukuoka': '福岡',
-            'both': '両方参加',
-            'none': '参加しません'
-        };
+        // 5. 表示用文字列
+        let displayVenue = getVenueDisplayName(app.venue, app.participation_type, app.online_venues);
+        let displaySocialVenue = (app.participation_type === 'online') ? 'ー' : app.social_venue;
 
-        let displayVenue = venueDisplayMap[app.venue] || app.venue;
-        let displaySocialVenue = venueDisplayMap[app.social_venue] || app.social_venue;
-
-        if (app.participation_type === 'online') {
-            const match = /【LIVE視聴会場】\s*([^\n]+)/.exec(app.remarks || '');
-            if (match) {
-                const liveVenue = match[1].trim();
-                if (liveVenue) {
-                    if (!displayVenue) {
-                        displayVenue = liveVenue.includes('・') ? 'LIVE視聴（2会場）' : 'LIVE視聴';
-                    }
-                    if (!displayVenue.includes(`(${liveVenue})`)) {
-                        displayVenue = `${displayVenue} (${liveVenue})`;
-                    }
-                }
+        // 個別金額の付加
+        if (paymentLink) {
+            const lectureFee = Number(paymentLink.lecture_fee) || 0;
+            displayVenue += `（${lectureFee.toLocaleString()}円）`;
+            const socialFee = Number(paymentLink.social_fee) || 0;
+            if (app.participation_type !== 'online' && app.social_venue !== '参加しない') {
+                displaySocialVenue += `（${socialFee.toLocaleString()}円）`;
             }
-            displaySocialVenue = 'ー';
+        } else {
+            if (app.venue === '参加しない') displayVenue += `（0円）`;
+            if (app.social_venue === '参加しない' && app.participation_type !== 'online') displaySocialVenue += `（0円）`;
         }
-
-        // 修正: 案内文と合計金額を削除し、URLのみにする
-        const paymentLinkSection = paymentUrl ? paymentUrl : '';
 
         const vars = {
             name: app.input_name,
-            rank: app.applied_rank_name || '一般',
+            rank: rankName,
             venue: displayVenue,
             social_venue: displaySocialVenue,
             amount: app.total_amount.toLocaleString(),
-            payment_link_section: paymentLinkSection
+            payment_link_section: paymentUrl ? paymentUrl : ''
         };
 
         const emailSubject = customSubject || template.subject;
         const emailContent = customBody || processEmailTemplate(template.body, vars);
 
-        // CC/BCC ロジック
-        // app.cc_email が null の場合は adminEmail を使用 (未設定なら undefined)
-        const effectiveCC = app.cc_email !== null ? app.cc_email : adminEmail;
-        const effectiveBCC = app.bcc_email !== null ? app.bcc_email : adminBccEmail;
-
-        const cc = [effectiveCC].filter(Boolean);
-        const bcc = [effectiveBCC].filter(Boolean);
+        // CC/BCC ロジック：全体設定を常に使用
+        let finalBcc = adminBccEmail ? [adminBccEmail] : undefined;
+        if (adminEmail && adminBccEmail && adminEmail.toLowerCase() === adminBccEmail.toLowerCase()) {
+            finalBcc = undefined;
+        }
 
         const fromEmail = process.env.FROM_EMAIL || 'noreply@resend.dev';
         await resend.emails.send({
             from: `神言学事務局 <${fromEmail}>`,
             to: [app.input_email],
-            cc: cc.length > 0 ? cc : undefined,
-            bcc: bcc.length > 0 ? bcc : undefined,
+            cc: adminEmail ? [adminEmail] : undefined,
+            bcc: finalBcc,
             subject: emailSubject,
             text: emailContent,
         });
