@@ -197,7 +197,7 @@ export async function POST(request: Request) {
 
         // 5. メール送信用の表示名作成
         let displayVenue = getVenueDisplayName(venue, participation_type, online_venues);
-        let displaySocialVenue = (participation_type === 'online') ? 'ー' : social_venue;
+        let displaySocialVenue = (participation_type === 'online') ? '参加不可' : social_venue;
 
         // 個別金額の付加
         if (matchedProduct) {

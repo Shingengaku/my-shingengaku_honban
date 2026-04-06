@@ -2200,7 +2200,10 @@ export default function AdminDashboard() {
                                             )}
                                             <div className="text-sm text-gray-900 mt-1">
                                                 <span className="font-bold text-xs text-gray-400 block">懇親会:</span>
-                                                {getVenueDisplayName(app.social_venue || '', 'venue')}
+                                                {app.participation_type === 'online'
+                                                    ? <span className="text-xs text-gray-400">参加不可</span>
+                                                    : getVenueDisplayName(app.social_venue || '', 'venue')
+                                                }
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 align-top">

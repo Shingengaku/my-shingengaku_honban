@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
         // 5. 表示用文字列
         let displayVenue = getVenueDisplayName(app.venue, app.participation_type, app.online_venues);
-        let displaySocialVenue = (app.participation_type === 'online') ? 'ー' : app.social_venue;
+        let displaySocialVenue = (app.participation_type === 'online') ? '参加不可' : app.social_venue;
 
         // 個別金額の付加
         if (paymentLink) {
