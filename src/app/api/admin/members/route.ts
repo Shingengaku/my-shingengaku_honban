@@ -98,12 +98,27 @@ export async function DELETE(request: Request) {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
 
-        if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+        // 一括削除対応：リクエストボディからidsを取得を試みる
+        let ids: string[] | null = null;
+        try {
+            const body = await request.clone().json();
+            if (body && Array.isArray(body.ids)) {
+                ids = body.ids;
+            }
+        } catch (e) {
+            // ボディがない場合は無視
+        }
 
-        const { error } = await supabaseAdmin
-            .from('members')
-            .delete()
-            .eq('id', id);
+        if (!id && !ids) return NextResponse.json({ error: 'ID or IDs are required' }, { status: 400 });
+
+        let query = supabaseAdmin.from('members').delete();
+        if (ids) {
+            query = query.in('id', ids);
+        } else {
+            query = query.eq('id', id as string);
+        }
+
+        const { error } = await query;
 
         if (error) throw error;
 

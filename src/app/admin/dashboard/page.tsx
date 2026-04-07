@@ -564,6 +564,32 @@ export default function AdminDashboard() {
         }
     };
 
+    const deleteSelected = async () => {
+        if (selectedIds.size === 0) return;
+        if (!confirm(`選択した${selectedIds.size}件のデータを削除しますか？\n（復元できません）`)) return;
+
+        setLoading(true);
+        try {
+            const res = await fetch('/api/admin/applications/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: Array.from(selectedIds) }),
+            });
+
+            if (res.ok) {
+                alert('削除しました');
+                setSelectedIds(new Set());
+                fetchApplications();
+            } else {
+                alert('削除に失敗しました');
+            }
+        } catch (e) {
+            alert('エラーが発生しました');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const updateStatusBatch = async (ids: string[], status: string) => {
         try {
             const res = await fetch('/api/admin/applications/update', {
@@ -2033,6 +2059,9 @@ export default function AdminDashboard() {
                                 </button>
                                 <button onClick={duplicateSelected} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 ml-4 shadow">
                                     選択した{selectedIds.size} 件を「複製」する
+                                </button>
+                                <button onClick={deleteSelected} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 ml-4 shadow">
+                                    選択した{selectedIds.size} 件を「削除」する
                                 </button>
                             </div>
                         )}

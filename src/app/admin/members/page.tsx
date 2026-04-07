@@ -32,6 +32,7 @@ export default function MembersPage() {
     const [loading, setLoading] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [editingMember, setEditingMember] = useState<Member | null>(null);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
     // フォーム状態
     const [formData, setFormData] = useState({
@@ -161,6 +162,40 @@ export default function MembersPage() {
         } catch (e) {
             alert('エラー');
         }
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedIds.size === 0) return;
+        if (!confirm(`選択した${selectedIds.size}件の受講生データを削除しますか？\n（復元できません）`)) return;
+
+        setLoading(true);
+        try {
+            const res = await fetch('/api/admin/members', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: Array.from(selectedIds) })
+            });
+
+            if (res.ok) {
+                alert('削除しました');
+                setSelectedIds(new Set());
+                fetchData();
+            } else {
+                const data = await res.json();
+                alert(`削除失敗: ${data.error || '不明なエラー'}`);
+            }
+        } catch (e) {
+            alert('通信エラー');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const toggleSelect = (id: string) => {
+        const newSet = new Set(selectedIds);
+        if (newSet.has(id)) newSet.delete(id);
+        else newSet.add(id);
+        setSelectedIds(newSet);
     };
 
     /* ... ファイル選択処理（簡略化または後で更新） ... */
@@ -310,6 +345,22 @@ export default function MembersPage() {
                     </div>
                 </div>
 
+                {/* Bulk Action Bar */}
+                {selectedIds.size > 0 && (
+                    <div className="bg-white p-4 rounded-lg shadow-sm border border-red-100 mb-6 flex justify-between items-center animate-fade-in">
+                        <span className="text-sm font-medium text-gray-700">
+                            <span className="text-red-600 font-bold">{selectedIds.size}</span> 件選択中
+                        </span>
+                        <button
+                            onClick={handleBulkDelete}
+                            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm font-bold shadow-sm flex items-center gap-2"
+                        >
+                            <span>🗑️</span>
+                            選択した受講生を一括削除する
+                        </button>
+                    </div>
+                )}
+
                 {/* CSV Guide - Update text */}
                 <div className="bg-blue-50 p-4 rounded-md mb-6 text-sm text-blue-900 border border-blue-200 shadow-sm transition-all hover:border-blue-300">
                     <details>
@@ -357,6 +408,16 @@ export default function MembersPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">
+                                <input
+                                    type="checkbox"
+                                    onChange={(e) => {
+                                        if (e.target.checked) setSelectedIds(new Set(filteredMembers.map(m => m.id)));
+                                        else setSelectedIds(new Set());
+                                    }}
+                                    checked={filteredMembers.length > 0 && selectedIds.size === filteredMembers.length}
+                                />
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">氏名</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">フリガナ</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">メールアドレス</th>
@@ -368,7 +429,14 @@ export default function MembersPage() {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {filteredMembers.map(member => (
-                            <tr key={member.id}>
+                            <tr key={member.id} className={selectedIds.has(member.id) ? 'bg-red-50' : ''}>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedIds.has(member.id)}
+                                        onChange={() => toggleSelect(member.id)}
+                                    />
+                                </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-sm font-medium text-gray-900">{member.name}</div>
                                 </td>
