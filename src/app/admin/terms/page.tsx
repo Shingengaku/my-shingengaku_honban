@@ -24,9 +24,10 @@ interface Term {
     id: number;
     name: string;
     sort_order: number;
+    is_active: boolean;
 }
 
-function SortableItem({ term, onDelete }: { term: Term, onDelete: (id: number) => void }) {
+function SortableItem({ term, onDelete, onToggleActive }: { term: Term, onDelete: (id: number) => void, onToggleActive: (term: Term) => void }) {
     const {
         attributes,
         listeners,
@@ -41,20 +42,30 @@ function SortableItem({ term, onDelete }: { term: Term, onDelete: (id: number) =
     };
 
     return (
-        <div ref={setNodeRef} style={style} className="flex items-center bg-white p-3 mb-2 rounded shadow-sm border group">
+        <div ref={setNodeRef} style={style} className={`flex items-center p-3 mb-2 rounded shadow-sm border group ${term.is_active ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-300 opacity-75'}`}>
             <div {...attributes} {...listeners} className="cursor-grab text-gray-400 mr-3 hover:text-gray-600 px-2" title="ドラッグして移動">
                 ⋮⋮
             </div>
-            <div className="flex-1 font-medium text-gray-800">
+            <div className={`flex-1 font-medium ${term.is_active ? 'text-gray-800' : 'text-gray-500'}`}>
                 {term.name}
+                {!term.is_active && <span className="ml-2 text-[10px] bg-gray-200 text-gray-600 px-2 py-0.5 rounded">非表示/受付停止</span>}
             </div>
-            <button
-                onClick={() => onDelete(term.id)}
-                className="text-red-400 hover:text-red-600 px-3 py-1 text-sm rounded hover:bg-red-50 transition-colors"
-                type="button"
-            >
-                削除
-            </button>
+            <div className="flex items-center space-x-2">
+                <button
+                    onClick={() => onToggleActive(term)}
+                    className={`px-3 py-1 text-sm rounded transition-colors font-bold ${term.is_active ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+                    type="button"
+                >
+                    {term.is_active ? '✅ 表示中' : '🚫 非表示'}
+                </button>
+                <button
+                    onClick={() => onDelete(term.id)}
+                    className="text-red-400 hover:text-red-600 px-3 py-1 text-sm rounded hover:bg-red-50 transition-colors"
+                    type="button"
+                >
+                    削除
+                </button>
+            </div>
         </div>
     );
 }
@@ -108,6 +119,25 @@ export default function TermMasterPage() {
                 setNewTermName('');
             } else {
                 alert('追加に失敗しました');
+            }
+        } catch (e) {
+            alert('エラーが発生しました');
+        }
+    };
+
+    const handleToggleActive = async (term: Term) => {
+        const nextActive = !term.is_active;
+        try {
+            const res = await fetch('/api/admin/terms', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: term.id, is_active: nextActive })
+            });
+
+            if (res.ok) {
+                setTerms(terms.map(t => t.id === term.id ? { ...t, is_active: nextActive } : t));
+            } else {
+                alert('更新に失敗しました');
             }
         } catch (e) {
             alert('エラーが発生しました');
@@ -279,7 +309,7 @@ export default function TermMasterPage() {
                                                 登録された期はありません
                                             </div>
                                         ) : terms.map((term) => (
-                                            <SortableItem key={term.id} term={term} onDelete={handleDelete} />
+                                            <SortableItem key={term.id} term={term} onDelete={handleDelete} onToggleActive={handleToggleActive} />
                                         ))}
                                     </div>
                                 </SortableContext>

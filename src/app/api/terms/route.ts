@@ -9,6 +9,7 @@ export async function GET() {
         const { data: terms, error } = await supabaseAdmin
             .from('terms')
             .select('*')
+            .eq('is_active', true)
             .order('sort_order', { ascending: true })
             .order('id', { ascending: true }); // フォールバック
 

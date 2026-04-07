@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 
         const { data, error } = await supabaseAdmin
             .from('terms')
-            .insert({ name, sort_order: nextOrder })
+            .insert({ name, sort_order: nextOrder, is_active: true })
             .select()
             .single();
 
@@ -80,6 +80,7 @@ export async function PUT(request: Request) {
         const updateData: any = {};
         if (name !== undefined) updateData.name = name;
         if (sort_order !== undefined) updateData.sort_order = Number(sort_order);
+        if (body.is_active !== undefined) updateData.is_active = body.is_active;
 
         const { data, error } = await supabaseAdmin
             .from('terms')
