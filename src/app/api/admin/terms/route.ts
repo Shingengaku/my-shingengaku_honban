@@ -69,3 +69,28 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ error: '期の削除に失敗しました' }, { status: 500 });
     }
 }
+// PUT: 期を更新
+export async function PUT(request: Request) {
+    try {
+        const body = await request.json();
+        const { id, name, sort_order } = body;
+
+        if (!id) return NextResponse.json({ error: 'IDは必須です' }, { status: 400 });
+
+        const updateData: any = {};
+        if (name !== undefined) updateData.name = name;
+        if (sort_order !== undefined) updateData.sort_order = Number(sort_order);
+
+        const { data, error } = await supabaseAdmin
+            .from('terms')
+            .update(updateData)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return NextResponse.json(data);
+    } catch (e) {
+        return NextResponse.json({ error: '期の更新に失敗しました' }, { status: 500 });
+    }
+}

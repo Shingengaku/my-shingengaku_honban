@@ -60,6 +60,13 @@ export async function PUT(request: Request) {
 
         if (!id) return NextResponse.json({ error: 'IDは必須です' }, { status: 400 });
 
+        // 以前の情報を取得
+        const { data: oldRank } = await supabaseAdmin
+            .from('ranks')
+            .select('name')
+            .eq('id', id)
+            .single();
+
         const { data, error } = await supabaseAdmin
             .from('ranks')
             .update({ name, base_fee, sort_order })
@@ -68,6 +75,16 @@ export async function PUT(request: Request) {
             .single();
 
         if (error) throw error;
+
+        // 名称が変更された場合、申込データの属性名を一括更新
+        if (name && oldRank && oldRank.name !== name) {
+            console.log(`Renaming rank from "${oldRank.name}" to "${name}" in applications...`);
+            
+            await supabaseAdmin
+                .from('applications')
+                .update({ applied_rank_name: name })
+                .eq('applied_rank_name', oldRank.name);
+        }
 
         return NextResponse.json(data);
     } catch (e) {

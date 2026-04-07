@@ -24,7 +24,7 @@ export function normalizeVenue(v: string | null | undefined): string {
     if (v === 'LIVE視聴（2会場）' || v === 'LIVE視聴(2会場)') return 'LIVE視聴';
     
     // 「両方参加」などの抽象的な表現を具体的な「東京・福岡」に統一
-    if (['両方参加', '両会場参加', '両会場', '懇親会両方', '懇親会参加両方'].some(s => v.includes(s))) {
+    if (['両方参加', '両会場参加', '両会場', '懇親会両方', '懇親会参加両方', '懇親会両方参加', '福岡・東京'].some(s => v.includes(s))) {
         return '東京・福岡';
     }
 
@@ -201,11 +201,16 @@ export function getSocialOptionsForLecture<T extends { id: number | string, name
     let targetNames: string[] = [];
     if (lectureVenueName.includes('・')) {
         targetNames = lectureVenueName.split('・');
+        // 複数会場の場合は「東京・福岡」自体も選択肢の対象として含めるためのヒント
+        const bothName = targetNames.sort().join('・');
+        return socialVenues.filter(sv => {
+            const n = sv.name;
+            return targetNames.some(tn => n.includes(tn) || tn.includes(n)) || n === bothName;
+        });
     } else {
         targetNames = [lectureVenueName];
+        return socialVenues.filter(sv => {
+            return targetNames.some(tn => sv.name.includes(tn) || tn.includes(sv.name));
+        });
     }
-
-    return socialVenues.filter(sv => {
-        return targetNames.some(tn => sv.name.includes(tn) || tn.includes(sv.name));
-    });
 }

@@ -865,11 +865,10 @@ export default function AdminDashboard() {
             const next = { ...prev, [field]: value };
             
             // 属性・会場が変更された場合は金額と商品キーを再計算
-            if (field === 'applied_rank_name' || field === 'venue' || field === 'social_venue') {
+            if (field === 'applied_rank_name' || field === 'venue' || field === 'social_venue' || field === 'participation_type' || field === 'online_venues') {
                 const rankName = next.applied_rank_name || '一般';
                 const venue = next.venue || '';
                 const social = next.social_venue || 'none';
-                
                 
                 const appRankId = ranks.find(r => r.name === rankName)?.id;
                 const matchData = {
@@ -883,22 +882,68 @@ export default function AdminDashboard() {
                 
                 if (matchedProduct) {
                     next.payment_key = matchedProduct.name;
+                    // 商品マスタから金額を取得
+                    const lectureFee = Number(matchedProduct.lecture_fee) || 0;
+                    const socialFee = Number(matchedProduct.social_fee) || 0;
+                    next.total_amount = lectureFee + socialFee;
                 } else {
                     next.payment_key = ''; // reset if not found explicitly
+                    // マッチしない場合は金額をリセットせず、手動入力を活かす（または0にするか検討が必要だが、現状は自動計算を試みる）
                 }
 
+                // オンライン判定の自動更新（会場名にキーワードが含まれる場合）
+                if (field === 'venue') {
+                    const isOnline = venue.includes('LIVE') || venue.includes('ライブ') || 
+                                    venue.includes('オンライン') || venue.includes('アーカイブ');
+                    if (isOnline) {
+                        next.participation_type = 'online';
+                    } else if (venue && venue !== '参加しない') {
+                        next.participation_type = 'venue';
+                    }
+                }
+            }
+            return next;
+        });
+    };
 
-                // オンライン判定の自動更新
-                const isOnline = venue.includes('LIVE') || venue.includes('ライブ') || 
-                                venue.includes('オンライン') || venue.includes('アーカイブ');
-                next.participation_type = isOnline ? 'online' : 'venue';
+    // 新規登録用のフィールド変更連動ロジック
+    const handleCreateFieldChange = (field: string, value: any) => {
+        setCreateForm(prev => {
+            const next = { ...prev, [field]: value };
 
-                // 商品マスタから金額を取得
-                const product = matchedProduct;
-                if (product) {
-                    const lectureFee = Number(product.lecture_fee) || 0;
-                    const socialFee = Number(product.social_fee) || 0;
+            if (field === 'applied_rank_name' || field === 'venue' || field === 'social_venue' || field === 'participation_type' || field === 'online_venues') {
+                const rankName = next.applied_rank_name || '一般';
+                const venue = next.venue || '';
+                const social = next.social_venue || 'none';
+                
+                const appRankId = ranks.find(r => r.name === rankName)?.id;
+                const matchData = {
+                    venue: venue,
+                    social_venue: social,
+                    participation_type: next.participation_type || 'venue',
+                    online_venues: next.online_venues,
+                    rank_id: appRankId ? String(appRankId) : null
+                };
+                const matchedProduct = matchProduct(paymentLinksData, matchData);
+                
+                if (matchedProduct) {
+                    // 金額を自動適用
+                    const lectureFee = Number(matchedProduct.lecture_fee) || 0;
+                    const socialFee = Number(matchedProduct.social_fee) || 0;
                     next.total_amount = lectureFee + socialFee;
+                    // 備考に商品名をメモとして残す（任意）
+                    // next.remarks = (next.remarks || '') + ` [自動適用: ${matchedProduct.name}]`;
+                }
+
+                // オンライン判定の自動連動
+                if (field === 'venue') {
+                    const isOnline = venue.includes('LIVE') || venue.includes('ライブ') || 
+                                    venue.includes('オンライン') || venue.includes('アーカイブ');
+                    if (isOnline) {
+                        next.participation_type = 'online';
+                    } else if (venue && venue !== '参加しない') {
+                        next.participation_type = 'venue';
+                    }
                 }
             }
             return next;
@@ -1136,7 +1181,8 @@ export default function AdminDashboard() {
             // Data Preparation
             const getMemberInfo = (app: Application) => {
                 let name = app.input_name + 'さま'; // Append suffix
-                const gen = app.members?.generation || 99;
+                const rawGen = app.members?.generation;
+                const gen = (rawGen !== undefined && rawGen !== null) ? Number(rawGen) : 99;
                 const term = gen === 99 ? '' : `${gen}期`; // Use standard suffix for data
                 const furigana = app.members?.furigana || app.input_furigana || '';
                 const vL = app.venue || '';
@@ -1164,7 +1210,9 @@ export default function AdminDashboard() {
             const normalizeKana = (str: string) => str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
             const sorterName = (a: any, b: any) => normalizeKana(a.furigana).localeCompare(normalizeKana(b.furigana), 'ja');
             const sorterTerm = (a: any, b: any) => {
-                if (a.gen !== b.gen) return a.gen - b.gen;
+                const genA = Number(a.gen);
+                const genB = Number(b.gen);
+                if (genA !== genB) return genA - genB;
                 return normalizeKana(a.furigana).localeCompare(normalizeKana(b.furigana), 'ja');
             };
 
@@ -1173,6 +1221,9 @@ export default function AdminDashboard() {
 
             // Filter Lists
             const rawTokyo = uniqueApps.filter(a => {
+                // オンライン参加者は除外
+                if (a.participation_type === 'online') return false;
+                
                 const v = a.venue || '';
                 const k = a.payment_key || '';
 
@@ -1190,6 +1241,9 @@ export default function AdminDashboard() {
             }).map(getMemberInfo);
 
             const rawFukuoka = uniqueApps.filter(a => {
+                // オンライン参加者は除外
+                if (a.participation_type === 'online') return false;
+
                 const v = a.venue || '';
                 const k = a.payment_key || '';
 
@@ -2347,18 +2401,14 @@ export default function AdminDashboard() {
                                 </div>
 
                                 {/* Product Name with Auto-Populate */}
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 text-indigo-700">商品名(属性/会場/懇親会を一括設定)</label>
-                                    <select
-                                        className="border w-full p-2 rounded"
+                                <div className="col-span-2">
+                                    <label className="block text-sm font-bold text-gray-700 text-indigo-700">商品名 (マスタ確定名)</label>
+                                    <input
+                                        type="text"
+                                        className="border w-full p-2 rounded bg-gray-100 cursor-not-allowed"
                                         value={editForm.payment_key || ''}
-                                        onChange={e => handleKeyChange(e.target.value)}
-                                    >
-                                        <option value="">(選択なし- 手動入力)</option>
-                                        {keyCandidates.map(k => (
-                                            <option key={k} value={k}>{k}</option>
-                                        ))}
-                                    </select>
+                                        readOnly
+                                    />
                                 </div>
 
 
@@ -2418,6 +2468,10 @@ export default function AdminDashboard() {
                                                         {available.map(opt => (
                                                             <option key={opt.id} value={opt.name}>{opt.name}</option>
                                                         ))}
+                                                        {/* マスタに明示的にない場合でも、「東京・福岡」が講義にあれば懇親会でも出せるように補完 */}
+                                                        {lectureVenue === '東京・福岡' && !available.some(a => a.name === '東京・福岡') && (
+                                                            <option value="東京・福岡">東京・福岡</option>
+                                                        )}
                                                         <option value="参加しない">参加しない</option>
                                                     </>
                                                 );
@@ -2441,12 +2495,12 @@ export default function AdminDashboard() {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-bold text-gray-700 text-indigo-700">合計金額 (自動計算/上書き可)</label>
+                                        <label className="block text-sm font-bold text-gray-700 text-indigo-700">合計金額 (自動計算/マスタ連動)</label>
                                         <input
                                             type="number"
-                                            className="border w-full p-2 rounded"
+                                            className="border w-full p-2 rounded bg-gray-100 cursor-not-allowed"
                                             value={editForm.total_amount || 0}
-                                            onChange={e => setEditForm({ ...editForm, total_amount: Number(e.target.value) })}
+                                            readOnly
                                         />
                                     </div>
                                 </div>
@@ -2891,15 +2945,14 @@ export default function AdminDashboard() {
                                 <select
                                     className="border w-full p-2 rounded"
                                     value={createForm.venue || ''}
-                                    onChange={e => setCreateForm({ ...createForm, venue: e.target.value })}
+                                    onChange={e => handleCreateFieldChange('venue', e.target.value)}
                                 >
                                     <option value="">選択してください</option>
-                                    <option value="東京講演参加">東京講演参加</option>
-                                    <option value="福岡講演参加">福岡講演参加</option>
-                                    <option value="福岡・東京講演参加">福岡・東京講演参加</option>
                                     {venueList.filter(v => v.type === 'lecture').map(v => (
                                         <option key={v.id} value={v.name}>{v.name}</option>
                                     ))}
+                                    <option value="東京・福岡">東京・福岡</option>
+                                    <option value="参加しない">参加しない</option>
                                 </select>
                             </div>
                             <div>
@@ -2907,15 +2960,25 @@ export default function AdminDashboard() {
                                 <select
                                     className="border w-full p-2 rounded"
                                     value={createForm.social_venue || 'none'}
-                                    onChange={e => setCreateForm({ ...createForm, social_venue: e.target.value })}
+                                    onChange={e => handleCreateFieldChange('social_venue', e.target.value)}
                                 >
                                     <option value="none">参加しない</option>
-                                    <option value="懇親会東京のみ">懇親会東京のみ</option>
-                                    <option value="懇親会福岡のみ">懇親会福岡のみ</option>
-                                    <option value="懇親会両方">懇親会両方</option>
-                                    {venueList.filter(v => v.type === 'social').map(v => (
-                                        <option key={v.id} value={v.name}>{v.name}</option>
-                                    ))}
+                                    {(() => {
+                                        const lectureVenue = createForm.venue;
+                                        const socialVenues = venueList.filter(v => v.type === 'social');
+                                        const available = getSocialOptionsForLecture(lectureVenue, socialVenues);
+                                        
+                                        return (
+                                            <>
+                                                {available.map(v => (
+                                                    <option key={v.id} value={v.name}>{v.name}</option>
+                                                ))}
+                                                {lectureVenue === '東京・福岡' && !available.some(a => a.name === '東京・福岡') && (
+                                                    <option value="東京・福岡">東京・福岡</option>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
                                 </select>
                             </div>
 
@@ -2924,7 +2987,7 @@ export default function AdminDashboard() {
                                 <select
                                     className="border w-full p-2 rounded"
                                     value={createForm.applied_rank_name || '一般'}
-                                    onChange={e => setCreateForm({ ...createForm, applied_rank_name: e.target.value })}
+                                    onChange={e => handleCreateFieldChange('applied_rank_name', e.target.value)}
                                 >
                                     {ranks.map(r => (
                                         <option key={r.id} value={r.name}>{r.name}</option>
@@ -2947,7 +3010,7 @@ export default function AdminDashboard() {
                                 <select
                                     className="border w-full p-2 rounded"
                                     value={createForm.participation_type || 'venue'}
-                                    onChange={e => setCreateForm({ ...createForm, participation_type: e.target.value as 'venue' | 'online' })}
+                                    onChange={e => handleCreateFieldChange('participation_type', e.target.value as 'venue' | 'online')}
                                 >
                                     <option value="venue">会場</option>
                                     <option value="online">オンライン</option>
@@ -2960,7 +3023,7 @@ export default function AdminDashboard() {
                                     <select
                                         className="border w-full p-2 rounded"
                                         value={(createForm as any).online_venues || ''}
-                                        onChange={e => setCreateForm({ ...createForm, ...(e.target.value ? { online_venues: e.target.value as any } : { online_venues: undefined }) })}
+                                        onChange={e => handleCreateFieldChange('online_venues', e.target.value)}
                                     >
                                         <option value="">選択してください</option>
                                         <option value="東京">東京</option>

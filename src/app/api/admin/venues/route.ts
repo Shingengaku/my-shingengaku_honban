@@ -71,20 +71,50 @@ export async function DELETE(request: Request) {
 export async function PATCH(request: Request) {
     try {
         const body = await request.json();
-        const { id, is_recruitment_ended } = body;
+        const { id, name, type, sort_order, is_recruitment_ended } = body;
 
-        if (!id || typeof is_recruitment_ended !== 'boolean') {
-            return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 });
+        if (!id) {
+            return NextResponse.json({ error: 'ID is required' }, { status: 400 });
         }
+
+        // 以前の名称を取得（連動更新のため）
+        const { data: oldVenue } = await supabaseAdmin
+            .from('venues')
+            .select('name')
+            .eq('id', id)
+            .single();
+
+        const updateData: any = {};
+        if (name !== undefined) updateData.name = name;
+        if (type !== undefined) updateData.type = type;
+        if (sort_order !== undefined) updateData.sort_order = Number(sort_order);
+        if (is_recruitment_ended !== undefined) updateData.is_recruitment_ended = is_recruitment_ended;
 
         const { data, error } = await supabaseAdmin
             .from('venues')
-            .update({ is_recruitment_ended })
+            .update(updateData)
             .eq('id', id)
             .select()
             .single();
 
         if (error) throw error;
+
+        // 名称が変更された場合、申込データの会場名を一括更新
+        if (name && oldVenue && oldVenue.name !== name) {
+            console.log(`Renaming venue from "${oldVenue.name}" to "${name}" in applications...`);
+            
+            // 講義会場としての更新
+            await supabaseAdmin
+                .from('applications')
+                .update({ venue: name })
+                .eq('venue', oldVenue.name);
+
+            // 懇親会会場としての更新
+            await supabaseAdmin
+                .from('applications')
+                .update({ social_venue: name })
+                .eq('social_venue', oldVenue.name);
+        }
 
         return NextResponse.json(data);
     } catch (e) {
