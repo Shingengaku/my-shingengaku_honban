@@ -126,6 +126,8 @@ export async function POST(request: Request) {
             if (row.key === 'email_template_general') settings.email_template_general = row.value;
             if (row.key === 'email_template_free') settings.email_template_free = row.value;
             if (row.key === 'email_template_free_online') settings.email_template_free_online = row.value;
+            if (row.key === 'sender_name') settings.sender_name = row.value;
+            if (row.key === 'sender_email') settings.sender_email = row.value;
         });
 
         const paymentLinks = settings.payment_links || [];
@@ -259,14 +261,15 @@ export async function POST(request: Request) {
         const emailContent = processEmailTemplate(template.body, vars);
 
         try {
-            const fromEmail = process.env.FROM_EMAIL || 'noreply@resend.dev';
+            const fromEmail = settings.sender_email || process.env.FROM_EMAIL || 'noreply@resend.dev';
+            const fromName = settings.sender_name || '神言学事務局';
             let finalBcc = adminBccEmail ? [adminBccEmail] : undefined;
             if (adminEmail && adminBccEmail && adminEmail.toLowerCase() === adminBccEmail.toLowerCase()) {
                 finalBcc = undefined;
             }
 
             await resend.emails.send({
-                from: `神言学事務局 <${fromEmail}>`,
+                from: `${fromName} <${fromEmail}>`,
                 to: [email],
                 cc: adminEmail ? [adminEmail] : undefined,
                 bcc: finalBcc,

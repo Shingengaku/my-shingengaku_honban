@@ -1,4 +1,4 @@
-﻿
+
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
@@ -131,9 +131,19 @@ export async function POST(request: Request) {
                 supabaseAdmin.from('app_settings').upsert({ key: 'tax_rate_lecture', value: body.tax_rate_lecture }, { onConflict: 'key' })
             );
         }
-        if (typeof body.tax_rate_social !== 'undefined') {
+        if (typeof body.tax_rate_social !== undefined) {
             updates.push(
                 supabaseAdmin.from('app_settings').upsert({ key: 'tax_rate_social', value: body.tax_rate_social }, { onConflict: 'key' })
+            );
+        }
+        if (typeof body.sender_name !== 'undefined') {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'sender_name', value: body.sender_name }, { onConflict: 'key' })
+            );
+        }
+        if (typeof body.sender_email !== 'undefined') {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'sender_email', value: body.sender_email }, { onConflict: 'key' })
             );
         }
 

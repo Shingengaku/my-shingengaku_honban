@@ -12,7 +12,9 @@ export default function GlobalSettingsPage() {
         base_social_fee_tokyo: 11000,
         base_social_fee_fukuoka: 13000,
         tax_rate_lecture: 10,
-        tax_rate_social: 10
+        tax_rate_social: 10,
+        sender_name: '神言学事務局',
+        sender_email: ''
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -41,7 +43,9 @@ export default function GlobalSettingsPage() {
                         base_social_fee_tokyo: data.base_social_fee_tokyo !== undefined ? Number(data.base_social_fee_tokyo) : 11000,
                         base_social_fee_fukuoka: data.base_social_fee_fukuoka !== undefined ? Number(data.base_social_fee_fukuoka) : 13000,
                         tax_rate_lecture: data.tax_rate_lecture !== undefined ? Number(data.tax_rate_lecture) : 10,
-                        tax_rate_social: data.tax_rate_social !== undefined ? Number(data.tax_rate_social) : 10
+                        tax_rate_social: data.tax_rate_social !== undefined ? Number(data.tax_rate_social) : 10,
+                        sender_name: data.sender_name || '神言学事務局',
+                        sender_email: data.sender_email || ''
                     });
                 }
             } catch (e) {
@@ -212,6 +216,40 @@ export default function GlobalSettingsPage() {
                                     />
                                     <span className="ml-2 text-gray-600">%</span>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="border-t pt-6"></div>
+
+                    {/* 送信者情報設定 */}
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900 mb-2">メール送信者情報設定</h2>
+                        <p className="text-sm text-gray-600 mb-4">
+                            お申込み後の自動返信メールや事務局への通知に使用される送信者情報です。<br />
+                            ※送信元メールアドレスは認証済みのドメインである必要があります（例: @shingengaku.com）。
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">送信者名</label>
+                                <input
+                                    type="text"
+                                    className="w-full p-2 border rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                    placeholder="例：神言学事務局"
+                                    value={settings.sender_name}
+                                    onChange={(e) => setSettings({ ...settings, sender_name: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">送信元メールアドレス</label>
+                                <input
+                                    type="email"
+                                    className="w-full p-2 border rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                    placeholder="例：info@shingengaku.com"
+                                    value={settings.sender_email}
+                                    onChange={(e) => setSettings({ ...settings, sender_email: e.target.value })}
+                                />
+                                <p className="text-[10px] text-gray-500 mt-1">※未入力時（または認証エラー時）は環境変数のデフォルト設定が使用されます。</p>
                             </div>
                         </div>
                     </div>
