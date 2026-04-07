@@ -47,7 +47,7 @@ interface PaymentLinkItem {
     venue_social?: string;
     rank_id?: string;
     product_code?: string;
-    group?: 'tokushin' | 'terms' | 'executive' | 'referral';
+    group?: 'tokushin' | 'terms' | 'general' | 'executive' | 'referral';
 }
 
 interface Rank {
@@ -311,6 +311,7 @@ function SortableRow({
                     <option value="">自動 (属性準拠)</option>
                     <option value="tokushin">特進</option>
                     <option value="terms">通常(期)</option>
+                    <option value="general">一般 (未受講)</option>
                     <option value="executive">経営幹部</option>
                     <option value="referral">紹介(リファラル)</option>
                 </select>
@@ -968,6 +969,7 @@ export default function ProductMasterPage() {
                                 <option value="">自動 (属性マスタに準ずる)</option>
                                 <option value="tokushin">特進</option>
                                 <option value="terms">通常(期)</option>
+                                <option value="general">一般 (未受講)</option>
                                 <option value="executive">経営幹部</option>
                                 <option value="referral">紹介(リファラル)</option>
                             </select>

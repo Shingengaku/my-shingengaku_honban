@@ -52,7 +52,14 @@ interface PaymentLinkItem {
     venue_lecture?: string;
     venue_social?: string;
     rank_id?: string; // ランクID (照合用)
-    group?: 'tokushin' | 'terms' | 'executive' | 'referral'; // 集計グループ
+    product_code?: string;
+    group?: 'tokushin' | 'terms' | 'general' | 'executive' | 'referral';
+}
+
+interface Rank {
+    id: number | string;
+    name: string;
+    group: 'tokushin' | 'terms' | 'general' | 'executive' | 'referral';
 }
 
 interface Venue {
@@ -1190,8 +1197,9 @@ export default function AdminDashboard() {
                 if (masterRank?.group) {
                     if (masterRank.group === 'tokushin') return 1;
                     if (masterRank.group === 'terms') return 2;
-                    if (masterRank.group === 'executive') return 3;
-                    if (masterRank.group === 'referral') return 4;
+                    if (masterRank.group === 'general') return 3;
+                    if (masterRank.group === 'executive') return 4;
+                    if (masterRank.group === 'referral') return 5;
                 }
 
                 // 2. Product Master Check (by Payment Key)
@@ -1199,16 +1207,18 @@ export default function AdminDashboard() {
                 if (masterProduct?.group) {
                     if (masterProduct.group === 'tokushin') return 1;
                     if (masterProduct.group === 'terms') return 2;
-                    if (masterProduct.group === 'executive') return 3;
-                    if (masterProduct.group === 'referral') return 4;
+                    if (masterProduct.group === 'general') return 3;
+                    if (masterProduct.group === 'executive') return 4;
+                    if (masterProduct.group === 'referral') return 5;
                 }
 
                 // 3. Fallback keywords (Safety for new/unmatched data)
                 const vL = (app.venue || '').toLowerCase();
                 const k = (app.payment_key || '').toLowerCase();
                 if (rankName.includes('特進') || (app.members?.is_tokushin)) return 1;
-                if (rankName.includes('経営幹部')) return 3;
-                if (vL.includes('紹介') || vL.includes('ご紹介') || k.includes('紹介') || k.includes('ご紹介')) return 4;
+                if (rankName.includes('一般')) return 3;
+                if (rankName.includes('経営幹部')) return 4;
+                if (vL.includes('紹介') || vL.includes('ご紹介') || k.includes('紹介') || k.includes('ご紹介')) return 5;
 
                 return 2; // Default to Terms
             };
@@ -1264,8 +1274,9 @@ export default function AdminDashboard() {
                 return {
                     tokushin: list.filter(i => i.priority === 1).sort(sorterTerm),
                     terms: list.filter(i => i.priority === 2).sort(sorterTerm),
-                    executive: list.filter(i => i.priority === 3).sort(sorterName),
-                    referral: list.filter(i => i.priority === 4).sort(sorterName)
+                    general: list.filter(i => i.priority === 3).sort(sorterName),
+                    executive: list.filter(i => i.priority === 4).sort(sorterName),
+                    referral: list.filter(i => i.priority === 5).sort(sorterName)
                 };
             };
             const tokyoGroups = groupList(rawTokyo);
@@ -1376,10 +1387,13 @@ export default function AdminDashboard() {
             resT = renderBlock(rT, 0, exportTermLabel || '期生', tokyoGroups.terms, seqT);
             rT = resT.nextRow; seqT = resT.nextSeq;
 
+            resT = renderBlock(rT, 0, '一般 (未受講)', tokyoGroups.general, seqT);
+            rT = resT.nextRow; seqT = resT.nextSeq;
+
             resT = renderBlock(rT, 0, '経営幹部', tokyoGroups.executive, seqT);
             rT = resT.nextRow; seqT = resT.nextSeq;
 
-            resT = renderBlock(rT, 0, 'GoGo 55000 ご紹介', tokyoGroups.referral, seqT); // GoGo 55000 (Referral)
+            resT = renderBlock(rT, 0, 'GoGo 55000 ご紹介', tokyoGroups.referral, seqT);
             rT = resT.nextRow;
 
             if (rT > maxRow) maxRow = rT;
@@ -1393,10 +1407,13 @@ export default function AdminDashboard() {
             resF = renderBlock(rF, 4, exportTermLabel || '期生', fukuokaGroups.terms, seqF);
             rF = resF.nextRow; seqF = resF.nextSeq;
 
+            resF = renderBlock(rF, 4, '一般 (未受講)', fukuokaGroups.general, seqF);
+            rF = resF.nextRow; seqF = resF.nextSeq;
+
             resF = renderBlock(rF, 4, '経営幹部', fukuokaGroups.executive, seqF);
             rF = resF.nextRow; seqF = resF.nextSeq;
 
-            resF = renderBlock(rF, 4, 'GoGo 55000 ご紹介', fukuokaGroups.referral, seqF); // GoGo 55000 (Referral)
+            resF = renderBlock(rF, 4, 'GoGo 55000 ご紹介', fukuokaGroups.referral, seqF);
             rF = resF.nextRow;
 
             if (rF > maxRow) maxRow = rF;
@@ -1408,6 +1425,9 @@ export default function AdminDashboard() {
             rO = resO.nextRow; seqO = resO.nextSeq;
 
             resO = renderBlock(rO, 8, exportTermLabel || '期生', onlineGroups.terms, seqO);
+            rO = resO.nextRow; seqO = resO.nextSeq;
+
+            resO = renderBlock(rO, 8, '一般 (未受講)', onlineGroups.general, seqO);
             rO = resO.nextRow; seqO = resO.nextSeq;
 
             resO = renderBlock(rO, 8, '経営幹部', onlineGroups.executive, seqO);

@@ -25,7 +25,7 @@ interface Rank {
     name: string;
     base_fee: number;
     sort_order: number;
-    group: 'tokushin' | 'terms' | 'executive' | 'referral';
+    group: 'tokushin' | 'terms' | 'general' | 'executive' | 'referral';
 }
 
 function SortableRow({ rank, onEdit, onDelete }: { rank: Rank, onEdit: (rank: Rank) => void, onDelete: (id: number) => void }) {
@@ -59,9 +59,10 @@ function SortableRow({ rank, onEdit, onDelete }: { rank: Rank, onEdit: (rank: Ra
                         rank.group === 'tokushin' ? 'bg-purple-100 text-purple-700' :
                         rank.group === 'executive' ? 'bg-blue-100 text-blue-700' :
                         rank.group === 'referral' ? 'bg-orange-100 text-orange-700' :
+                        rank.group === 'general' ? 'bg-green-100 text-green-700' :
                         'bg-gray-100 text-gray-700'
                     }`}>
-                        {rank.group === 'tokushin' ? '特進' : rank.group === 'executive' ? '経営幹部' : rank.group === 'referral' ? 'ご紹介' : '期生'}
+                        {rank.group === 'tokushin' ? '特進' : rank.group === 'executive' ? '経営幹部' : rank.group === 'referral' ? 'ご紹介' : rank.group === 'general' ? '一般' : '期生'}
                     </span>
                     {isSystemRank && <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">システム固定</span>}
                 </div>
@@ -97,7 +98,7 @@ export default function RanksPage() {
     const [formData, setFormData] = useState({
         name: '',
         base_fee: '0',
-        group: 'terms' as 'tokushin' | 'terms' | 'executive' | 'referral'
+        group: 'terms' as 'tokushin' | 'terms' | 'general' | 'executive' | 'referral'
     });
 
     const sensors = useSensors(
@@ -387,10 +388,11 @@ export default function RanksPage() {
                                     value={formData.group}
                                     onChange={e => setFormData({ ...formData, group: e.target.value as any })}
                                 >
-                                    <option value="terms">期生 (一般)</option>
+                                    <option value="terms">期生</option>
+                                    <option value="general">一般 (未受講)</option>
                                     <option value="tokushin">特進</option>
                                     <option value="executive">経営幹部</option>
-                                    <option value="referral">ご紹介 / 未受講</option>
+                                    <option value="referral">ご紹介</option>
                                 </select>
                             </div>
                         </div>

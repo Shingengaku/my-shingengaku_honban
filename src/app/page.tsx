@@ -117,6 +117,13 @@ export default function Home() {
       return;
     }
 
+    // 一般の場合、紹介者名がない場合は「紹介者はいない」チェックが必須
+    if (!isStudent && !introducer && !noIntroducer) {
+      setError('ご紹介者様のお名前を入力いただくか、紹介者がいない場合はチェックを入れてください');
+      setLoading(false);
+      return;
+    }
+
     let finalVenue = '';
     let finalSocialVenue = '';
     let additionalRemarks = '';
