@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { name, base_fee, sort_order } = body;
+        const { name, base_fee, sort_order, group } = body;
 
         if (!name || base_fee === undefined || sort_order === undefined) {
             return NextResponse.json({ error: '必須フィールドが不足しています' }, { status: 400 });
@@ -40,7 +40,12 @@ export async function POST(request: Request) {
 
         const { data, error } = await supabaseAdmin
             .from('ranks')
-            .insert({ name, base_fee, sort_order })
+            .insert({ 
+                name, 
+                base_fee, 
+                sort_order, 
+                group: group || (name.includes('特進') ? 'tokushin' : (name.includes('経営幹部') ? 'executive' : (name.includes('紹介') ? 'referral' : 'terms')))
+            })
             .select()
             .single();
 
@@ -56,7 +61,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
     try {
         const body = await request.json();
-        const { id, name, base_fee, sort_order } = body;
+        const { id, name, base_fee, sort_order, group } = body;
 
         if (!id) return NextResponse.json({ error: 'IDは必須です' }, { status: 400 });
 
@@ -69,7 +74,7 @@ export async function PUT(request: Request) {
 
         const { data, error } = await supabaseAdmin
             .from('ranks')
-            .update({ name, base_fee, sort_order })
+            .update({ name, base_fee, sort_order, group })
             .eq('id', id)
             .select()
             .single();

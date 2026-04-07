@@ -25,6 +25,7 @@ interface Rank {
     name: string;
     base_fee: number;
     sort_order: number;
+    group: 'tokushin' | 'terms' | 'executive' | 'referral';
 }
 
 function SortableRow({ rank, onEdit, onDelete }: { rank: Rank, onEdit: (rank: Rank) => void, onDelete: (id: number) => void }) {
@@ -54,6 +55,14 @@ function SortableRow({ rank, onEdit, onDelete }: { rank: Rank, onEdit: (rank: Ra
             <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm font-medium text-gray-900">
                     {rank.name}
+                    <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${
+                        rank.group === 'tokushin' ? 'bg-purple-100 text-purple-700' :
+                        rank.group === 'executive' ? 'bg-blue-100 text-blue-700' :
+                        rank.group === 'referral' ? 'bg-orange-100 text-orange-700' :
+                        'bg-gray-100 text-gray-700'
+                    }`}>
+                        {rank.group === 'tokushin' ? '特進' : rank.group === 'executive' ? '経営幹部' : rank.group === 'referral' ? 'ご紹介' : '期生'}
+                    </span>
                     {isSystemRank && <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">システム固定</span>}
                 </div>
             </td>
@@ -87,7 +96,8 @@ export default function RanksPage() {
     // Form State
     const [formData, setFormData] = useState({
         name: '',
-        base_fee: '0'
+        base_fee: '0',
+        group: 'terms' as 'tokushin' | 'terms' | 'executive' | 'referral'
     });
 
     const sensors = useSensors(
@@ -122,13 +132,15 @@ export default function RanksPage() {
             setEditingRank(rank);
             setFormData({
                 name: rank.name,
-                base_fee: String(rank.base_fee)
+                base_fee: String(rank.base_fee),
+                group: rank.group || 'terms'
             });
         } else {
             setEditingRank(null);
             setFormData({
                 name: '',
-                base_fee: '0'
+                base_fee: '0',
+                group: 'terms'
             });
         }
         setShowModal(true);
@@ -151,7 +163,8 @@ export default function RanksPage() {
             id: editingRank?.id,
             name: formData.name,
             base_fee: Number(formData.base_fee),
-            sort_order: sortOrder
+            sort_order: sortOrder,
+            group: formData.group
         };
 
         const method = editingRank ? 'PUT' : 'POST';
@@ -232,8 +245,8 @@ export default function RanksPage() {
     };
 
     const handleExport = () => {
-        const headers = ['ID', '属性名', '会費', '並び順'];
-        const rows = ranks.map(r => [r.id, r.name, r.base_fee, r.sort_order]);
+        const headers = ['ID', '属性名', 'グループ', '会費', '並び順'];
+        const rows = ranks.map(r => [r.id, r.name, r.group, r.base_fee, r.sort_order]);
         const csvContent = [
             headers.join(','),
             ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
@@ -366,6 +379,19 @@ export default function RanksPage() {
                                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                                     placeholder="例: 一般"
                                 />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">集計グループ (エクセル用)</label>
+                                <select
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                                    value={formData.group}
+                                    onChange={e => setFormData({ ...formData, group: e.target.value as any })}
+                                >
+                                    <option value="terms">期生 (一般)</option>
+                                    <option value="tokushin">特進</option>
+                                    <option value="executive">経営幹部</option>
+                                    <option value="referral">ご紹介 / 未受講</option>
+                                </select>
                             </div>
                         </div>
                         <div className="mt-6 flex justify-end space-x-3">

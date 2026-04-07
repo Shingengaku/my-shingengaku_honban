@@ -22,7 +22,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { name, type, sort_order } = body;
+        const { name, type, sort_order, area } = body;
 
         if (!name || !type) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -33,7 +33,8 @@ export async function POST(request: Request) {
             .insert({
                 name,
                 type,
-                sort_order: sort_order ? Number(sort_order) : 0
+                sort_order: sort_order ? Number(sort_order) : 0,
+                area: area || (name.includes('福岡') ? 'fukuoka' : (name.includes('オンライン') || name.includes('LIVE') ? 'online' : 'tokyo'))
             })
             .select()
             .single();
@@ -71,7 +72,7 @@ export async function DELETE(request: Request) {
 export async function PATCH(request: Request) {
     try {
         const body = await request.json();
-        const { id, name, type, sort_order, is_recruitment_ended } = body;
+        const { id, name, type, sort_order, is_recruitment_ended, area } = body;
 
         if (!id) {
             return NextResponse.json({ error: 'ID is required' }, { status: 400 });
@@ -89,6 +90,7 @@ export async function PATCH(request: Request) {
         if (type !== undefined) updateData.type = type;
         if (sort_order !== undefined) updateData.sort_order = Number(sort_order);
         if (is_recruitment_ended !== undefined) updateData.is_recruitment_ended = is_recruitment_ended;
+        if (area !== undefined) updateData.area = area;
 
         const { data, error } = await supabaseAdmin
             .from('venues')

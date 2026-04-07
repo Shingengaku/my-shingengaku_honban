@@ -47,6 +47,7 @@ interface PaymentLinkItem {
     venue_social?: string;
     rank_id?: string;
     product_code?: string;
+    group?: 'tokushin' | 'terms' | 'executive' | 'referral';
 }
 
 interface Rank {
@@ -301,6 +302,19 @@ function SortableRow({
             <td className="p-2 align-top">
                 <input type="number" className="w-full border rounded px-1 py-1 text-right text-xs" value={item.social_fee} onChange={(e) => updateItem(index, { social_fee: e.target.value })} />
             </td>
+            <td className="p-2 align-top">
+                <select 
+                    className="w-full border rounded px-1 py-1 text-[10px] bg-indigo-50" 
+                    value={item.group || ''} 
+                    onChange={(e) => updateItem(index, { group: e.target.value as any })}
+                >
+                    <option value="">自動 (属性準拠)</option>
+                    <option value="tokushin">特進</option>
+                    <option value="terms">通常(期)</option>
+                    <option value="executive">経営幹部</option>
+                    <option value="referral">紹介(リファラル)</option>
+                </select>
+            </td>
             <td className="p-2 text-center align-top">
                 <button onClick={() => handleDelete(index)} className="text-red-500 hover:text-red-700 font-bold">✕</button>
             </td>
@@ -401,7 +415,8 @@ export default function ProductMasterPage() {
                         venue_lecture: item.venue_lecture || '',
                         venue_social: item.venue_social || '',
                         rank_id: item.rank_id || '',
-                        product_code: item.product_code || ''
+                        product_code: item.product_code || '',
+                        group: item.group || undefined
                     }));
                 } else if (val) {
                     // 旧フォーマットサポート
@@ -445,7 +460,8 @@ export default function ProductMasterPage() {
                 venue_lecture: item.venue_lecture,
                 venue_social: item.venue_social,
                 rank_id: item.rank_id,
-                product_code: item.product_code
+                product_code: item.product_code,
+                group: item.group || null
             }));
 
             // 2. 商品マスタ名を準備 (キーと順序を同期)
@@ -505,7 +521,8 @@ export default function ProductMasterPage() {
             venue_lecture: newItem.venue_lecture || '',
             venue_social: newItem.venue_social || '',
             rank_id: newItem.rank_id || '',
-            product_code: newItem.product_code || ''
+            product_code: newItem.product_code || '',
+            group: newItem.group as any
         };
 
         const newLinks = [...paymentLinks, addedItem];
@@ -516,7 +533,11 @@ export default function ProductMasterPage() {
         const success = await executeSave(newLinks, false);
 
         if (success) {
-            setNewItem({ name: '', url: '', lecture_fee: '0', social_fee: '0', venue_lecture: '', venue_social: '', rank_id: '', product_code: '' });
+            setNewItem({ 
+                name: '', url: '', lecture_fee: '0', social_fee: '0', 
+                venue_lecture: '', venue_social: '', rank_id: '', product_code: '',
+                group: undefined
+            });
         }
     };
 
@@ -937,6 +958,21 @@ export default function ProductMasterPage() {
                             <input type="number" className="w-full border p-2 rounded" value={newItem.social_fee} onChange={e => setNewItem({ ...newItem, social_fee: e.target.value })} />
                         </div>
 
+                        <div className="col-span-2">
+                            <label className="text-xs font-bold text-gray-500 mb-1 block italic text-indigo-600">集計グループ(任意)</label>
+                            <select
+                                className="w-full border p-2 rounded bg-indigo-50"
+                                value={newItem.group || ''}
+                                onChange={e => setNewItem({ ...newItem, group: e.target.value as any })}
+                            >
+                                <option value="">自動 (属性マスタに準ずる)</option>
+                                <option value="tokushin">特進</option>
+                                <option value="terms">通常(期)</option>
+                                <option value="executive">経営幹部</option>
+                                <option value="referral">紹介(リファラル)</option>
+                            </select>
+                        </div>
+
                         <div className="col-span-2 pt-5 md:col-start-11">
                             <button onClick={handleAddItem} className="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 font-bold">追加</button>
                         </div>
@@ -955,6 +991,7 @@ export default function ProductMasterPage() {
                                     <th className="p-3 border-b w-[8%]">懇親会</th>
                                     <th className="p-3 border-b w-[8%]">受講料</th>
                                     <th className="p-3 border-b w-[8%]">宴会費</th>
+                                    <th className="p-3 border-b w-[10%]">集計グループ</th>
                                     <th className="p-3 border-b w-[5%] text-center">削除</th>
                                 </tr>
                             </thead>

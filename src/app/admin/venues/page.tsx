@@ -25,10 +25,16 @@ interface Venue {
     name: string;
     type: 'lecture' | 'social';
     sort_order: number;
+    area: 'tokyo' | 'fukuoka' | 'online';
     is_recruitment_ended?: boolean;
 }
 
-function SortableItem({ venue, onDelete, onToggle }: { venue: Venue, onDelete: (id: number) => void, onToggle: (id: number, currentStatus: boolean) => void }) {
+function SortableItem({ venue, onDelete, onToggle, onUpdateArea }: { 
+    venue: Venue, 
+    onDelete: (id: number) => void, 
+    onToggle: (id: number, currentStatus: boolean) => void,
+    onUpdateArea: (id: number, area: 'tokyo' | 'fukuoka' | 'online') => void
+}) {
     const {
         attributes,
         listeners,
@@ -48,7 +54,20 @@ function SortableItem({ venue, onDelete, onToggle }: { venue: Venue, onDelete: (
                 <div {...attributes} {...listeners} className="cursor-grab text-gray-400 group-hover:text-gray-600 font-bold px-1" title="ドラッグして移動">
                     ⋮⋮
                 </div>
-                <span className={`font-medium ${venue.is_recruitment_ended ? 'text-gray-500 line-through' : 'text-gray-800'}`}>{venue.name}</span>
+                <div className="flex flex-col">
+                    <span className={`font-medium ${venue.is_recruitment_ended ? 'text-gray-500 line-through' : 'text-gray-800'}`}>{venue.name}</span>
+                    <div className="flex items-center gap-1 mt-1">
+                        <select
+                            value={venue.area}
+                            onChange={(e) => onUpdateArea(venue.id, e.target.value as any)}
+                            className="text-[10px] border rounded px-1 py-0 bg-white text-gray-600 focus:ring-1 focus:ring-indigo-300 outline-none"
+                        >
+                            <option value="tokyo">東京エリア</option>
+                            <option value="fukuoka">福岡エリア</option>
+                            <option value="online">オンライン</option>
+                        </select>
+                    </div>
+                </div>
             </div>
             <div className="flex items-center gap-4">
                 <label className="flex items-center cursor-pointer text-sm">
@@ -82,7 +101,9 @@ export default function VenueMasterPage() {
     const [saving, setSaving] = useState(false);
 
     const [newLectureVenue, setNewLectureVenue] = useState('');
+    const [newLectureArea, setNewLectureArea] = useState<'tokyo' | 'fukuoka' | 'online'>('tokyo');
     const [newSocialVenue, setNewSocialVenue] = useState('');
+    const [newSocialArea, setNewSocialArea] = useState<'tokyo' | 'fukuoka' | 'online'>('tokyo');
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -111,7 +132,7 @@ export default function VenueMasterPage() {
         }
     };
 
-    const addVenue = async (name: string, type: 'lecture' | 'social') => {
+    const addVenue = async (name: string, type: 'lecture' | 'social', area: 'tokyo' | 'fukuoka' | 'online') => {
         const trimmedName = name.trim();
         if (!trimmedName) return;
 
@@ -129,7 +150,7 @@ export default function VenueMasterPage() {
             const res = await fetch('/api/admin/venues', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: name.trim(), type, sort_order: nextSort })
+                body: JSON.stringify({ name: name.trim(), type, area, sort_order: nextSort })
             });
 
             if (res.ok) {
@@ -155,6 +176,23 @@ export default function VenueMasterPage() {
                 setVenues(venues.filter(v => v.id !== id));
             } else {
                 alert('削除に失敗しました');
+            }
+        } catch (e) {
+            alert('エラーが発生しました');
+        }
+    };
+
+    const updateArea = async (id: number, area: 'tokyo' | 'fukuoka' | 'online') => {
+        try {
+            const res = await fetch('/api/admin/venues', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, area })
+            });
+            if (res.ok) {
+                setVenues(venues.map(v => v.id === id ? { ...v, area } : v));
+            } else {
+                alert('更新に失敗しました');
             }
         } catch (e) {
             alert('エラーが発生しました');
@@ -230,8 +268,8 @@ export default function VenueMasterPage() {
     };
 
     const handleExport = () => {
-        const headers = ['ID', '会場名', 'タイプ(lecture/social)', '並び順'];
-        const rows = venues.map(v => [v.id, v.name, v.type, v.sort_order]);
+        const headers = ['ID', '会場名', 'タイプ(lecture/social)', 'エリア', '並び順'];
+        const rows = venues.map(v => [v.id, v.name, v.type, v.area, v.sort_order]);
         const csvContent = [
             headers.join(','),
             ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
@@ -319,9 +357,18 @@ export default function VenueMasterPage() {
                                     placeholder="例: 東京"
                                     value={newLectureVenue}
                                     onChange={e => setNewLectureVenue(e.target.value)}
-                                    onKeyDown={e => e.key === 'Enter' && addVenue(newLectureVenue, 'lecture')}
+                                    onKeyDown={e => e.key === 'Enter' && addVenue(newLectureVenue, 'lecture', newLectureArea)}
                                 />
-                                <button onClick={() => addVenue(newLectureVenue, 'lecture')} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 font-bold whitespace-nowrap">追加</button>
+                                <select
+                                    className="border rounded p-2 bg-white text-sm"
+                                    value={newLectureArea}
+                                    onChange={e => setNewLectureArea(e.target.value as any)}
+                                >
+                                    <option value="tokyo">東京</option>
+                                    <option value="fukuoka">福岡</option>
+                                    <option value="online">オンライン</option>
+                                </select>
+                                <button onClick={() => addVenue(newLectureVenue, 'lecture', newLectureArea)} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 font-bold whitespace-nowrap">追加</button>
                             </div>
 
                             <div className="bg-gray-50 rounded border overflow-hidden">
@@ -335,7 +382,7 @@ export default function VenueMasterPage() {
                                             {lectureVenues.length === 0 ? (
                                                 <div className="p-4 text-center text-gray-400 text-sm">登録なし</div>
                                             ) : lectureVenues.map((v) => (
-                                                <SortableItem key={v.id} venue={v} onDelete={removeVenue} onToggle={toggleRecruitmentStatus} />
+                                                <SortableItem key={v.id} venue={v} onDelete={removeVenue} onToggle={toggleRecruitmentStatus} onUpdateArea={updateArea} />
                                             ))}
                                         </SortableContext>
                                         <div className="p-3 flex justify-between items-center bg-gray-50 border-b group opacity-70">
@@ -363,9 +410,18 @@ export default function VenueMasterPage() {
                                     placeholder="例: 東京・福岡"
                                     value={newSocialVenue}
                                     onChange={e => setNewSocialVenue(e.target.value)}
-                                    onKeyDown={e => e.key === 'Enter' && addVenue(newSocialVenue, 'social')}
+                                    onKeyDown={e => e.key === 'Enter' && addVenue(newSocialVenue, 'social', newSocialArea)}
                                 />
-                                <button onClick={() => addVenue(newSocialVenue, 'social')} className="bg-pink-600 text-white px-4 py-2 rounded hover:bg-pink-700 font-bold whitespace-nowrap">追加</button>
+                                <select
+                                    className="border rounded p-2 bg-white text-sm"
+                                    value={newSocialArea}
+                                    onChange={e => setNewSocialArea(e.target.value as any)}
+                                >
+                                    <option value="tokyo">東京</option>
+                                    <option value="fukuoka">福岡</option>
+                                    <option value="online">オンライン</option>
+                                </select>
+                                <button onClick={() => addVenue(newSocialVenue, 'social', newSocialArea)} className="bg-pink-600 text-white px-4 py-2 rounded hover:bg-pink-700 font-bold whitespace-nowrap">追加</button>
                             </div>
 
                             <div className="bg-gray-50 rounded border overflow-hidden">
@@ -379,7 +435,7 @@ export default function VenueMasterPage() {
                                             {socialVenues.length === 0 ? (
                                                 <div className="p-4 text-center text-gray-400 text-sm">登録なし</div>
                                             ) : socialVenues.map((v) => (
-                                                <SortableItem key={v.id} venue={v} onDelete={removeVenue} onToggle={toggleRecruitmentStatus} />
+                                                <SortableItem key={v.id} venue={v} onDelete={removeVenue} onToggle={toggleRecruitmentStatus} onUpdateArea={updateArea} />
                                             ))}
                                         </SortableContext>
                                         <div className="p-3 flex justify-between items-center bg-gray-50 border-b group opacity-70">

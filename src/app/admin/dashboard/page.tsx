@@ -52,12 +52,14 @@ interface PaymentLinkItem {
     venue_lecture?: string;
     venue_social?: string;
     rank_id?: string; // ランクID (照合用)
+    group?: 'tokushin' | 'terms' | 'executive' | 'referral'; // 集計グループ
 }
 
 interface Venue {
     id: number;
     name: string;
     type: 'lecture' | 'social';
+    area: 'tokyo' | 'fukuoka' | 'online';
 }
 
 // 複数選択コンポーネント
@@ -404,7 +406,8 @@ export default function AdminDashboard() {
                         url: item.url || '',
                         venue_lecture: item.venue_lecture || '',
                         venue_social: item.venue_social || '',
-                        rank_id: item.rank_id ? String(item.rank_id) : undefined
+                        rank_id: item.rank_id ? String(item.rank_id) : undefined,
+                        group: item.group || undefined
                     }));
                 } else {
                     const linksObj = val || {};
@@ -475,7 +478,8 @@ export default function AdminDashboard() {
                 url: item.url,
                 venue_lecture: item.venue_lecture,
                 venue_social: item.venue_social,
-                rank_id: item.rank_id || null
+                rank_id: item.rank_id || null,
+                group: item.group || null
             }));
 
             const res = await fetch('/api/admin/settings', {
@@ -1178,33 +1182,64 @@ export default function AdminDashboard() {
                 }
             });
 
-            // Data Preparation
+            // Helper: Find Master-defined group priority (1:Tokushin, 2:Terms, 3:Executive, 4:Referral)
+            const getPriorityByMaster = (app: Application) => {
+                // 1. Rank Master Check
+                const rankName = app.applied_rank_name || app.members?.ranks?.name || '';
+                const masterRank = (ranks as any[]).find(r => r.name === rankName);
+                if (masterRank?.group) {
+                    if (masterRank.group === 'tokushin') return 1;
+                    if (masterRank.group === 'terms') return 2;
+                    if (masterRank.group === 'executive') return 3;
+                    if (masterRank.group === 'referral') return 4;
+                }
+
+                // 2. Product Master Check (by Payment Key)
+                const masterProduct = paymentLinksData.find(p => p.key === app.payment_key);
+                if (masterProduct?.group) {
+                    if (masterProduct.group === 'tokushin') return 1;
+                    if (masterProduct.group === 'terms') return 2;
+                    if (masterProduct.group === 'executive') return 3;
+                    if (masterProduct.group === 'referral') return 4;
+                }
+
+                // 3. Fallback keywords (Safety for new/unmatched data)
+                const vL = (app.venue || '').toLowerCase();
+                const k = (app.payment_key || '').toLowerCase();
+                if (rankName.includes('特進') || (app.members?.is_tokushin)) return 1;
+                if (rankName.includes('経営幹部')) return 3;
+                if (vL.includes('紹介') || vL.includes('ご紹介') || k.includes('紹介') || k.includes('ご紹介')) return 4;
+
+                return 2; // Default to Terms
+            };
+
+            // Helper: Find Master-defined area (tokyo, fukuoka, online)
+            const getAreaByMaster = (app: Application) => {
+                const venueName = app.venue || '';
+                const masterVenue = venueList.find(v => v.name === venueName && v.type === 'lecture');
+                if (masterVenue?.area) return masterVenue.area;
+                
+                // Fallback for Online or Keyword matching (Safety)
+                if (app.participation_type === 'online') return 'online';
+                if (venueName.includes('福岡')) return 'fukuoka';
+                if (venueName.includes('オンライン') || venueName.includes('LIVE') || venueName.includes('アーカイブ')) return 'online';
+                return 'tokyo';
+            };
+
+            // Data Preparation for rows
             const getMemberInfo = (app: Application) => {
-                let name = app.input_name + 'さま'; // Append suffix
+                let name = app.input_name + 'さま';
                 const rawGen = app.members?.generation;
                 const gen = (rawGen !== undefined && rawGen !== null) ? Number(rawGen) : 99;
-                const term = gen === 99 ? '' : `${gen}期`; // Use standard suffix for data
+                const term = gen === 99 ? '' : `${gen}期`;
                 const furigana = app.members?.furigana || app.input_furigana || '';
                 const vL = app.venue || '';
                 const vS = app.social_venue || '';
                 const isBoth = vL.includes('both') || vL.includes('東京・福岡') || vS.includes('both') || vS.includes('両方');
-                const paymentKey = app.payment_key || '';
 
-                let priority = 2; // Default to Terms
-                const rankName = app.applied_rank_name || app.members?.ranks?.name || '';
-                const isTokushin = app.members?.is_tokushin || rankName.includes('特進');
+                const priority = getPriorityByMaster(app);
 
-                // 優先度判定
-                if (isTokushin) {
-                    priority = 1;
-                } else if (rankName.includes('経営幹部')) {
-                    priority = 3;
-                } else if (vL.includes('紹介') || vL.includes('ご紹介') || paymentKey.includes('紹介') || paymentKey.includes('ご紹介')) {
-                    // 紹介 (GoGo 55000)
-                    priority = 4;
-                }
-
-                return { name, term, furigana, isBoth, gen, priority, rankName };
+                return { name, term, furigana, isBoth, gen, priority };
             };
 
             const normalizeKana = (str: string) => str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
@@ -1219,52 +1254,10 @@ export default function AdminDashboard() {
             // キャンセルされたデータは含まないようにする
             const uniqueApps = deduplicateApps(apps).filter(a => a.payment_status !== 'cancelled');
 
-            // Filter Lists
-            const rawTokyo = uniqueApps.filter(a => {
-                // オンライン参加者は除外
-                if (a.participation_type === 'online') return false;
-                
-                const v = a.venue || '';
-                const k = a.payment_key || '';
-
-                // Safety: If venue is explicitly Fukuoka only, exclude from Tokyo list
-                if ((v.includes('福岡') || v.includes('fukuoka')) &&
-                    !v.includes('東京') && !v.includes('tokyo') && !v.includes('both') && !v.includes('両方')) {
-                    return false;
-                }
-
-                // Standard match OR Referral match with Tokyo keyword
-                const isStandard = v.includes('東京') || v.includes('tokyo') || v.includes('both');
-                const isReferral = (v.includes('紹介') || v.includes('ご紹介') || k.includes('紹介') || k.includes('ご紹介')) &&
-                    (v.includes('東京') || k.includes('東京') || v.includes('Tokyo') || k.includes('Tokyo'));
-                return isStandard || isReferral;
-            }).map(getMemberInfo);
-
-            const rawFukuoka = uniqueApps.filter(a => {
-                // オンライン参加者は除外
-                if (a.participation_type === 'online') return false;
-
-                const v = a.venue || '';
-                const k = a.payment_key || '';
-
-                // Safety: If venue is explicitly Tokyo only, exclude from Fukuoka list
-                if ((v.includes('東京') || v.includes('tokyo')) &&
-                    !v.includes('福岡') && !v.includes('fukuoka') && !v.includes('both') && !v.includes('両方')) {
-                    return false;
-                }
-
-                // Standard match OR Referral match with Fukuoka keyword
-                const isStandard = v.includes('福岡') || v.includes('fukuoka') || v.includes('both');
-                const isReferral = (v.includes('紹介') || v.includes('ご紹介') || k.includes('紹介') || k.includes('ご紹介')) &&
-                    (v.includes('福岡') || k.includes('福岡') || v.includes('Fukuoka') || k.includes('Fukuoka'));
-                return isStandard || isReferral;
-            }).map(getMemberInfo);
-
-            const rawOnline = uniqueApps.filter(a => {
-                if (a.participation_type === 'online') return true;
-                const v = a.venue || '';
-                return v.includes('LIVE') || v.includes('オンライン') || v.includes('アーカイブ');
-            }).map(getMemberInfo);
+            // Filter Lists based on Master 'area'
+            const rawTokyo = uniqueApps.filter(a => getAreaByMaster(a) === 'tokyo').map(getMemberInfo);
+            const rawFukuoka = uniqueApps.filter(a => getAreaByMaster(a) === 'fukuoka').map(getMemberInfo);
+            const rawOnline = uniqueApps.filter(a => getAreaByMaster(a) === 'online').map(getMemberInfo);
 
             // Grouping Helper
             const groupList = (list: any[]) => {
