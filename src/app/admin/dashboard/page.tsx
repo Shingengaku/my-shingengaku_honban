@@ -178,7 +178,8 @@ export default function AdminDashboard() {
     const [emailTemplateFreeOnline, setEmailTemplateFreeOnline] = useState({ subject: '', body: '' }); // 0円(オンライン)
     const [emailTemplateResend, setEmailTemplateResend] = useState({ subject: '', body: '' });
     const [emailTemplateForgotPass, setEmailTemplateForgotPass] = useState({ subject: '', body: '' });
-    const [selectedTemplateTab, setSelectedTemplateTab] = useState<'matched' | 'general' | 'free' | 'free_online' | 'resend' | 'forgot'>('matched');
+    const [emailTemplateMultiple, setEmailTemplateMultiple] = useState({ subject: '', body: '' });
+    const [selectedTemplateTab, setSelectedTemplateTab] = useState<'matched' | 'general' | 'free' | 'free_online' | 'resend' | 'forgot' | 'multiple'>('matched');
     const [customResendModal, setCustomResendModal] = useState<{ isOpen: boolean, appId: string | null, subject: string, body: string, email: string }>({ isOpen: false, appId: null, subject: '', body: '', email: '' });
 
     const [adminEmail, setAdminEmail] = useState('');
@@ -341,6 +342,27 @@ export default function AdminDashboard() {
 ※リンクの有効期限は30分です。`
     };
 
+    const DEFAULT_TEMPLATE_MULTIPLE = {
+        subject: '【神言学】複数名でのお申し込みを承りました（事務局からの連絡をお待ちください）',
+        body: `{{name}} 様
+
+神言学講座へのお申込みありがとうございます。
+複数名でのお申し込みとして、以下の内容で受付いたしました。
+
+--------------------------------
+お名前: {{name}}
+判定属性: {{rank}}
+参加会場: {{venue}}
+懇親会: {{social_venue}}
+合計金額: {{amount}}
+--------------------------------
+
+複数名でのお申し込みの場合、合計金額を確認の上、事務局より別途お支払い案内（専用決済リンク等）をメールにてお送りいたします。
+
+お手数をおかけいたしますが、事務局からの次回の連絡をお待ちいただけますようお願い申し上げます。
+（本メールでの自動決済は不要です）`
+    };
+
     useEffect(() => {
         fetchApplications();
         fetchRanks(); // ランク惁E��を取征E
@@ -437,6 +459,7 @@ export default function AdminDashboard() {
                 setEmailTemplateFreeOnline(data.email_template_free_online || DEFAULT_TEMPLATE_FREE_ONLINE);
                 setEmailTemplateResend(data.email_template_resend || DEFAULT_TEMPLATE_RESEND);
                 setEmailTemplateForgotPass(data.email_template_forgot_pass || DEFAULT_TEMPLATE_FORGOT_PASS);
+                setEmailTemplateMultiple(data.email_template_multiple || DEFAULT_TEMPLATE_MULTIPLE);
 
                 // 基本懇親会費マスタをロード
                 if (data.base_social_fee_tokyo !== undefined) setBaseSocialFeeTokyo(Number(data.base_social_fee_tokyo));
@@ -499,6 +522,7 @@ export default function AdminDashboard() {
                     email_template_free_online: emailTemplateFreeOnline,
                     email_template_resend: emailTemplateResend,
                     email_template_forgot_pass: emailTemplateForgotPass,
+                    email_template_multiple: emailTemplateMultiple,
                     admin_email: adminEmail,
                     admin_bcc_email: adminBccEmail,
                     test_email: testEmail,
@@ -2721,6 +2745,12 @@ export default function AdminDashboard() {
                                 >
                                     パスワード忘れ
                                 </button>
+                                <button
+                                    className={`px-4 py-2 text-sm font-medium ${selectedTemplateTab === 'multiple' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                    onClick={() => setSelectedTemplateTab('multiple')}
+                                >
+                                    複数名
+                                </button>
                             </div>
 
                             <div className="bg-yellow-50 p-3 rounded text-xs mb-2">
@@ -2861,6 +2891,28 @@ export default function AdminDashboard() {
                                         />
                                     </div>
                                     <button onClick={() => setEmailTemplateForgotPass(DEFAULT_TEMPLATE_FORGOT_PASS)} className="text-xs text-blue-600 hover:underline mt-1">デフォルトに戻す</button>
+                                </>
+                            )}
+                            
+                            {selectedTemplateTab === 'multiple' && (
+                                <>
+                                    <div className="mb-2">
+                                        <label className="block text-sm text-gray-600 text-xs">件名(複数名申し込み)</label>
+                                        <input
+                                            className="border w-full p-2 rounded"
+                                            value={emailTemplateMultiple.subject}
+                                            onChange={e => setEmailTemplateMultiple({ ...emailTemplateMultiple, subject: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm text-gray-600 text-xs">本文</label>
+                                        <textarea
+                                            className="border w-full p-2 rounded h-60 font-mono text-sm"
+                                            value={emailTemplateMultiple.body}
+                                            onChange={e => setEmailTemplateMultiple({ ...emailTemplateMultiple, body: e.target.value })}
+                                        />
+                                    </div>
+                                    <button onClick={() => setEmailTemplateMultiple(DEFAULT_TEMPLATE_MULTIPLE)} className="text-xs text-blue-600 hover:underline mt-1">デフォルトに戻す</button>
                                 </>
                             )}
                         </div>

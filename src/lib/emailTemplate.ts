@@ -102,6 +102,27 @@ export const DEFAULT_EMAIL_TEMPLATE_RESEND = {
 {{payment_link_section}}`
 };
 
+export const DEFAULT_EMAIL_TEMPLATE_MULTIPLE = {
+    subject: '【神言学】複数名でのお申し込みを承りました（事務局からの連絡をお待ちください）',
+    body: `{{name}} 様
+
+神言学講座へのお申込みありがとうございます。
+複数名でのお申し込みとして、以下の内容で受付いたしました。
+
+--------------------------------
+お名前: {{name}}
+判定属性: {{rank}}
+参加会場: {{venue}}
+懇親会: {{social_venue}}
+合計金額: {{amount}}
+--------------------------------
+
+複数名でのお申し込みの場合、合計金額を確認の上、事務局より別途お支払い案内（専用決済リンク等）をメールにてお送りいたします。
+
+お手数をおかけいたしますが、事務局からの次回の連絡をお待ちいただけますようお願い申し上げます。
+（本メールでの自動決済は不要です）`
+};
+
 export const DEFAULT_EMAIL_TEMPLATE_FORGOT_PASS = {
     subject: '【神言学】パスワードリセットのご案内',
     body: `{{username}} 様

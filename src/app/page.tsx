@@ -45,6 +45,8 @@ export default function Home() {
 
   // LIVE視聴時の会場選択
   const [onlineLiveVenues, setOnlineLiveVenues] = useState<string[]>([]);
+  // 複数名申し込み
+  const [isMultiple, setIsMultiple] = useState(false);
   // 備考 (formDataにはないので別途管理、あるいはformDataに結合)
   // ここでは payload 作成時に結合します
 
@@ -178,7 +180,9 @@ export default function Home() {
         // 一般の場合は term_id を空にする
         term_id: isStudent ? formData.term_id : undefined,
         participation_type: participationType,
-        online_venues: onlineVenuesPayload
+        online_venues: onlineVenuesPayload,
+        is_multiple: isMultiple,
+        remarks: isMultiple ? `【複数名申込み希望】\n${formData.remarks}` : formData.remarks
       };
 
       const res = await fetch('/api/apply', {
@@ -782,6 +786,42 @@ export default function Home() {
                 )}
               </div>
             )}
+
+            {/* 複数名お申し込みオプション */}
+            <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg space-y-3">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isMultiple}
+                  onChange={(e) => setIsMultiple(e.target.checked)}
+                  className="h-5 w-5 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
+                />
+                <span className="ml-2 text-sm font-bold text-gray-800">複数名でのお申し込み（お連れ様がいる場合）</span>
+              </label>
+              
+              {isMultiple && (
+                <div className="animate-fade-in space-y-3">
+                  <p className="text-xs text-orange-700 leading-relaxed font-medium">
+                    ※複数名でのお申し込みの場合、システムからの自動決済は行えません。お申し込み完了後、事務局より合計金額と専用の決済リンクを別途メールにてご連絡させていただきます。
+                  </p>
+                  <div>
+                    <label htmlFor="remarks" className="block text-sm font-medium text-gray-700 mb-1">
+                      備考（お連れ様のお名前や内訳をご記入ください）
+                      <span className="text-red-500 ml-1">*必須</span>
+                    </label>
+                    <textarea
+                      id="remarks"
+                      required={isMultiple}
+                      rows={3}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 p-2 border"
+                      placeholder="例：東京会場2名、福岡会場1名の計3名での参加希望です。お連れ様：神言花子様、神言次郎様"
+                      value={formData.remarks}
+                      onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
 
             {error && <p className="text-red-500 text-sm">{error}</p>}
 

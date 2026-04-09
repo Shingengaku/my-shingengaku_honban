@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { resend } from '@/lib/resend';
-import { processEmailTemplate, DEFAULT_EMAIL_TEMPLATE, DEFAULT_EMAIL_TEMPLATE_GENERAL, DEFAULT_EMAIL_TEMPLATE_NO_PARTICIPATION } from '@/lib/emailTemplate';
+import { processEmailTemplate, DEFAULT_EMAIL_TEMPLATE, DEFAULT_EMAIL_TEMPLATE_GENERAL, DEFAULT_EMAIL_TEMPLATE_NO_PARTICIPATION, DEFAULT_EMAIL_TEMPLATE_MULTIPLE } from '@/lib/emailTemplate';
 import { normalizeVenue, getVenueDisplayName, matchProduct } from '@/lib/venueUtils';
 
 // 型定義
@@ -17,6 +17,7 @@ interface ApplyRequest {
     participation_type?: string;
     online_venues?: string;
     remarks?: string;
+    is_multiple?: boolean;
 }
 
 interface PaymentLinkItem {
@@ -38,8 +39,8 @@ interface AppSettings {
 
 export async function POST(request: Request) {
     try {
-        const body: ApplyRequest = await request.json();
-        let { name, furigana, email, venue, social_venue, term_id, introducer, no_introducer, participation_type, online_venues, remarks: userRemarks } = body;
+    const body: ApplyRequest = await request.json();
+    let { name, furigana, email, venue, social_venue, term_id, introducer, no_introducer, participation_type, online_venues, remarks: userRemarks, is_multiple } = body;
 
         // 0. データの正規化
         // 会場名を日本語名に正規化
@@ -126,6 +127,7 @@ export async function POST(request: Request) {
             if (row.key === 'email_template_general') settings.email_template_general = row.value;
             if (row.key === 'email_template_free') settings.email_template_free = row.value;
             if (row.key === 'email_template_free_online') settings.email_template_free_online = row.value;
+            if (row.key === 'email_template_multiple') settings.email_template_multiple = row.value;
             if (row.key === 'sender_name') settings.sender_name = row.value;
             if (row.key === 'sender_email') settings.sender_email = row.value;
         });
@@ -165,6 +167,13 @@ export async function POST(request: Request) {
         // 備考欄の作成
         const tags: string[] = [];
         let remarks = userRemarks ? userRemarks + '\n' : '';
+
+        if (is_multiple) {
+            tags.push('複数名');
+            if (!remarks.includes('【複数名申込み希望】')) {
+                remarks = '【複数名申込み希望】\n' + remarks;
+            }
+        }
 
         if (venue === '参加しない') {
             tags.push('不参加');
@@ -230,7 +239,10 @@ export async function POST(request: Request) {
         }
 
         let template;
-        if (venue === '参加しない') {
+        if (is_multiple) {
+            const dbTemplate = settings.email_template_multiple;
+            template = (dbTemplate && dbTemplate.subject) ? dbTemplate : DEFAULT_EMAIL_TEMPLATE_MULTIPLE;
+        } else if (venue === '参加しない') {
             template = DEFAULT_EMAIL_TEMPLATE_NO_PARTICIPATION;
         } else if (totalAmount === 0 && matchedProduct) {
             const dbTemplateVenue = settings.email_template_free;
@@ -253,8 +265,8 @@ export async function POST(request: Request) {
             rank: rankName,
             venue: displayVenue,
             social_venue: displaySocialVenue,
-            amount: totalAmount.toLocaleString(),
-            payment_link_section: (matchedProduct && paymentUrl && totalAmount > 0) ? paymentUrl : ''
+            amount: is_multiple ? '（事務局にて算出後、別途ご連絡）' : totalAmount.toLocaleString(),
+            payment_link_section: (!is_multiple && matchedProduct && paymentUrl && totalAmount > 0) ? paymentUrl : ''
         };
 
         const emailSubject = template.subject;
