@@ -1231,9 +1231,11 @@ export default function AdminDashboard() {
         // 判定対象を拡張（会場名またはオンライン詳細会場名）
         const searchStr = venueName + onlineVenue;
 
-        let area: 'tokyo' | 'fukuoka' = 'tokyo';
-        if (masterVenue?.area && (masterVenue.area === 'tokyo' || masterVenue.area === 'fukuoka')) {
-            area = masterVenue.area;
+        let area: 'tokyo' | 'fukuoka' | 'both' = 'tokyo';
+        if (masterVenue?.area && (masterVenue.area === 'tokyo' || masterVenue.area === 'fukuoka' || masterVenue.area === 'both')) {
+            area = masterVenue.area as any;
+        } else if (searchStr.includes('東京') && searchStr.includes('福岡')) {
+            area = 'both';
         } else if (searchStr.includes('福岡')) {
             area = 'fukuoka';
         } else if (searchStr.includes('東京')) {
@@ -1328,10 +1330,23 @@ export default function AdminDashboard() {
             const uniqueApps = deduplicateApps(apps).filter(a => a.payment_status !== 'cancelled');
 
             // Filter Lists based on Master 'area'
-            const rawTokyo = uniqueApps.filter(a => getAreaByMaster(a) === 'tokyo').map(getMemberInfo);
-            const rawFukuoka = uniqueApps.filter(a => getAreaByMaster(a) === 'fukuoka').map(getMemberInfo);
-            const rawOnlineTokyo = uniqueApps.filter(a => getAreaByMaster(a) === 'online_tokyo').map(getMemberInfo);
-            const rawOnlineFukuoka = uniqueApps.filter(a => getAreaByMaster(a) === 'online_fukuoka').map(getMemberInfo);
+            const rawTokyo = uniqueApps.filter(a => {
+                const area = getAreaByMaster(a);
+                return area === 'tokyo' || area === 'both';
+            }).map(getMemberInfo);
+            const rawFukuoka = uniqueApps.filter(a => {
+                const area = getAreaByMaster(a);
+                return area === 'fukuoka' || area === 'both';
+            }).map(getMemberInfo);
+            // Online split: searchStr could contain both, but usually online is one area or both
+            const rawOnlineTokyo = uniqueApps.filter(a => {
+                const area = getAreaByMaster(a);
+                return area === 'online_tokyo' || area === 'online_both';
+            }).map(getMemberInfo);
+            const rawOnlineFukuoka = uniqueApps.filter(a => {
+                const area = getAreaByMaster(a);
+                return area === 'online_fukuoka' || area === 'online_both';
+            }).map(getMemberInfo);
 
             // Grouping Helper
             const groupList = (list: any[]) => {
@@ -1389,27 +1404,33 @@ export default function AdminDashboard() {
 
             // Render Block Helper
             const renderBlock = (startRow: number, colOffset: number, title: string, data: any[], startSeq: number) => {
-                if (data.length === 0) return { nextRow: startRow, nextSeq: startSeq };
                 let currentRow = startRow;
-
+                
                 // Group Title
                 const titleCellRef = ws.getRow(currentRow).getCell(colOffset + 1);
                 ws.mergeCells(currentRow, colOffset + 1, currentRow, colOffset + 4);
                 titleCellRef.value = title;
+                titleCellRef.alignment = { vertical: 'middle', horizontal: 'center' };
+                titleCellRef.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: title.includes('配信分') ? 'FFD9EAD3' : 'FFD3D3D3' } // オンライン区分は薄緑、それ以外は薄グレー
+                };
                 titleCellRef.font = { bold: true };
-                titleCellRef.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD3D3D3' } };
                 titleCellRef.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
                 currentRow++;
 
+                if (data.length === 0) return { nextRow: currentRow, nextSeq: startSeq };
+
                 // Headers
                 const hRow = ws.getRow(currentRow);
-                const headers = ['No', '氏名', '期', '決済']; // Use standard label for header
+                const headers = ['No', '氏名', '期', '決済'];
                 [0, 1, 2, 3].forEach(i => {
                     const c = hRow.getCell(colOffset + 1 + i);
                     c.value = headers[i];
                     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } };
                     c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                    if (i === 1) c.alignment = { horizontal: 'center' };
+                    c.alignment = { horizontal: 'center' };
                 });
                 currentRow++;
 
@@ -1425,9 +1446,12 @@ export default function AdminDashboard() {
                     const statusLabels: Record<string, string> = { paid: '済み', unpaid: '未決済' };
 
                     c1.value = currentSeq++;
+                    c1.alignment = { horizontal: 'center' };
                     c2.value = d.name;
                     c3.value = d.term;
+                    c3.alignment = { horizontal: 'center' };
                     c4.value = statusLabels[d.paymentStatus] || '';
+                    c4.alignment = { horizontal: 'center' };
 
                     // Borders
                     [c1, c2, c3, c4].forEach(c => {
@@ -1441,7 +1465,7 @@ export default function AdminDashboard() {
                     currentRow++;
                 });
 
-                return { nextRow: currentRow, nextSeq: currentSeq }; // No spacer row added
+                return { nextRow: currentRow, nextSeq: currentSeq };
             };
 
             const startRow = 4;
@@ -1493,7 +1517,7 @@ export default function AdminDashboard() {
 
             // Online Tokyo Sub-section
             if (rawOnlineTokyo.length > 0) {
-                let resOT = renderBlock(rO, 10, 'オンライン（東京配信分）', [], 0); // Header only
+                let resOT = renderBlock(rO, 10, 'オンライン（東京配信分）', [], 0);
                 rO = resOT.nextRow;
                 resOT = renderBlock(rO, 10, '特進', onlineTokyoGroups.tokushin, seqO);
                 rO = resOT.nextRow; seqO = resOT.nextSeq;
@@ -1507,12 +1531,11 @@ export default function AdminDashboard() {
                 rO = resOT.nextRow; seqO = resOT.nextSeq;
             }
 
+            if (rO > startRow) rO++; // Spacer
+
             // Online Fukuoka Sub-section
             if (rawOnlineFukuoka.length > 0) {
-                // Add a small gap if there was the previous block
-                if (rO > startRow) rO++; 
-                
-                let resOF = renderBlock(rO, 10, 'オンライン（福岡配信分）', [], 0); // Header only
+                let resOF = renderBlock(rO, 10, 'オンライン（福岡配信分）', [], 0);
                 rO = resOF.nextRow;
                 resOF = renderBlock(rO, 10, '特進', onlineFukuokaGroups.tokushin, seqO);
                 rO = resOF.nextRow; seqO = resOF.nextSeq;
