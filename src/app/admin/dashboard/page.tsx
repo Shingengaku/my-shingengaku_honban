@@ -1220,6 +1220,29 @@ export default function AdminDashboard() {
     // Full Excel Export deleted for re-implementation
 
 
+    // Helper: Find Master-defined area (tokyo, fukuoka, online)
+    const getAreaByMaster = (app: Application) => {
+        const venueName = app.venue || '';
+        const masterVenue = venueList.find(v => v.name === venueName && v.type === 'lecture');
+        
+        const isOnline = app.participation_type === 'online' || venueName.includes('オンライン') || venueName.includes('LIVE') || venueName.includes('アーカイブ');
+        
+        // 初めに会場名から「東京」「福岡」が含まれるかチェック
+        let area: 'tokyo' | 'fukuoka' = 'tokyo';
+        if (masterVenue?.area && (masterVenue.area === 'tokyo' || masterVenue.area === 'fukuoka')) {
+            area = masterVenue.area;
+        } else if (venueName.includes('福岡')) {
+            area = 'fukuoka';
+        } else if (venueName.includes('東京')) {
+            area = 'tokyo';
+        }
+
+        if (isOnline) {
+            return `online_${area}`;
+        }
+        return area;
+    };
+
     // Simple Excel Export using exceljs
     const handleSimpleExcelExport = async () => {
         const monthStr = exportMonth || (new Date().getMonth() + 1).toString();
@@ -1273,19 +1296,6 @@ export default function AdminDashboard() {
                 return 2; // Default to Terms
             };
 
-            // Helper: Find Master-defined area (tokyo, fukuoka, online)
-            const getAreaByMaster = (app: Application) => {
-                const venueName = app.venue || '';
-                const masterVenue = venueList.find(v => v.name === venueName && v.type === 'lecture');
-                if (masterVenue?.area) return masterVenue.area;
-                
-                // Fallback for Online or Keyword matching (Safety)
-                if (app.participation_type === 'online') return 'online';
-                if (venueName.includes('福岡')) return 'fukuoka';
-                if (venueName.includes('オンライン') || venueName.includes('LIVE') || venueName.includes('アーカイブ')) return 'online';
-                return 'tokyo';
-            };
-
             // Data Preparation for rows
             const getMemberInfo = (app: Application) => {
                 let name = app.input_name + 'さま';
@@ -1299,7 +1309,7 @@ export default function AdminDashboard() {
 
                 const priority = getPriorityByMaster(app);
 
-                return { name, term, furigana, isBoth, gen, priority };
+                return { name, term, furigana, isBoth, gen, priority, paymentStatus: app.payment_status };
             };
 
             const normalizeKana = (str: string) => str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
@@ -1317,7 +1327,8 @@ export default function AdminDashboard() {
             // Filter Lists based on Master 'area'
             const rawTokyo = uniqueApps.filter(a => getAreaByMaster(a) === 'tokyo').map(getMemberInfo);
             const rawFukuoka = uniqueApps.filter(a => getAreaByMaster(a) === 'fukuoka').map(getMemberInfo);
-            const rawOnline = uniqueApps.filter(a => getAreaByMaster(a) === 'online').map(getMemberInfo);
+            const rawOnlineTokyo = uniqueApps.filter(a => getAreaByMaster(a) === 'online_tokyo').map(getMemberInfo);
+            const rawOnlineFukuoka = uniqueApps.filter(a => getAreaByMaster(a) === 'online_fukuoka').map(getMemberInfo);
 
             // Grouping Helper
             const groupList = (list: any[]) => {
@@ -1331,21 +1342,22 @@ export default function AdminDashboard() {
             };
             const tokyoGroups = groupList(rawTokyo);
             const fukuokaGroups = groupList(rawFukuoka);
-            const onlineGroups = groupList(rawOnline);
+            const onlineTokyoGroups = groupList(rawOnlineTokyo);
+            const onlineFukuokaGroups = groupList(rawOnlineFukuoka);
 
-            // Columns (3 cols + spacers)
-            const colWidths = [4, 18, 6];
+            // Columns (4 cols + spacers)
+            const colWidths = [4, 14, 5, 5];
             const spacerWidth = 2;
             ws.columns = [
-                { width: colWidths[0] }, { width: colWidths[1] }, { width: colWidths[2] },
+                { width: colWidths[0] }, { width: colWidths[1] }, { width: colWidths[2] }, { width: colWidths[3] },
                 { width: spacerWidth },
-                { width: colWidths[0] }, { width: colWidths[1] }, { width: colWidths[2] },
+                { width: colWidths[0] }, { width: colWidths[1] }, { width: colWidths[2] }, { width: colWidths[3] },
                 { width: spacerWidth },
-                { width: colWidths[0] }, { width: colWidths[1] }, { width: colWidths[2] },
+                { width: colWidths[0] }, { width: colWidths[1] }, { width: colWidths[2] }, { width: colWidths[3] },
             ];
 
             // Headers
-            ws.mergeCells('A1:K1');
+            ws.mergeCells('A1:N1');
             const titleCell = ws.getCell('A1');
             titleCell.value = `神言学集中講座 ${monthStr}月`;
             titleCell.font = { size: 16, bold: true };
@@ -1354,23 +1366,23 @@ export default function AdminDashboard() {
 
             // Counts Row
             ws.getRow(2).height = 40; // Ensure height for 2 lines
-            ws.mergeCells('A2:C2');
+            ws.mergeCells('A2:D2');
             ws.getCell('A2').value = `東京会場 ${monthStr}月${exportTokyoDate}\n参加者: ${rawTokyo.length}名`;
             ws.getCell('A2').font = { bold: true };
             ws.getCell('A2').alignment = { wrapText: true, horizontal: 'center', vertical: 'middle' };
             ws.getCell('A2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
 
-            ws.mergeCells('E2:G2');
-            ws.getCell('E2').value = `福岡会場 ${monthStr}月${exportFukuokaDate}\n参加者: ${rawFukuoka.length}名`;
-            ws.getCell('E2').font = { bold: true };
-            ws.getCell('E2').alignment = { wrapText: true, horizontal: 'center', vertical: 'middle' };
-            ws.getCell('E2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
+            ws.mergeCells('F2:I2');
+            ws.getCell('F2').value = `福岡会場 ${monthStr}月${exportFukuokaDate}\n参加者: ${rawFukuoka.length}名`;
+            ws.getCell('F2').font = { bold: true };
+            ws.getCell('F2').alignment = { wrapText: true, horizontal: 'center', vertical: 'middle' };
+            ws.getCell('F2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
 
-            ws.mergeCells('I2:K2');
-            ws.getCell('I2').value = `オンライン配信\n申込者: ${rawOnline.length}名`;
-            ws.getCell('I2').font = { bold: true };
-            ws.getCell('I2').alignment = { wrapText: true, horizontal: 'center', vertical: 'middle' };
-            ws.getCell('I2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
+            ws.mergeCells('K2:N2');
+            ws.getCell('K2').value = `オンライン配信\n申込者: ${rawOnlineTokyo.length + rawOnlineFukuoka.length}名`;
+            ws.getCell('K2').font = { bold: true };
+            ws.getCell('K2').alignment = { wrapText: true, horizontal: 'center', vertical: 'middle' };
+            ws.getCell('K2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
 
             // Render Block Helper
             const renderBlock = (startRow: number, colOffset: number, title: string, data: any[], startSeq: number) => {
@@ -1379,7 +1391,7 @@ export default function AdminDashboard() {
 
                 // Group Title
                 const titleCellRef = ws.getRow(currentRow).getCell(colOffset + 1);
-                ws.mergeCells(currentRow, colOffset + 1, currentRow, colOffset + 3);
+                ws.mergeCells(currentRow, colOffset + 1, currentRow, colOffset + 4);
                 titleCellRef.value = title;
                 titleCellRef.font = { bold: true };
                 titleCellRef.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD3D3D3' } };
@@ -1388,8 +1400,8 @@ export default function AdminDashboard() {
 
                 // Headers
                 const hRow = ws.getRow(currentRow);
-                const headers = ['No', '氏名', '期']; // Use standard label for header
-                [0, 1, 2].forEach(i => {
+                const headers = ['No', '氏名', '期', '決済']; // Use standard label for header
+                [0, 1, 2, 3].forEach(i => {
                     const c = hRow.getCell(colOffset + 1 + i);
                     c.value = headers[i];
                     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } };
@@ -1405,13 +1417,17 @@ export default function AdminDashboard() {
                     const c1 = r.getCell(colOffset + 1);
                     const c2 = r.getCell(colOffset + 2);
                     const c3 = r.getCell(colOffset + 3);
+                    const c4 = r.getCell(colOffset + 4);
+
+                    const statusLabels: Record<string, string> = { paid: '済み', unpaid: '未決済' };
 
                     c1.value = currentSeq++;
                     c2.value = d.name;
                     c3.value = d.term;
+                    c4.value = statusLabels[d.paymentStatus] || '';
 
                     // Borders
-                    [c1, c2, c3].forEach(c => {
+                    [c1, c2, c3, c4].forEach(c => {
                         c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
                     });
 
@@ -1451,19 +1467,19 @@ export default function AdminDashboard() {
             // Fukuoka Render
             let rF = startRow;
             let seqF = 1;
-            let resF = renderBlock(rF, 4, '特進', fukuokaGroups.tokushin, seqF);
+            let resF = renderBlock(rF, 5, '特進', fukuokaGroups.tokushin, seqF);
             rF = resF.nextRow; seqF = resF.nextSeq;
 
-            resF = renderBlock(rF, 4, exportTermLabel || '期生', fukuokaGroups.terms, seqF);
+            resF = renderBlock(rF, 5, exportTermLabel || '期生', fukuokaGroups.terms, seqF);
             rF = resF.nextRow; seqF = resF.nextSeq;
 
-            resF = renderBlock(rF, 4, '一般 (未受講)', fukuokaGroups.general, seqF);
+            resF = renderBlock(rF, 5, '一般 (未受講)', fukuokaGroups.general, seqF);
             rF = resF.nextRow; seqF = resF.nextSeq;
 
-            resF = renderBlock(rF, 4, '経営幹部', fukuokaGroups.executive, seqF);
+            resF = renderBlock(rF, 5, '経営幹部', fukuokaGroups.executive, seqF);
             rF = resF.nextRow; seqF = resF.nextSeq;
 
-            resF = renderBlock(rF, 4, 'GoGo 55000 ご紹介', fukuokaGroups.referral, seqF);
+            resF = renderBlock(rF, 5, 'GoGo 55000 ご紹介', fukuokaGroups.referral, seqF);
             rF = resF.nextRow;
 
             if (rF > maxRow) maxRow = rF;
@@ -1471,27 +1487,48 @@ export default function AdminDashboard() {
             // Online Render
             let rO = startRow;
             let seqO = 1;
-            let resO = renderBlock(rO, 8, '特進', onlineGroups.tokushin, seqO);
-            rO = resO.nextRow; seqO = resO.nextSeq;
 
-            resO = renderBlock(rO, 8, exportTermLabel || '期生', onlineGroups.terms, seqO);
-            rO = resO.nextRow; seqO = resO.nextSeq;
+            // Online Tokyo Sub-section
+            if (rawOnlineTokyo.length > 0) {
+                let resOT = renderBlock(rO, 10, 'オンライン（東京配信分）', [], 0); // Header only
+                rO = resOT.nextRow;
+                resOT = renderBlock(rO, 10, '特進', onlineTokyoGroups.tokushin, seqO);
+                rO = resOT.nextRow; seqO = resOT.nextSeq;
+                resOT = renderBlock(rO, 10, exportTermLabel || '期生', onlineTokyoGroups.terms, seqO);
+                rO = resOT.nextRow; seqO = resOT.nextSeq;
+                resOT = renderBlock(rO, 10, '一般 (未受講)', onlineTokyoGroups.general, seqO);
+                rO = resOT.nextRow; seqO = resOT.nextSeq;
+                resOT = renderBlock(rO, 10, '経営幹部', onlineTokyoGroups.executive, seqO);
+                rO = resOT.nextRow; seqO = resOT.nextSeq;
+                resOT = renderBlock(rO, 10, 'GoGo 55000 ご紹介', onlineTokyoGroups.referral, seqO);
+                rO = resOT.nextRow; seqO = resOT.nextSeq;
+            }
 
-            resO = renderBlock(rO, 8, '一般 (未受講)', onlineGroups.general, seqO);
-            rO = resO.nextRow; seqO = resO.nextSeq;
-
-            resO = renderBlock(rO, 8, '経営幹部', onlineGroups.executive, seqO);
-            rO = resO.nextRow; seqO = resO.nextSeq;
-
-            resO = renderBlock(rO, 8, 'GoGo 55000 ご紹介', onlineGroups.referral, seqO);
-            rO = resO.nextRow;
+            // Online Fukuoka Sub-section
+            if (rawOnlineFukuoka.length > 0) {
+                // Add a small gap if there was the previous block
+                if (rO > startRow) rO++; 
+                
+                let resOF = renderBlock(rO, 10, 'オンライン（福岡配信分）', [], 0); // Header only
+                rO = resOF.nextRow;
+                resOF = renderBlock(rO, 10, '特進', onlineFukuokaGroups.tokushin, seqO);
+                rO = resOF.nextRow; seqO = resOF.nextSeq;
+                resOF = renderBlock(rO, 10, exportTermLabel || '期生', onlineFukuokaGroups.terms, seqO);
+                rO = resOF.nextRow; seqO = resOF.nextSeq;
+                resOF = renderBlock(rO, 10, '一般 (未受講)', onlineFukuokaGroups.general, seqO);
+                rO = resOF.nextRow; seqO = resOF.nextSeq;
+                resOF = renderBlock(rO, 10, '経営幹部', onlineFukuokaGroups.executive, seqO);
+                rO = resOF.nextRow; seqO = resOF.nextSeq;
+                resOF = renderBlock(rO, 10, 'GoGo 55000 ご紹介', onlineFukuokaGroups.referral, seqO);
+                rO = resOF.nextRow;
+            }
 
             if (rO > maxRow) maxRow = rO;
 
             // Render Remarks if exists
             if (exportRemarks) {
                 const remarksRow = maxRow + 2;
-                ws.mergeCells(`A${remarksRow}:K${remarksRow}`);
+                ws.mergeCells(`A${remarksRow}:N${remarksRow}`);
                 const remarksCell = ws.getCell(`A${remarksRow}`);
                 remarksCell.value = exportRemarks;
                 remarksCell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
@@ -1587,16 +1624,19 @@ export default function AdminDashboard() {
             createSheet('全データ', () => true);
             createSheet('東京会場', a => {
                 const v = a.venue || '';
-                return v.includes('東京') || v.includes('tokyo') || v.includes('both');
+                return (v.includes('東京') || v.includes('tokyo') || v.includes('both')) && a.participation_type !== 'online';
             });
             createSheet('福岡会場', a => {
                 const v = a.venue || '';
-                return v.includes('福岡') || v.includes('fukuoka') || v.includes('both');
+                return (v.includes('福岡') || v.includes('fukuoka') || v.includes('both')) && a.participation_type !== 'online';
             });
-            createSheet('オンライン', a => {
-                if (a.participation_type === 'online') return true;
-                const v = a.venue || '';
-                return v.includes('LIVE') || v.includes('オンライン') || v.includes('アーカイブ');
+            createSheet('オンライン（東京）', a => {
+                const area = getAreaByMaster(a);
+                return area === 'online_tokyo';
+            });
+            createSheet('オンライン（福岡）', a => {
+                const area = getAreaByMaster(a);
+                return area === 'online_fukuoka';
             });
 
             const buf = await wb.xlsx.writeBuffer();
