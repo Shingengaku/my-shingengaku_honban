@@ -126,6 +126,47 @@ const MultiSelect = ({ label, options, selected, onChange, width = "w-40" }: { l
     );
 };
 
+// 判定ロジック群（参照の順序を考慮して最上部に配置、コンポーネント外に定義して安定化）
+const getParticipationStatus = (app: any, venueList: any[] = []) => {
+    const venueName = (app.venue || '').trim();
+    const onlineVenueInput = (app.online_venues || '').trim();
+    const pType = (app.participation_type || '').toLowerCase().trim();
+
+    // 強力なキーワード判定
+    const onlineKeywords = ['オンライン', 'LIVE', 'ライブ', '視聴', 'アーカイブ', '配信'];
+    const hasOnlineKeyword = onlineKeywords.some(k => venueName.toUpperCase().includes(k.toUpperCase()));
+    const isExplicitOnline = pType === 'online' || hasOnlineKeyword;
+
+    let venueArea: 'tokyo' | 'fukuoka' | 'both' | null = null;
+    let onlineArea: 'tokyo' | 'fukuoka' | 'both' | null = null;
+
+    // 1. オンライン判定（オンライン・配信のキーワードがあれば必ずonlineAreaとして処理）
+    if (isExplicitOnline || onlineVenueInput) {
+        const v = (onlineVenueInput || venueName).toUpperCase();
+        if (v.includes('東京') && v.includes('福岡')) onlineArea = 'both';
+        else if (v.includes('福岡')) onlineArea = 'fukuoka';
+        else if (v.includes('東京')) onlineArea = 'tokyo';
+        else onlineArea = 'tokyo'; 
+    }
+
+    // 2. 実会場判定（isExplicitOnlineがTRUEの場合は、この人のこのレコードは実会場としてカウントしない）
+    if (!isExplicitOnline) {
+        const v = venueName.toUpperCase();
+        const masterVenue = venueList.find(mv => mv.name === venueName && mv.type === 'lecture');
+        if (masterVenue?.area && ['tokyo', 'fukuoka', 'both'].includes(masterVenue.area)) {
+            venueArea = masterVenue.area;
+        } else if (v.includes('東京') && v.includes('福岡')) {
+            venueArea = 'both';
+        } else if (v.includes('福岡')) {
+            venueArea = 'fukuoka';
+        } else if (v.includes('東京')) {
+            venueArea = 'tokyo';
+        }
+    }
+
+    return { venueArea, onlineArea };
+};
+
 export default function AdminDashboard() {
     const [apps, setApps] = useState<Application[]>([]);
     const [loading, setLoading] = useState(true);
@@ -149,6 +190,7 @@ export default function AdminDashboard() {
     const [filterVenueSocial, setFilterVenueSocial] = useState<Set<string>>(new Set());
     // オンライン視�Eフィルター
     const [filterOnlineOption, setFilterOnlineOption] = useState<Set<string>>(new Set());
+    const [filterOnlineArea, setFilterOnlineArea] = useState<Set<string>>(new Set());
     const [filterParticipationType, setFilterParticipationType] = useState<'all' | 'venue' | 'online'>('all');
 
     // 編雁E��ーダルの状慁E
@@ -189,15 +231,58 @@ export default function AdminDashboard() {
     const [onlineOptionMaster, setOnlineOptionMaster] = useState<{ id: string, name: string }[]>([]);
     const [ranks, setRanks] = useState<{ id: number, name: string }[]>([]);
     const [termMaster, setTermMaster] = useState<number[]>([]);
-    const [applicationActive, setApplicationActive] = useState(true); // 申込受付スチE�Eタス
+    const [applicationActive, setApplicationActive] = useState(true);
 
-    // ソート機�Eの状慁E
+    // ソート機能の状態
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
-    // 簡易エクセル出力設定
-    const [exportMonth, setExportMonth] = useState('');
-    const [exportTokyoDate, setExportTokyoDate] = useState('15日(日)');
-    const [exportFukuokaDate, setExportFukuokaDate] = useState('22日(日)');
+
+    // 追加：人物単位の参加状況マップ（名寄せはせず、判定のみで使用）
+    const personStatusMap = useMemo(() => {
+        const map = new Map<string, { venueArea: Set<string>, onlineArea: Set<string> }>();
+        apps.forEach(app => {
+            if ((app.payment_status || '').toLowerCase() === 'cancelled') return;
+            // 氏名から全ての空白を除去して表記揺れを吸収
+            const name = (app.input_name || '').replace(/\s+/g, '');
+            const email = (app.input_email || '').toLowerCase().trim();
+            const key = `${name}|${email}`;
+            if (!key || key === '|') return;
+
+            if (!map.has(key)) map.set(key, { venueArea: new Set(), onlineArea: new Set() });
+            const status = getParticipationStatus(app, venueList);
+            const entry = map.get(key)!;
+            
+            if (status.venueArea === 'both') { 
+                entry.venueArea.add('tokyo'); 
+                entry.venueArea.add('fukuoka'); 
+            } else if (status.venueArea) {
+                entry.venueArea.add(status.venueArea);
+            }
+
+            if (status.onlineArea === 'both') { 
+                entry.onlineArea.add('tokyo'); 
+                entry.onlineArea.add('fukuoka'); 
+            } else if (status.onlineArea) {
+                entry.onlineArea.add(status.onlineArea);
+            }
+        });
+
+        const result = new Map<string, { isBoth: boolean, isHybrid: boolean, debug: string }>();
+        map.forEach((areas, key) => {
+            const hasTokyo = areas.venueArea.has('tokyo');
+            const hasFukuoka = areas.venueArea.has('fukuoka');
+            const isBoth = hasTokyo && hasFukuoka;
+            
+            const hasAnyVenue = areas.venueArea.size > 0;
+            const hasAnyOnline = areas.onlineArea.size > 0;
+            // 実会場とオンラインの混在（実会場重複がない場合のみ緑）
+            const isHybrid = !isBoth && hasAnyVenue && hasAnyOnline;
+            
+            const debug = `V:[${Array.from(areas.venueArea).join(',')}] O:[${Array.from(areas.onlineArea).join(',')}]`;
+            result.set(key, { isBoth, isHybrid, debug });
+        });
+        return result;
+    }, [apps, venueList]);
     const [exportTermLabel, setExportTermLabel] = useState('期'); // デフォルト「期」
     const [exportRemarks, setExportRemarks] = useState('');
 
@@ -1085,70 +1170,13 @@ export default function AdminDashboard() {
     // 同一人物と思われるレコード（氏名、Email、商品、会場が一致）を名寄せする
     // 優先順位: 決済済 > 最新の更新
     const deduplicateApps = (sourceApps: Application[]) => {
-        const map = new Map<string, Application>();
-
-        sourceApps.forEach(app => {
-            try {
-                // 名前・Email・（あれば）電話番号をキーにする
-                const name = app.input_name?.trim() || '不明';
-                const email = (app.input_email || (app as any).email || (app as any).input_email || '').toLowerCase().trim();
-                const phone = ((app as any).input_phone || (app as any).phone || '').replace(/-/g, '').trim();
-                const key = `${name}|${email}|${phone}`;
-
-                const existing = map.get(key);
-                if (existing) {
-                    // 会場情報をマージ（両方の会場が含まれるようにする）
-                    const v1 = (existing.venue || '').split(/[、, ]+/);
-                    const v2 = (app.venue || '').split(/[、, ]+/);
-                    const mergedVenue = Array.from(new Set([...v1, ...v2])).filter(Boolean).join(', ');
-
-                    const o1 = (existing.online_venues || '').split(/[、, ]+/);
-                    const o2 = (app.online_venues || '').split(/[、, ]+/);
-                    const mergedOnline = Array.from(new Set([...o1, ...o2])).filter(Boolean).join(', ');
-
-                    const s1 = (existing.social_venue || '').split(/[、, ]+/);
-                    const s2 = (app.social_venue || '').split(/[、, ]+/);
-                    const mergedSocial = Array.from(new Set([...s1, ...s2])).filter(Boolean).join(', ');
-
-                    const mergedApp = {
-                        ...existing,
-                        venue: mergedVenue,
-                        online_venues: mergedOnline,
-                        social_venue: mergedSocial
-                    };
-
-                    // ステータス優先順位: paid > 他
-                    if (app.payment_status === 'paid' && existing.payment_status !== 'paid') {
-                        map.set(key, { ...app, venue: mergedVenue, online_venues: mergedOnline, social_venue: mergedSocial });
-                    } else if (app.payment_status === existing.payment_status && new Date(app.updated_at || 0) > new Date(existing.updated_at || 0)) {
-                        map.set(key, { ...app, venue: mergedVenue, online_venues: mergedOnline, social_venue: mergedSocial });
-                    } else {
-                        map.set(key, mergedApp);
-                    }
-                } else {
-                    map.set(key, app);
-                }
-            } catch (err) {
-                console.error('Deduplicate error:', err);
-                map.set(Math.random().toString(), app);
-            }
-        });
-
-        return Array.from(map.values());
+        // 現在の要件：名寄せ（重複排除）を停止。それぞれの申込レコードを独立して管理可能にする。
+        return sourceApps;
     };
 
     const exportCSV = (useFilter: boolean = true) => {
-        // useFilterがtrueの場合は画面上のフィルタ結果(filteredApps)を使うが、
-        // 全データ(apps)の場合でもfilteredAppsを使う構成になっているため修正の余地あり。
-        // ここでは、useFilter=falseなら全データ(apps)を対象にし、かつ重複排除を行う。
-        // useFilter=true(表示中のみ)なら、ユーザーが見ているそのままを出力すべきか、そこでも重複排除すべきか？
-        // -> 「エクセル書き出しの際、またはCSV出力の際に...」という要望なので、基本的に出力時は重複排除する方針とする。
-
-        // ソースリスト
-        let sourceList = useFilter ? [...filteredApps] : [...apps];
-
-        // 重複排除を実施
-        const targetApps = deduplicateApps(sourceList);
+        // 全レコードを出力（名寄せしない：合計金額不整合回避のため）
+        let targetApps = useFilter ? [...filteredApps] : [...apps];
 
         // ソート順定義
         const rankOrder: Record<string, number> = {
@@ -1162,20 +1190,16 @@ export default function AdminDashboard() {
 
         // ソートロジック
         targetApps.sort((a, b) => {
-            // 1. ランク優先度
             const rankA = a.applied_rank_name || a.members?.ranks?.name || 'ゲスト';
             const rankB = b.applied_rank_name || b.members?.ranks?.name || 'ゲスト';
-
             const rDiff = getRankOrder(rankA) - getRankOrder(rankB);
             if (rDiff !== 0) return rDiff;
 
-            // 2. 期(昇順)
             const genA = a.members?.generation || 9999;
             const genB = b.members?.generation || 9999;
             const gDiff = genA - genB;
             if (gDiff !== 0) return gDiff;
 
-            // 3. ふりがな (昇順)
             const furiA = a.members?.furigana || a.input_furigana || '';
             const furiB = b.members?.furigana || b.input_furigana || '';
             return furiA.localeCompare(furiB, 'ja');
@@ -1230,65 +1254,6 @@ export default function AdminDashboard() {
 
     // Full Excel Export deleted for re-implementation
 
-
-    // Helper: Find Master-defined area (tokyo, fukuoka, online)
-    const getParticipationStatus = (app: Application) => {
-        const venueName = app.venue || '';
-        const onlineVenueInput = app.online_venues || '';
-        const socialVenue = app.social_venue || '';
-        
-        const isOnlineKeyword = (s: string) => ['オンライン', 'LIVE', 'アーカイブ'].some(k => s.includes(k));
-
-        // 1. 実会場エリアの判定
-        let venueArea: 'tokyo' | 'fukuoka' | 'both' | null = null;
-        const venueParts = venueName.split(/[、, ]+/).filter(Boolean);
-        const physicalParts = venueParts.filter(p => !isOnlineKeyword(p));
-        
-        if (physicalParts.length > 0) {
-            const physStr = physicalParts.join('');
-            const masterVenue = venueList.find(v => physicalParts.includes(v.name) && v.type === 'lecture');
-            if (masterVenue?.area && ['tokyo', 'fukuoka', 'both'].includes(masterVenue.area)) {
-                venueArea = masterVenue.area as any;
-            } else if (physStr.includes('東京') && physStr.includes('福岡')) {
-                venueArea = 'both';
-            } else if (physStr.includes('福岡')) {
-                venueArea = 'fukuoka';
-            } else if (physStr.includes('東京')) {
-                venueArea = 'tokyo';
-            }
-        }
-
-        // 2. オンラインエリアの判定
-        let onlineArea: 'tokyo' | 'fukuoka' | 'both' | null = null;
-        
-        // online_venues カラムでの明示的な指定を最優先
-        if (onlineVenueInput.includes('東京') && onlineVenueInput.includes('福岡')) {
-            onlineArea = 'both';
-        } else if (onlineVenueInput.includes('福岡')) {
-            onlineArea = 'fukuoka';
-        } else if (onlineVenueInput.includes('東京')) {
-            onlineArea = 'tokyo';
-        } else {
-            // online_venues に情報がない場合、venue カラム内のオンライン系キーワードを解析
-            const onlineInVenue = venueParts.filter(isOnlineKeyword).join('');
-            if (onlineInVenue.includes('東京') && onlineInVenue.includes('福岡')) {
-                onlineArea = 'both';
-            } else if (onlineInVenue.includes('福岡')) {
-                onlineArea = 'fukuoka';
-            } else if (onlineInVenue.includes('東京')) {
-                onlineArea = 'tokyo';
-            } else if (app.participation_type === 'online') {
-                // それでもエリアが不明な場合のみ、実会場名やデフォルト（東京）を適用
-                if (venueName.includes('福岡')) {
-                    onlineArea = 'fukuoka';
-                } else {
-                     onlineArea = 'tokyo'; // 最終デフォルト
-                }
-            }
-        }
-
-        return { venueArea, onlineArea };
-    };
 
     // Simple Excel Export using exceljs
     const handleSimpleExcelExport = async () => {
@@ -1345,20 +1310,22 @@ export default function AdminDashboard() {
 
             // Data Preparation for rows
             const getMemberInfo = (app: Application) => {
-                const { venueArea, onlineArea } = getParticipationStatus(app);
+                const nameKey = `${(app.input_name || '').replace(/\s+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
+                const personStatus = personStatusMap.get(nameKey);
+                
                 let name = app.input_name + 'さま';
                 const rawGen = app.members?.generation;
                 const gen = (rawGen !== undefined && rawGen !== null) ? Number(rawGen) : 99;
                 const term = gen === 99 ? '' : `${gen}期`;
                 const furigana = app.members?.furigana || app.input_furigana || '';
                 
-                // 実会場とオンライン合わせて両方のエリアが含まれていれば赤文字
-                const allAreas = [venueArea, onlineArea].filter(Boolean);
-                const isBoth = allAreas.includes('both') || (allAreas.includes('tokyo') && allAreas.includes('fukuoka'));
+                // 集約ステータスを使用
+                const isBoth = personStatus?.isBoth || false;
+                const isHybrid = personStatus?.isHybrid || false;
 
                 const priority = getPriorityByMaster(app);
 
-                return { name, term, furigana, isBoth, gen, priority, paymentStatus: app.payment_status };
+                return { name, term, furigana, isBoth, isHybrid, gen, priority, paymentStatus: app.payment_status };
             };
 
             const normalizeKana = (str: string) => str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
@@ -1371,26 +1338,28 @@ export default function AdminDashboard() {
             };
 
             // キャンセルされたデータは含まないようにする
-            const uniqueApps = deduplicateApps(apps).filter(a => (a.payment_status || '').toLowerCase() !== 'cancelled');
+            // キャンセルされたデータは含まないようにする
+            // 名寄せせず、全ての有効な申込みを走査（2カ所参加、ハイブリッド等を漏れなく抽出）
+            const allValidApps = apps.filter(a => (a.payment_status || '').toLowerCase() !== 'cancelled');
 
             // Filter Lists based on Unified Status
-            const rawTokyo = uniqueApps.filter(a => {
-                const status = getParticipationStatus(a);
+            const rawTokyo = allValidApps.filter(a => {
+                const status = getParticipationStatus(a, venueList);
                 return status.venueArea === 'tokyo' || status.venueArea === 'both';
             }).map(getMemberInfo);
 
-            const rawFukuoka = uniqueApps.filter(a => {
-                const status = getParticipationStatus(a);
+            const rawFukuoka = allValidApps.filter(a => {
+                const status = getParticipationStatus(a, venueList);
                 return status.venueArea === 'fukuoka' || status.venueArea === 'both';
             }).map(getMemberInfo);
 
-            const rawOnlineTokyo = uniqueApps.filter(a => {
-                const status = getParticipationStatus(a);
+            const rawOnlineTokyo = allValidApps.filter(a => {
+                const status = getParticipationStatus(a, venueList);
                 return status.onlineArea === 'tokyo' || status.onlineArea === 'both';
             }).map(getMemberInfo);
 
-            const rawOnlineFukuoka = uniqueApps.filter(a => {
-                const status = getParticipationStatus(a);
+            const rawOnlineFukuoka = allValidApps.filter(a => {
+                const status = getParticipationStatus(a, venueList);
                 return status.onlineArea === 'fukuoka' || status.onlineArea === 'both';
             }).map(getMemberInfo);
 
@@ -1504,9 +1473,11 @@ export default function AdminDashboard() {
                         c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
                     });
 
-                    // Highlight 'Both' matches
+                    // Highlight 'Both' matches or 'Hybrid'
                     if (d.isBoth) {
                         c2.font = { color: { argb: 'FFFF0000' } };
+                    } else if (d.isHybrid) {
+                        c2.font = { color: { argb: 'FF00B050' } }; // Standard Excel Green
                     }
                     currentRow++;
                 });
@@ -1641,7 +1612,7 @@ export default function AdminDashboard() {
         try {
             const ExcelJS = (await import('exceljs')).default;
             const wb = new ExcelJS.Workbook();
-            const uniqueApps = deduplicateApps(apps);
+            const allValidApps = apps.filter(a => (a.payment_status || '').toLowerCase() !== 'cancelled');
 
             const createSheet = (sheetName: string, filterFn: (a: Application) => boolean) => {
                 const ws = wb.addWorksheet(sheetName);
@@ -1667,7 +1638,7 @@ export default function AdminDashboard() {
                 ws.getRow(1).font = { bold: true };
                 ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } };
 
-                const data = uniqueApps.filter(filterFn).map(app => {
+                const data = allValidApps.filter(filterFn).map(app => {
                     const rank = app.applied_rank_name || app.members?.ranks?.name || '一般';
                     const gen = app.members?.generation ? `${app.members.generation}期` : '-';
                     const tokushin = app.members?.is_tokushin ? '特進' : '';
@@ -1697,20 +1668,20 @@ export default function AdminDashboard() {
 
             createSheet('全データ', () => true);
             createSheet('東京会場', a => {
-                const v = a.venue || '';
-                return (v.includes('東京') || v.includes('tokyo') || v.includes('both')) && a.participation_type !== 'online';
+                const status = getParticipationStatus(a, venueList);
+                return status.venueArea === 'tokyo' || status.venueArea === 'both';
             });
             createSheet('福岡会場', a => {
-                const v = a.venue || '';
-                return (v.includes('福岡') || v.includes('fukuoka') || v.includes('both')) && a.participation_type !== 'online';
+                const status = getParticipationStatus(a, venueList);
+                return status.venueArea === 'fukuoka' || status.venueArea === 'both';
             });
             createSheet('オンライン（東京）', a => {
-                const area = getAreaByMaster(a);
-                return area === 'online_tokyo';
+                const status = getParticipationStatus(a, venueList);
+                return status.onlineArea === 'tokyo' || status.onlineArea === 'both';
             });
             createSheet('オンライン（福岡）', a => {
-                const area = getAreaByMaster(a);
-                return area === 'online_fukuoka';
+                const status = getParticipationStatus(a, venueList);
+                return status.onlineArea === 'fukuoka' || status.onlineArea === 'both';
             });
 
             const buf = await wb.xlsx.writeBuffer();
@@ -1868,20 +1839,24 @@ export default function AdminDashboard() {
             if (!filterVenueSocial.has(s)) return false;
         }
 
-        // Online Option Filter
+        // Online Option Filter (Type)
         if (filterOnlineOption.size > 0) {
-            // もし参加タイプがオンライン以外なら、このフィルターで除外すべきか？
-            // -> はい。オンライン視聴タイプを持っているオンライン参加者を探しているため。
-            // また、app.venue に視聴タイプ名が入っている前提
-
-            // 参加タイプチェック (補完ロジックに依存)
-            const pType = app.participation_type || (app.venue && ['LIVE視聴', 'アーカイブ視聴'].some((o: string) => app.venue?.includes(o)) ? 'online' : 'venue');
-
-            if (pType !== 'online') return false;
-
-            // 値チェック
+            const status = getParticipationStatus(app, venueList);
+            if (!status.onlineArea) return false;
             const v = app.venue || '';
             if (!filterOnlineOption.has(v)) return false;
+        }
+
+        // Online Area Filter (Location)
+        if (filterOnlineArea.size > 0) {
+            const status = getParticipationStatus(app, venueList);
+            if (!status.onlineArea) return false;
+            if (status.onlineArea === 'both') {
+                // If the user has both, and we selected either Tokyo or Fukuoka, it should match
+                if (!filterOnlineArea.has('tokyo') && !filterOnlineArea.has('fukuoka') && !filterOnlineArea.has('both')) return false;
+            } else if (!filterOnlineArea.has(status.onlineArea)) {
+                return false;
+            }
         }
 
         return true;
@@ -1991,6 +1966,10 @@ export default function AdminDashboard() {
     const uniqueVenueSocialOptions = Array.from(new Map(venueSocialOptions.map(item => [item.value, item])).values());
 
     const uniqueOnlineOptions = onlineOptionMaster.map(o => ({ label: o.name, value: o.name }));
+    const onlineAreaOptions = [
+        { label: '東京配信分', value: 'tokyo' },
+        { label: '福岡配信分', value: 'fukuoka' }
+    ];
 
 
     return (
@@ -2011,6 +1990,7 @@ export default function AdminDashboard() {
                         </div>
                         <button onClick={fetchApplications} className="text-sm text-blue-600 hover:underline">再読込</button>
                         <button onClick={() => fetchSettings(true)} className="text-sm text-gray-600 hover:text-gray-900 border px-3 py-1 rounded">設定変更</button>
+                        <span className="text-[10px] text-gray-400 mr-2">Logic Ver 2.1 (Security Patch applied)</span>
                         <button onClick={handleLogout} className='text-sm text-red-600 hover:bg-red-50 border border-red-200 px-3 py-1 rounded ml-2'>ログアウト</button>
                     </div>
                 </div>
@@ -2101,6 +2081,13 @@ export default function AdminDashboard() {
                             selected={filterOnlineOption}
                             onChange={setFilterOnlineOption}
                             width="w-48"
+                        />
+                        <MultiSelect
+                            label='全ての配信拠点'
+                            options={onlineAreaOptions}
+                            selected={filterOnlineArea}
+                            onChange={setFilterOnlineArea}
+                            width="w-40"
                         />
                     </div>
 
@@ -2380,8 +2367,23 @@ export default function AdminDashboard() {
                                         </td>
 
                                         <td className="px-6 py-4 whitespace-nowrap align-top">
-                                            <div className="text-sm font-medium text-gray-900">
-                                                {app.input_name}
+                                            <div className="text-sm font-medium">
+                                                <span 
+                                                    className={(() => {
+                                                        const nameKey = `${(app.input_name || '').replace(/\s+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
+                                                        const personStatus = personStatusMap.get(nameKey);
+                                                        
+                                                        if (personStatus?.isBoth) return 'text-red-600 font-bold underline decoration-red-300';
+                                                        if (personStatus?.isHybrid) return 'text-green-600 font-bold';
+                                                        return 'text-gray-900';
+                                                    })()}
+                                                    title={(() => {
+                                                        const nameKey = `${(app.input_name || '').replace(/\s+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
+                                                        return personStatusMap.get(nameKey)?.debug || '';
+                                                    })()}
+                                                >
+                                                    {app.input_name}
+                                                </span>
                                                 {(nameCounts[app.input_name.trim()] || 0) > 1 && !isIgnored && (
                                                     <div className="mt-1">
                                                         {app.is_duplicate_confirmed ? (
