@@ -1515,10 +1515,11 @@ export default function AdminDashboard() {
             let rO = startRow;
             let seqO = 1;
 
-            // Online Tokyo Sub-section
+            // Online Tokyo Sub-section (Always show header to clarify 0 applicants)
+            let resOT = renderBlock(rO, 10, 'オンライン（東京配信分）', [], 0);
+            rO = resOT.nextRow;
+            
             if (rawOnlineTokyo.length > 0) {
-                let resOT = renderBlock(rO, 10, 'オンライン（東京配信分）', [], 0);
-                rO = resOT.nextRow;
                 resOT = renderBlock(rO, 10, '特進', onlineTokyoGroups.tokushin, seqO);
                 rO = resOT.nextRow; seqO = resOT.nextSeq;
                 resOT = renderBlock(rO, 10, exportTermLabel || '期生', onlineTokyoGroups.terms, seqO);
@@ -1531,12 +1532,13 @@ export default function AdminDashboard() {
                 rO = resOT.nextRow; seqO = resOT.nextSeq;
             }
 
-            if (rO > startRow) rO++; // Spacer
+            rO++; // Spacer
 
-            // Online Fukuoka Sub-section
+            // Online Fukuoka Sub-section (Always show header)
+            let resOF = renderBlock(rO, 10, 'オンライン（福岡配信分）', [], 0);
+            rO = resOF.nextRow;
+            
             if (rawOnlineFukuoka.length > 0) {
-                let resOF = renderBlock(rO, 10, 'オンライン（福岡配信分）', [], 0);
-                rO = resOF.nextRow;
                 resOF = renderBlock(rO, 10, '特進', onlineFukuokaGroups.tokushin, seqO);
                 rO = resOF.nextRow; seqO = resOF.nextSeq;
                 resOF = renderBlock(rO, 10, exportTermLabel || '期生', onlineFukuokaGroups.terms, seqO);
