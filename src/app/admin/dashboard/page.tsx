@@ -1234,30 +1234,47 @@ export default function AdminDashboard() {
     // Helper: Find Master-defined area (tokyo, fukuoka, online)
     const getParticipationStatus = (app: Application) => {
         const venueName = app.venue || '';
-        const onlineVenue = app.online_venues || '';
+        const onlineVenueInput = app.online_venues || '';
         const socialVenue = app.social_venue || '';
-        const participationType = app.participation_type || '';
-        const searchStr = (venueName + onlineVenue + socialVenue).trim();
-
-        // 1. マスターデータからエリアを特定
-        const masterVenue = venueList.find(v => v.name === venueName && v.type === 'lecture');
         
-        let area: 'tokyo' | 'fukuoka' | 'both' = 'tokyo';
-        if (masterVenue?.area && (['tokyo', 'fukuoka', 'both'].includes(masterVenue.area))) {
-            area = masterVenue.area as any;
-        } else if (searchStr.includes('東京') && searchStr.includes('福岡')) {
-            area = 'both';
-        } else if (searchStr.includes('福岡')) {
-            area = 'fukuoka';
-        } else if (searchStr.includes('東京')) {
-            area = 'tokyo';
+        const isOnlineKeyword = (s: string) => ['オンライン', 'LIVE', 'アーカイブ'].some(k => s.includes(k));
+
+        // 1. 実会場エリアの判定
+        let venueArea: 'tokyo' | 'fukuoka' | 'both' | null = null;
+        const venueParts = venueName.split(/[、, ]+/).filter(Boolean);
+        const physicalParts = venueParts.filter(p => !isOnlineKeyword(p));
+        
+        if (physicalParts.length > 0) {
+            const physStr = physicalParts.join('');
+            const masterVenue = venueList.find(v => physicalParts.includes(v.name) && v.type === 'lecture');
+            if (masterVenue?.area && ['tokyo', 'fukuoka', 'both'].includes(masterVenue.area)) {
+                venueArea = masterVenue.area as any;
+            } else if (physStr.includes('東京') && physStr.includes('福岡')) {
+                venueArea = 'both';
+            } else if (physStr.includes('福岡')) {
+                venueArea = 'fukuoka';
+            } else if (physStr.includes('東京')) {
+                venueArea = 'tokyo';
+            }
         }
 
-        // 2. オンライン判定
-        const isOnline = participationType === 'online' || 
-            ['オンライン', 'LIVE', 'アーカイブ'].some(s => searchStr.includes(s));
+        // 2. オンラインエリアの判定
+        let onlineArea: 'tokyo' | 'fukuoka' | 'both' | null = null;
+        const onlinePartsStr = (venueParts.filter(isOnlineKeyword).join('') + onlineVenueInput + socialVenue).trim();
+        
+        if (onlinePartsStr.length > 0 || app.participation_type === 'online') {
+            if (onlinePartsStr.includes('東京') && onlinePartsStr.includes('福岡')) {
+                onlineArea = 'both';
+            } else if (onlinePartsStr.includes('福岡')) {
+                onlineArea = 'fukuoka';
+            } else if (onlinePartsStr.includes('東京')) {
+                onlineArea = 'tokyo';
+            } else if (app.participation_type === 'online') {
+                onlineArea = 'tokyo'; // デフォルト
+            }
+        }
 
-        return { area, isOnline };
+        return { venueArea, onlineArea };
     };
 
     // Simple Excel Export using exceljs
@@ -1315,15 +1332,16 @@ export default function AdminDashboard() {
 
             // Data Preparation for rows
             const getMemberInfo = (app: Application) => {
-                const { area } = getParticipationStatus(app);
+                const { venueArea, onlineArea } = getParticipationStatus(app);
                 let name = app.input_name + 'さま';
                 const rawGen = app.members?.generation;
                 const gen = (rawGen !== undefined && rawGen !== null) ? Number(rawGen) : 99;
                 const term = gen === 99 ? '' : `${gen}期`;
                 const furigana = app.members?.furigana || app.input_furigana || '';
                 
-                // エリア判定が both の場合のみ赤文字対象とする
-                const isBoth = area === 'both';
+                // 実会場とオンライン合わせて両方のエリアが含まれていれば赤文字
+                const allAreas = [venueArea, onlineArea].filter(Boolean);
+                const isBoth = allAreas.includes('both') || (allAreas.includes('tokyo') && allAreas.includes('fukuoka'));
 
                 const priority = getPriorityByMaster(app);
 
@@ -1340,27 +1358,27 @@ export default function AdminDashboard() {
             };
 
             // キャンセルされたデータは含まないようにする
-            const uniqueApps = deduplicateApps(apps).filter(a => a.payment_status !== 'cancelled');
+            const uniqueApps = deduplicateApps(apps).filter(a => (a.payment_status || '').toLowerCase() !== 'cancelled');
 
             // Filter Lists based on Unified Status
             const rawTokyo = uniqueApps.filter(a => {
                 const status = getParticipationStatus(a);
-                return !status.isOnline && (status.area === 'tokyo' || status.area === 'both');
+                return status.venueArea === 'tokyo' || status.venueArea === 'both';
             }).map(getMemberInfo);
 
             const rawFukuoka = uniqueApps.filter(a => {
                 const status = getParticipationStatus(a);
-                return !status.isOnline && (status.area === 'fukuoka' || status.area === 'both');
+                return status.venueArea === 'fukuoka' || status.venueArea === 'both';
             }).map(getMemberInfo);
 
             const rawOnlineTokyo = uniqueApps.filter(a => {
                 const status = getParticipationStatus(a);
-                return status.isOnline && (status.area === 'tokyo' || status.area === 'both');
+                return status.onlineArea === 'tokyo' || status.onlineArea === 'both';
             }).map(getMemberInfo);
 
             const rawOnlineFukuoka = uniqueApps.filter(a => {
                 const status = getParticipationStatus(a);
-                return status.isOnline && (status.area === 'fukuoka' || status.area === 'both');
+                return status.onlineArea === 'fukuoka' || status.onlineArea === 'both';
             }).map(getMemberInfo);
 
             // Grouping Helper
