@@ -1088,38 +1088,49 @@ export default function AdminDashboard() {
         const map = new Map<string, Application>();
 
         sourceApps.forEach(app => {
-            // 名寄せキーの生成
-            // 名前Email会場懇親会商品(Key)
-            // 空白のゆらぎをある程度許容するかは要検討だが、まずは完全一致かつTrim済みで比較
-            const key = [
-                app.input_name.trim(),
-                app.input_email.trim(),
-                app.venue || '',
-                app.social_venue || '',
-                app.payment_key || ''
-            ].join('|');
+            try {
+                // 名前・Email・（あれば）電話番号をキーにする
+                const name = app.input_name?.trim() || '不明';
+                const email = (app.input_email || (app as any).email || (app as any).input_email || '').toLowerCase().trim();
+                const phone = ((app as any).input_phone || (app as any).phone || '').replace(/-/g, '').trim();
+                const key = `${name}|${email}|${phone}`;
 
-            if (map.has(key)) {
-                const existing = map.get(key)!;
-                let replace = false;
+                const existing = map.get(key);
+                if (existing) {
+                    // 会場情報をマージ（両方の会場が含まれるようにする）
+                    const v1 = (existing.venue || '').split(/[、, ]+/);
+                    const v2 = (app.venue || '').split(/[、, ]+/);
+                    const mergedVenue = Array.from(new Set([...v1, ...v2])).filter(Boolean).join(', ');
 
-                // 1. 決済ステータス比較(paid優先)
-                if (existing.payment_status !== 'paid' && app.payment_status === 'paid') {
-                    replace = true;
-                } else if (existing.payment_status === 'paid' && app.payment_status !== 'paid') {
-                    replace = false;
-                } else {
-                    // 2. ステータスが同じなら、更新日時が新しい方を採用
-                    if (new Date(app.updated_at) > new Date(existing.updated_at)) {
-                        replace = true;
+                    const o1 = (existing.online_venues || '').split(/[、, ]+/);
+                    const o2 = (app.online_venues || '').split(/[、, ]+/);
+                    const mergedOnline = Array.from(new Set([...o1, ...o2])).filter(Boolean).join(', ');
+
+                    const s1 = (existing.social_venue || '').split(/[、, ]+/);
+                    const s2 = (app.social_venue || '').split(/[、, ]+/);
+                    const mergedSocial = Array.from(new Set([...s1, ...s2])).filter(Boolean).join(', ');
+
+                    const mergedApp = {
+                        ...existing,
+                        venue: mergedVenue,
+                        online_venues: mergedOnline,
+                        social_venue: mergedSocial
+                    };
+
+                    // ステータス優先順位: paid > 他
+                    if (app.payment_status === 'paid' && existing.payment_status !== 'paid') {
+                        map.set(key, { ...app, venue: mergedVenue, online_venues: mergedOnline, social_venue: mergedSocial });
+                    } else if (app.payment_status === existing.payment_status && new Date(app.updated_at || 0) > new Date(existing.updated_at || 0)) {
+                        map.set(key, { ...app, venue: mergedVenue, online_venues: mergedOnline, social_venue: mergedSocial });
+                    } else {
+                        map.set(key, mergedApp);
                     }
-                }
-
-                if (replace) {
+                } else {
                     map.set(key, app);
                 }
-            } else {
-                map.set(key, app);
+            } catch (err) {
+                console.error('Deduplicate error:', err);
+                map.set(Math.random().toString(), app);
             }
         });
 
@@ -1221,18 +1232,18 @@ export default function AdminDashboard() {
 
 
     // Helper: Find Master-defined area (tokyo, fukuoka, online)
-    const getAreaByMaster = (app: Application) => {
+    const getParticipationStatus = (app: Application) => {
         const venueName = app.venue || '';
         const onlineVenue = app.online_venues || '';
+        const socialVenue = app.social_venue || '';
+        const participationType = app.participation_type || '';
+        const searchStr = (venueName + onlineVenue + socialVenue).trim();
+
+        // 1. マスターデータからエリアを特定
         const masterVenue = venueList.find(v => v.name === venueName && v.type === 'lecture');
         
-        const isOnline = app.participation_type === 'online' || venueName.includes('オンライン') || venueName.includes('LIVE') || venueName.includes('アーカイブ');
-        
-        // 判定対象を拡張（会場名またはオンライン詳細会場名）
-        const searchStr = venueName + onlineVenue;
-
         let area: 'tokyo' | 'fukuoka' | 'both' = 'tokyo';
-        if (masterVenue?.area && (masterVenue.area === 'tokyo' || masterVenue.area === 'fukuoka' || masterVenue.area === 'both')) {
+        if (masterVenue?.area && (['tokyo', 'fukuoka', 'both'].includes(masterVenue.area))) {
             area = masterVenue.area as any;
         } else if (searchStr.includes('東京') && searchStr.includes('福岡')) {
             area = 'both';
@@ -1242,10 +1253,11 @@ export default function AdminDashboard() {
             area = 'tokyo';
         }
 
-        if (isOnline) {
-            return `online_${area}`;
-        }
-        return area;
+        // 2. オンライン判定
+        const isOnline = participationType === 'online' || 
+            ['オンライン', 'LIVE', 'アーカイブ'].some(s => searchStr.includes(s));
+
+        return { area, isOnline };
     };
 
     // Simple Excel Export using exceljs
@@ -1303,14 +1315,15 @@ export default function AdminDashboard() {
 
             // Data Preparation for rows
             const getMemberInfo = (app: Application) => {
+                const { area } = getParticipationStatus(app);
                 let name = app.input_name + 'さま';
                 const rawGen = app.members?.generation;
                 const gen = (rawGen !== undefined && rawGen !== null) ? Number(rawGen) : 99;
                 const term = gen === 99 ? '' : `${gen}期`;
                 const furigana = app.members?.furigana || app.input_furigana || '';
-                const vL = app.venue || '';
-                const vS = app.social_venue || '';
-                const isBoth = vL.includes('both') || vL.includes('東京・福岡') || vS.includes('both') || vS.includes('両方');
+                
+                // エリア判定が both の場合のみ赤文字対象とする
+                const isBoth = area === 'both';
 
                 const priority = getPriorityByMaster(app);
 
@@ -1329,23 +1342,25 @@ export default function AdminDashboard() {
             // キャンセルされたデータは含まないようにする
             const uniqueApps = deduplicateApps(apps).filter(a => a.payment_status !== 'cancelled');
 
-            // Filter Lists based on Master 'area'
+            // Filter Lists based on Unified Status
             const rawTokyo = uniqueApps.filter(a => {
-                const area = getAreaByMaster(a);
-                return area === 'tokyo' || area === 'both';
+                const status = getParticipationStatus(a);
+                return !status.isOnline && (status.area === 'tokyo' || status.area === 'both');
             }).map(getMemberInfo);
+
             const rawFukuoka = uniqueApps.filter(a => {
-                const area = getAreaByMaster(a);
-                return area === 'fukuoka' || area === 'both';
+                const status = getParticipationStatus(a);
+                return !status.isOnline && (status.area === 'fukuoka' || status.area === 'both');
             }).map(getMemberInfo);
-            // Online split: searchStr could contain both, but usually online is one area or both
+
             const rawOnlineTokyo = uniqueApps.filter(a => {
-                const area = getAreaByMaster(a);
-                return area === 'online_tokyo' || area === 'online_both';
+                const status = getParticipationStatus(a);
+                return status.isOnline && (status.area === 'tokyo' || status.area === 'both');
             }).map(getMemberInfo);
+
             const rawOnlineFukuoka = uniqueApps.filter(a => {
-                const area = getAreaByMaster(a);
-                return area === 'online_fukuoka' || area === 'online_both';
+                const status = getParticipationStatus(a);
+                return status.isOnline && (status.area === 'fukuoka' || status.area === 'both');
             }).map(getMemberInfo);
 
             // Grouping Helper
