@@ -1223,17 +1223,20 @@ export default function AdminDashboard() {
     // Helper: Find Master-defined area (tokyo, fukuoka, online)
     const getAreaByMaster = (app: Application) => {
         const venueName = app.venue || '';
+        const onlineVenue = app.online_venues || '';
         const masterVenue = venueList.find(v => v.name === venueName && v.type === 'lecture');
         
         const isOnline = app.participation_type === 'online' || venueName.includes('オンライン') || venueName.includes('LIVE') || venueName.includes('アーカイブ');
         
-        // 初めに会場名から「東京」「福岡」が含まれるかチェック
+        // 判定対象を拡張（会場名またはオンライン詳細会場名）
+        const searchStr = venueName + onlineVenue;
+
         let area: 'tokyo' | 'fukuoka' = 'tokyo';
         if (masterVenue?.area && (masterVenue.area === 'tokyo' || masterVenue.area === 'fukuoka')) {
             area = masterVenue.area;
-        } else if (venueName.includes('福岡')) {
+        } else if (searchStr.includes('福岡')) {
             area = 'fukuoka';
-        } else if (venueName.includes('東京')) {
+        } else if (searchStr.includes('東京')) {
             area = 'tokyo';
         }
 
