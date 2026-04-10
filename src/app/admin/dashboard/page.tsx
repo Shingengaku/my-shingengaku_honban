@@ -1260,17 +1260,30 @@ export default function AdminDashboard() {
 
         // 2. オンラインエリアの判定
         let onlineArea: 'tokyo' | 'fukuoka' | 'both' | null = null;
-        const onlinePartsStr = (venueParts.filter(isOnlineKeyword).join('') + onlineVenueInput + socialVenue).trim();
         
-        if (onlinePartsStr.length > 0 || app.participation_type === 'online') {
-            if (onlinePartsStr.includes('東京') && onlinePartsStr.includes('福岡')) {
+        // online_venues カラムでの明示的な指定を最優先
+        if (onlineVenueInput.includes('東京') && onlineVenueInput.includes('福岡')) {
+            onlineArea = 'both';
+        } else if (onlineVenueInput.includes('福岡')) {
+            onlineArea = 'fukuoka';
+        } else if (onlineVenueInput.includes('東京')) {
+            onlineArea = 'tokyo';
+        } else {
+            // online_venues に情報がない場合、venue カラム内のオンライン系キーワードを解析
+            const onlineInVenue = venueParts.filter(isOnlineKeyword).join('');
+            if (onlineInVenue.includes('東京') && onlineInVenue.includes('福岡')) {
                 onlineArea = 'both';
-            } else if (onlinePartsStr.includes('福岡')) {
+            } else if (onlineInVenue.includes('福岡')) {
                 onlineArea = 'fukuoka';
-            } else if (onlinePartsStr.includes('東京')) {
+            } else if (onlineInVenue.includes('東京')) {
                 onlineArea = 'tokyo';
             } else if (app.participation_type === 'online') {
-                onlineArea = 'tokyo'; // デフォルト
+                // それでもエリアが不明な場合のみ、実会場名やデフォルト（東京）を適用
+                if (venueName.includes('福岡')) {
+                    onlineArea = 'fukuoka';
+                } else {
+                     onlineArea = 'tokyo'; // 最終デフォルト
+                }
             }
         }
 
