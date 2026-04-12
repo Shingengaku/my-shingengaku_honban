@@ -1410,7 +1410,10 @@ export default function AdminDashboard() {
             // Headers
             ws.mergeCells('A1:N1');
             const titleCell = ws.getCell('A1');
-            titleCell.value = `神言学集中講座 ${monthStr}月 (総申込件数: ${allValidApps.length}名)`;
+            const uniquePeopleCount = new Set(allValidApps.map(a => 
+                `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}`
+            )).size;
+            titleCell.value = `神言学集中講座 ${monthStr}月 (お申込者数: ${uniquePeopleCount}名)`;
             titleCell.font = { size: 16, bold: true };
             titleCell.alignment = { horizontal: 'center' };
             titleCell.border = { bottom: { style: 'thick' } };
