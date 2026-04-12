@@ -171,6 +171,7 @@ const getParticipationStatus = (app: any, venueList: any[] = []) => {
 };
 
 export default function AdminDashboard() {
+    const VERSION = "2026-04-12-2330";
     const [apps, setApps] = useState<Application[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'unpaid' | 'paid' | 'cancelled'>('all');
@@ -3240,26 +3241,58 @@ export default function AdminDashboard() {
                                             <>
                                                 <div>
                                                     <label className="block text-xs font-bold text-gray-600 mb-1">会場参加・決済済用</label>
-                                                    <input className="border w-full p-1 rounded text-sm mb-1" value={emailTemplateReminderVenuePaid?.subject || ''} onChange={e => setEmailTemplateReminderVenuePaid({...emailTemplateReminderVenuePaid, subject: e.target.value})} />
-                                                    <textarea className="border w-full p-2 rounded h-32 font-mono text-xs" value={emailTemplateReminderVenuePaid?.body || ''} onChange={e => setEmailTemplateReminderVenuePaid({...emailTemplateReminderVenuePaid, body: e.target.value})} />
+                                                    <input 
+                                                        className="border w-full p-1 rounded text-sm mb-1" 
+                                                        value={emailTemplateReminderVenuePaid?.subject || ''} 
+                                                        onChange={e => setEmailTemplateReminderVenuePaid(prev => ({...(prev || {subject: '', body: ''}), subject: e.target.value}))} 
+                                                    />
+                                                    <textarea 
+                                                        className="border w-full p-2 rounded h-32 font-mono text-xs" 
+                                                        value={emailTemplateReminderVenuePaid?.body || ''} 
+                                                        onChange={e => setEmailTemplateReminderVenuePaid(prev => ({...(prev || {subject: '', body: ''}), body: e.target.value}))} 
+                                                    />
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs font-bold text-gray-600 mb-1">会場参加・未決済用</label>
-                                                    <input className="border w-full p-1 rounded text-sm mb-1" value={emailTemplateReminderVenueUnpaid?.subject || ''} onChange={e => setEmailTemplateReminderVenueUnpaid({...emailTemplateReminderVenueUnpaid, subject: e.target.value})} />
-                                                    <textarea className="border w-full p-2 rounded h-32 font-mono text-xs" value={emailTemplateReminderVenueUnpaid?.body || ''} onChange={e => setEmailTemplateReminderVenueUnpaid({...emailTemplateReminderVenueUnpaid, body: e.target.value})} />
+                                                    <input 
+                                                        className="border w-full p-1 rounded text-sm mb-1" 
+                                                        value={emailTemplateReminderVenueUnpaid?.subject || ''} 
+                                                        onChange={e => setEmailTemplateReminderVenueUnpaid(prev => ({...(prev || {subject: '', body: ''}), subject: e.target.value}))} 
+                                                    />
+                                                    <textarea 
+                                                        className="border w-full p-2 rounded h-32 font-mono text-xs" 
+                                                        value={emailTemplateReminderVenueUnpaid?.body || ''} 
+                                                        onChange={e => setEmailTemplateReminderVenueUnpaid(prev => ({...(prev || {subject: '', body: ''}), body: e.target.value}))} 
+                                                    />
                                                 </div>
                                             </>
                                         ) : (
                                             <>
                                                 <div>
                                                     <label className="block text-xs font-bold text-gray-600 mb-1">ライブ視聴・決済済用</label>
-                                                    <input className="border w-full p-1 rounded text-sm mb-1" value={emailTemplateReminderOnlinePaid?.subject || ''} onChange={e => setEmailTemplateReminderOnlinePaid({...emailTemplateReminderOnlinePaid, subject: e.target.value})} />
-                                                    <textarea className="border w-full p-2 rounded h-32 font-mono text-xs" value={emailTemplateReminderOnlinePaid?.body || ''} onChange={e => setEmailTemplateReminderOnlinePaid({...emailTemplateReminderOnlinePaid, body: e.target.value})} />
+                                                    <input 
+                                                        className="border w-full p-1 rounded text-sm mb-1" 
+                                                        value={emailTemplateReminderOnlinePaid?.subject || ''} 
+                                                        onChange={e => setEmailTemplateReminderOnlinePaid(prev => ({...(prev || {subject: '', body: ''}), subject: e.target.value}))} 
+                                                    />
+                                                    <textarea 
+                                                        className="border w-full p-2 rounded h-32 font-mono text-xs" 
+                                                        value={emailTemplateReminderOnlinePaid?.body || ''} 
+                                                        onChange={e => setEmailTemplateReminderOnlinePaid(prev => ({...(prev || {subject: '', body: ''}), body: e.target.value}))} 
+                                                    />
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs font-bold text-gray-600 mb-1">ライブ視聴・未決済用</label>
-                                                    <input className="border w-full p-1 rounded text-sm mb-1" value={emailTemplateReminderOnlineUnpaid?.subject || ''} onChange={e => setEmailTemplateReminderOnlineUnpaid({...emailTemplateReminderOnlineUnpaid, subject: e.target.value})} />
-                                                    <textarea className="border w-full p-2 rounded h-32 font-mono text-xs" value={emailTemplateReminderOnlineUnpaid?.body || ''} onChange={e => setEmailTemplateReminderOnlineUnpaid({...emailTemplateReminderOnlineUnpaid, body: e.target.value})} />
+                                                    <input 
+                                                        className="border w-full p-1 rounded text-sm mb-1" 
+                                                        value={emailTemplateReminderOnlineUnpaid?.subject || ''} 
+                                                        onChange={e => setEmailTemplateReminderOnlineUnpaid(prev => ({...(prev || {subject: '', body: ''}), subject: e.target.value}))} 
+                                                    />
+                                                    <textarea 
+                                                        className="border w-full p-2 rounded h-32 font-mono text-xs" 
+                                                        value={emailTemplateReminderOnlineUnpaid?.body || ''} 
+                                                        onChange={e => setEmailTemplateReminderOnlineUnpaid(prev => ({...(prev || {subject: '', body: ''}), body: e.target.value}))} 
+                                                    />
                                                 </div>
                                             </>
                                         )}
@@ -3293,6 +3326,9 @@ export default function AdminDashboard() {
                             >
                                 閉じる
                             </button>
+                            <div className="flex-1 text-[10px] text-gray-300 flex items-end ml-4">
+                                Version: {VERSION}
+                            </div>
                             <button
                                 onClick={saveSettings}
                                 className="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 font-bold"
