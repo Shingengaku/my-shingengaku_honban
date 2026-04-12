@@ -236,6 +236,17 @@ export default function AdminDashboard() {
     const [termMaster, setTermMaster] = useState<number[]>([]);
     const [applicationActive, setApplicationActive] = useState(true);
 
+    // リマインド関連の状態
+    const [showReminderModal, setShowReminderModal] = useState(false);
+    const [reminderSending, setReminderSending] = useState(false);
+    const [emailTemplateReminderVenuePaid, setEmailTemplateReminderVenuePaid] = useState({ subject: '', body: '' });
+    const [emailTemplateReminderVenueUnpaid, setEmailTemplateReminderVenueUnpaid] = useState({ subject: '', body: '' });
+    const [emailTemplateReminderOnlinePaid, setEmailTemplateReminderOnlinePaid] = useState({ subject: '', body: '' });
+    const [emailTemplateReminderOnlineUnpaid, setEmailTemplateReminderOnlineUnpaid] = useState({ subject: '', body: '' });
+    const [onlineViewingLinks, setOnlineViewingLinks] = useState<Record<string, string>>({});
+    const [lectureDates, setLectureDates] = useState<Record<string, string>>({});
+    const [reminderSettingsTab, setReminderSettingsTab] = useState<'venue' | 'online'>('venue');
+
     // ソート機能の状態
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
@@ -456,6 +467,26 @@ export default function AdminDashboard() {
 （本メールでの自動決済は不要です）`
     };
 
+    const DEFAULT_TEMPLATE_REMINDER_VENUE_PAID = {
+        subject: '【神言学】講座開催間近のご案内',
+        body: `{{name}} 様\n\n神言学講座へのお申込みありがとうございます。\n開催が近づいてまいりましたので、改めてご案内申し上げます。\n\n【開催概要】\n日時：{{lecture_date}}\n会場：{{venue}}\n懇親会：{{social_venue}}\n\n当日は会場にてお待ちしております。`
+    };
+
+    const DEFAULT_TEMPLATE_REMINDER_VENUE_UNPAID = {
+        subject: '【神言学】講座お申込み内容のご確認と決済のお願い',
+        body: `{{name}} 様\n\n神言学講座へのお申込みありがとうございます。\n開催が近づいてまいりましたが、受講料のご決済がまだ確認できておりません。\n\nお手数ですが、下記リンクよりお手続きをお願いいたします。\n\n▼ご決済リンク\n{{payment_link_section}}\n\n【開催概要】\n日時：{{lecture_date}}\n会場：{{venue}}\n懇親会：{{social_venue}}\n\n当日お会いできることを楽しみにしております。`
+    };
+
+    const DEFAULT_TEMPLATE_REMINDER_ONLINE_PAID = {
+        subject: '【神言学】オンライン視聴URLのご案内',
+        body: `{{name}} 様\n\n神言学講座へのお申込みありがとうございます。\nオンライン視聴用のURLをご案内いたします。\n\n【視聴URL】\n{{viewing_link}}\n\n【開催日時】\n{{lecture_date}}\n\n※開始10分前からアクセス可能です。\n当日は画面越しにお会いできることを楽しみにしております。`
+    };
+
+    const DEFAULT_TEMPLATE_REMINDER_ONLINE_UNPAID = {
+        subject: '【神言学】オンライン視聴お申込み内容のご確認と決済のお願い',
+        body: `{{name}} 様\n\n神言学講座へのお申込みありがとうございます。\n開催が近づいてまいりましたが、受講料のご決済がまだ確認できておりません。\n\nご決済確認後、視聴URLを順次お送りいたします。\nお手数ですが、下記リンクよりお手続きをお願いいたします。\n\n▼ご決済リンク\n{{payment_link_section}}\n\n【開催日時】\n{{lecture_date}}\n\n当日お会いできることを楽しみにしております。`
+    };
+
     useEffect(() => {
         fetchApplications();
         fetchRanks(); // ランク惁E��を取得
@@ -573,6 +604,14 @@ export default function AdminDashboard() {
                 setAdminBccEmail(data.admin_bcc_email || '');
                 setTestEmail(data.test_email || '');
                 setApplicationActive(data.application_active !== false); // デフォルトtrue
+
+                // リマインド関連
+                setEmailTemplateReminderVenuePaid(data.email_template_reminder_venue_paid || DEFAULT_TEMPLATE_REMINDER_VENUE_PAID);
+                setEmailTemplateReminderVenueUnpaid(data.email_template_reminder_venue_unpaid || DEFAULT_TEMPLATE_REMINDER_VENUE_UNPAID);
+                setEmailTemplateReminderOnlinePaid(data.email_template_reminder_online_paid || DEFAULT_TEMPLATE_REMINDER_ONLINE_PAID);
+                setEmailTemplateReminderOnlineUnpaid(data.email_template_reminder_online_unpaid || DEFAULT_TEMPLATE_REMINDER_ONLINE_UNPAID);
+                setOnlineViewingLinks(data.online_viewing_links || {});
+                setLectureDates(data.lecture_dates || {});
 
                 if (openModal) {
                     setShowSettingsModal(true);
@@ -1612,7 +1651,7 @@ export default function AdminDashboard() {
                     bottom: { style: 'medium' },
                     right: { style: 'medium' }
                 };
-                // Calculate height roughly based on newlines, default to something sufficient
+                
                 const newlineCount = (exportRemarks.match(/\n/g) || []).length;
                 ws.getRow(remarksRow).height = Math.max(60, (newlineCount + 1) * 15 + 10);
             }
@@ -1807,6 +1846,72 @@ export default function AdminDashboard() {
             setLoading(false);
         }
     };
+
+    const handleSendReminders = () => {
+        setShowReminderModal(true);
+    };
+
+    const submitReminders = async () => {
+        if (!confirm('選択した参加者にリマインドメールを一括送信しますか？')) return;
+        setReminderSending(true);
+        try {
+            const res = await fetch('/api/admin/reminders/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: Array.from(selectedIds) })
+            });
+
+            if (res.ok) {
+                alert('送信を開始しました。一括処理のため完了まで数分かかる場合があります。送信済みのデータには「reminder_sent」タグが付与されます。');
+                setShowReminderModal(false);
+                setSelectedIds(new Set());
+                fetchApplications();
+            } else {
+                const data = await res.json();
+                alert(`送信エラー: ${data.error || '不明なエラー'}`);
+            }
+        } catch (e) {
+            alert('送信エラーが発生しました');
+        } finally {
+            setReminderSending(false);
+        }
+    };
+
+    const reminderSummary = useMemo(() => {
+        const selectedApps = apps.filter(a => selectedIds.has(a.id));
+        const summary = {
+            tokyo_venue: 0,
+            fukuoka_venue: 0,
+            tokyo_online: 0,
+            fukuoka_online: 0,
+            paid: 0,
+            unpaid: 0
+        };
+
+        selectedApps.forEach(app => {
+            const status = getParticipationStatus(app, venueList);
+            const isOnline = app.participation_type === 'online' || isOnlineVenue(app.venue || '');
+            const isPaid = app.payment_status === 'paid';
+            
+            if (isPaid) summary.paid++; else summary.unpaid++;
+
+            let area = 'tokyo';
+            // 簡易的なエリア判定 (API側と極力合わせる)
+            if (status.venueArea === 'fukuoka' || status.onlineArea === 'fukuoka') {
+                area = 'fukuoka';
+            } else if (app.venue?.includes('福岡') || app.online_venues?.includes('福岡')) {
+                area = 'fukuoka';
+            }
+
+            if (isOnline) {
+                if (area === 'fukuoka') summary.fukuoka_online++; else summary.tokyo_online++;
+            } else {
+                if (area === 'fukuoka') summary.fukuoka_venue++; else summary.tokyo_venue++;
+            }
+        });
+
+        return summary;
+    }, [selectedIds, apps, venueList]);
     const filteredApps = apps.filter(app => {
         // Status Filter
         if (filter !== 'all' && app.payment_status !== filter) return false;
@@ -2216,6 +2321,10 @@ export default function AdminDashboard() {
                                 </button>
                                 <button onClick={deleteSelected} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 ml-4 shadow">
                                     選択した{selectedIds.size} 件を「削除」する
+                                </button>
+                                <button onClick={handleSendReminders} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 ml-4 font-bold shadow-md flex items-center gap-2">
+                                    <span>✉️</span>
+                                    リマインド一括送信 ({selectedIds.size}件)
                                 </button>
                             </div>
                         )}
@@ -2896,6 +3005,12 @@ export default function AdminDashboard() {
                                 >
                                     複数名
                                 </button>
+                                <button
+                                    className={`px-4 py-2 text-sm font-medium ${selectedTemplateTab === 'reminder' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                    onClick={() => setSelectedTemplateTab('reminder')}
+                                >
+                                    リマインド設定
+                                </button>
                             </div>
 
                             <div className="bg-yellow-50 p-3 rounded text-xs mb-2">
@@ -3060,6 +3175,73 @@ export default function AdminDashboard() {
                                     <button onClick={() => setEmailTemplateMultiple(DEFAULT_TEMPLATE_MULTIPLE)} className="text-xs text-blue-600 hover:underline mt-1">デフォルトに戻す</button>
                                 </>
                             )}
+
+                            {selectedTemplateTab === 'reminder' && (
+                                <div className="space-y-6">
+                                    <div className="flex gap-4 border-b">
+                                        <button onClick={() => setReminderSettingsTab('venue')} className={`px-3 py-1 text-sm ${reminderSettingsTab === 'venue' ? 'border-b-2 border-indigo-500 font-bold' : ''}`}>会場参加者向け</button>
+                                        <button onClick={() => setReminderSettingsTab('online')} className={`px-3 py-1 text-sm ${reminderSettingsTab === 'online' ? 'border-b-2 border-indigo-500 font-bold' : ''}`}>ライブ視聴者向け</button>
+                                    </div>
+
+                                    {/* エリア別設定 */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-4 rounded border">
+                                        {Array.from(new Set(venueList.filter(v => ['tokyo', 'fukuoka'].includes(v.area)).map(v => v.area))).sort().map(area => (
+                                            <div key={area} className="space-y-2">
+                                                <h5 className="font-bold text-sm text-indigo-700 uppercase">{area} エリア</h5>
+                                                <div>
+                                                    <label className="block text-[10px] text-gray-500">開催日時 ({{lecture_date}}変数用)</label>
+                                                    <input 
+                                                        className="border w-full p-2 rounded text-sm" 
+                                                        value={lectureDates[area] || ''} 
+                                                        placeholder="例: 6月14日(日) 13:00〜"
+                                                        onChange={e => setLectureDates({...lectureDates, [area]: e.target.value})} 
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] text-gray-500">視聴リンク ({{viewing_link}}変数用)</label>
+                                                    <input 
+                                                        className="border w-full p-2 rounded text-sm" 
+                                                        value={onlineViewingLinks[area] || ''} 
+                                                        placeholder="https://zoom.us/..."
+                                                        onChange={e => setOnlineViewingLinks({...onlineViewingLinks, [area]: e.target.value})} 
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* テンプレート編集 */}
+                                    <div className="space-y-4">
+                                        {reminderSettingsTab === 'venue' ? (
+                                            <>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-600 mb-1">会場参加・決済済用</label>
+                                                    <input className="border w-full p-1 rounded text-sm mb-1" value={emailTemplateReminderVenuePaid.subject} onChange={e => setEmailTemplateReminderVenuePaid({...emailTemplateReminderVenuePaid, subject: e.target.value})} />
+                                                    <textarea className="border w-full p-2 rounded h-32 font-mono text-xs" value={emailTemplateReminderVenuePaid.body} onChange={e => setEmailTemplateReminderVenuePaid({...emailTemplateReminderVenuePaid, body: e.target.value})} />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-600 mb-1">会場参加・未決済用</label>
+                                                    <input className="border w-full p-1 rounded text-sm mb-1" value={emailTemplateReminderVenueUnpaid.subject} onChange={e => setEmailTemplateReminderVenueUnpaid({...emailTemplateReminderVenueUnpaid, subject: e.target.value})} />
+                                                    <textarea className="border w-full p-2 rounded h-32 font-mono text-xs" value={emailTemplateReminderVenueUnpaid.body} onChange={e => setEmailTemplateReminderVenueUnpaid({...emailTemplateReminderVenueUnpaid, body: e.target.value})} />
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-600 mb-1">ライブ視聴・決済済用</label>
+                                                    <input className="border w-full p-1 rounded text-sm mb-1" value={emailTemplateReminderOnlinePaid.subject} onChange={e => setEmailTemplateReminderOnlinePaid({...emailTemplateReminderOnlinePaid, subject: e.target.value})} />
+                                                    <textarea className="border w-full p-2 rounded h-32 font-mono text-xs" value={emailTemplateReminderOnlinePaid.body} onChange={e => setEmailTemplateReminderOnlinePaid({...emailTemplateReminderOnlinePaid, body: e.target.value})} />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-600 mb-1">ライブ視聴・未決済用</label>
+                                                    <input className="border w-full p-1 rounded text-sm mb-1" value={emailTemplateReminderOnlineUnpaid.subject} onChange={e => setEmailTemplateReminderOnlineUnpaid({...emailTemplateReminderOnlineUnpaid, subject: e.target.value})} />
+                                                    <textarea className="border w-full p-2 rounded h-32 font-mono text-xs" value={emailTemplateReminderOnlineUnpaid.body} onChange={e => setEmailTemplateReminderOnlineUnpaid({...emailTemplateReminderOnlineUnpaid, body: e.target.value})} />
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="mb-6 border-t pt-4">
@@ -3096,6 +3278,72 @@ export default function AdminDashboard() {
                         </div>
                     </div >
                 </div >
+            )}
+
+            {/* Reminder Confirmation Modal */}
+            {showReminderModal && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-[500px]">
+                        <h3 className="text-xl font-bold mb-4 text-indigo-700 flex items-center gap-2">
+                            <span>🚀</span> 一括リマインド送信の確認
+                        </h3>
+                        
+                        <div className="bg-indigo-50 p-4 rounded-md mb-6 border border-indigo-100">
+                            <p className="text-sm text-gray-700 font-bold mb-3">送信対象の内訳:</p>
+                            <div className="grid grid-cols-2 gap-4 text-xs">
+                                <div>
+                                    <p className="text-gray-500 mb-1">■ 会場参加 (合計: {reminderSummary.tokyo_venue + reminderSummary.fukuoka_venue}名)</p>
+                                    <ul className="pl-3 space-y-1">
+                                        <li>東京エリア: {reminderSummary.tokyo_venue}名</li>
+                                        <li>福岡エリア: {reminderSummary.fukuoka_venue}名</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500 mb-1">■ ライブ視聴 (合計: {reminderSummary.tokyo_online + reminderSummary.fukuoka_online}名)</p>
+                                    <ul className="pl-3 space-y-1">
+                                        <li>東京エリア配信分: {reminderSummary.tokyo_online}名</li>
+                                        <li>福岡エリア配信分: {reminderSummary.fukuoka_online}名</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div className="mt-4 pt-3 border-t border-indigo-100 flex justify-between text-sm">
+                                <div>
+                                    <span className="text-gray-600">決済済:</span> <span className="font-bold text-green-600">{reminderSummary.paid}名</span>
+                                </div>
+                                <div>
+                                    <span className="text-gray-600">未決済:</span> <span className="font-bold text-red-600">{reminderSummary.unpaid}名</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="text-sm text-gray-600 space-y-2 mb-6">
+                            <p>※ 設定画面で登録した各エリアの「開催日時」および「視聴リンク」が自動的に挿入されます。</p>
+                            <p>※ 決済状況や参加タイプに応じて、4種類のテンプレートが自動的に選択されます。</p>
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowReminderModal(false)}
+                                className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-50"
+                                disabled={reminderSending}
+                            >
+                                キャンセル
+                            </button>
+                            <button
+                                onClick={submitReminders}
+                                className={`px-6 py-2 bg-indigo-600 text-white rounded font-bold hover:bg-indigo-700 shadow flex items-center gap-2 ${reminderSending ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={reminderSending}
+                            >
+                                {reminderSending ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        送信中...
+                                    </>
+                                ) : '今すぐ送信を開始する'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Duplicate Action Modal */}

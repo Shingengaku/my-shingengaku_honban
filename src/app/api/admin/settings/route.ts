@@ -146,6 +146,36 @@ export async function POST(request: Request) {
                 supabaseAdmin.from('app_settings').upsert({ key: 'sender_email', value: body.sender_email }, { onConflict: 'key' })
             );
         }
+        if (body.email_template_reminder_venue_paid) {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'email_template_reminder_venue_paid', value: body.email_template_reminder_venue_paid }, { onConflict: 'key' })
+            );
+        }
+        if (body.email_template_reminder_venue_unpaid) {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'email_template_reminder_venue_unpaid', value: body.email_template_reminder_venue_unpaid }, { onConflict: 'key' })
+            );
+        }
+        if (body.email_template_reminder_online_paid) {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'email_template_reminder_online_paid', value: body.email_template_reminder_online_paid }, { onConflict: 'key' })
+            );
+        }
+        if (body.email_template_reminder_online_unpaid) {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'email_template_reminder_online_unpaid', value: body.email_template_reminder_online_unpaid }, { onConflict: 'key' })
+            );
+        }
+        if (body.online_viewing_links) {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'online_viewing_links', value: body.online_viewing_links }, { onConflict: 'key' })
+            );
+        }
+        if (body.lecture_dates) {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'lecture_dates', value: body.lecture_dates }, { onConflict: 'key' })
+            );
+        }
 
         await Promise.all(updates);
 
