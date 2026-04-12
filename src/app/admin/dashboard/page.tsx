@@ -501,6 +501,7 @@ export default function AdminDashboard() {
             if (res.ok) {
                 const data = await res.json();
                 // チE�Eタの整形 (participation_typeの補完など)
+                if (!Array.isArray(data)) { setApps([]); return; }
                 const formatted = data.map((d: any) => ({
                     ...d,
                     // タグから推測する場合�Eロジック�� (後方互換性)
@@ -544,80 +545,94 @@ export default function AdminDashboard() {
             ]);
 
             if (settingsRes.ok) {
-                const data = await settingsRes.json();
+                try {
+                    const data = await settingsRes.json() || {};
 
-                // 決済リンクを解析
-                let linksArr: PaymentLinkItem[] = [];
-                const val = data.payment_links;
+                    // 決済リンクを解析
+                    let linksArr: PaymentLinkItem[] = [];
+                    const val = data.payment_links;
 
-                if (Array.isArray(val)) {
-                    linksArr = val.map((item: any) => ({
-                        name: item.name || '',
-                        lecture_fee: String(item.lecture_fee || 0),
-                        social_fee: String(item.social_fee || 0),
-                        key: item.name,
-                        url: item.url || '',
-                        venue_lecture: item.venue_lecture || '',
-                        venue_social: item.venue_social || '',
-                        rank_id: item.rank_id ? String(item.rank_id) : undefined,
-                        group: item.group || undefined
-                    }));
-                } else {
-                    const linksObj = val || {};
-                    linksArr = Object.entries(linksObj).map(([key, value]) => ({
-                        name: '',
-                        lecture_fee: '0',
-                        social_fee: '0',
-                        key,
-                        url: String(value),
-                        rank_id: undefined
-                    }));
-                }
+                    if (Array.isArray(val)) {
+                        linksArr = val.map((item: any) => ({
+                            name: item.name || '',
+                            lecture_fee: String(item.lecture_fee || 0),
+                            social_fee: String(item.social_fee || 0),
+                            key: item.name,
+                            url: item.url || '',
+                            venue_lecture: item.venue_lecture || '',
+                            venue_social: item.venue_social || '',
+                            rank_id: item.rank_id ? String(item.rank_id) : undefined,
+                            group: item.group || undefined
+                        }));
+                    } else if (val && typeof val === 'object') {
+                        linksArr = Object.entries(val).map(([key, value]) => ({
+                            name: '',
+                            lecture_fee: '0',
+                            social_fee: '0',
+                            key,
+                            url: String(value),
+                            rank_id: undefined
+                        }));
+                    }
 
-                setPaymentLinksData(linksArr);
+                    setPaymentLinksData(linksArr);
 
-                // テンプレートをロード
-                setEmailTemplate(data.email_template || DEFAULT_TEMPLATE);
-                setEmailTemplateGeneral(data.email_template_general || DEFAULT_TEMPLATE_GENERAL);
-                setEmailTemplateFree(data.email_template_free || DEFAULT_TEMPLATE_FREE);
-                setEmailTemplateFreeOnline(data.email_template_free_online || DEFAULT_TEMPLATE_FREE_ONLINE);
-                setEmailTemplateResend(data.email_template_resend || DEFAULT_TEMPLATE_RESEND);
-                setEmailTemplateForgotPass(data.email_template_forgot_pass || DEFAULT_TEMPLATE_FORGOT_PASS);
-                setEmailTemplateMultiple(data.email_template_multiple || DEFAULT_TEMPLATE_MULTIPLE);
+                    // テンプレートをロード
+                    setEmailTemplate(data.email_template || DEFAULT_TEMPLATE);
+                    setEmailTemplateGeneral(data.email_template_general || DEFAULT_TEMPLATE_GENERAL);
+                    setEmailTemplateFree(data.email_template_free || DEFAULT_TEMPLATE_FREE);
+                    setEmailTemplateFreeOnline(data.email_template_free_online || DEFAULT_TEMPLATE_FREE_ONLINE);
+                    setEmailTemplateResend(data.email_template_resend || DEFAULT_TEMPLATE_RESEND);
+                    setEmailTemplateForgotPass(data.email_template_forgot_pass || DEFAULT_TEMPLATE_FORGOT_PASS);
+                    setEmailTemplateMultiple(data.email_template_multiple || DEFAULT_TEMPLATE_MULTIPLE);
 
-                // 基本懇親会費マスタをロード
-                if (data.base_social_fee_tokyo !== undefined) setBaseSocialFeeTokyo(Number(data.base_social_fee_tokyo));
-                if (data.base_social_fee_fukuoka !== undefined) setBaseSocialFeeFukuoka(Number(data.base_social_fee_fukuoka));
+                    // 基本懇親会費マスタをロード
+                    if (data.base_social_fee_tokyo !== undefined) setBaseSocialFeeTokyo(Number(data.base_social_fee_tokyo));
+                    if (data.base_social_fee_fukuoka !== undefined) setBaseSocialFeeFukuoka(Number(data.base_social_fee_fukuoka));
 
+                    const tm = data.term_master;
+                    if (Array.isArray(tm)) {
+                        setTermMaster(tm.map(Number).sort((a: number, b: number) => a - b));
+                    }
 
-                const tm = data.term_master;
-                if (Array.isArray(tm)) {
-                    setTermMaster(tm.map(Number).sort((a: number, b: number) => a - b));
-                }
+                    if (venuesRes.ok) {
+                        try {
+                            const vData = await venuesRes.json();
+                            if (Array.isArray(vData)) {
+                                setVenueList(vData);
+                            }
+                        } catch (err) { console.error('Error parsing venues:', err); }
+                    }
 
-                if (venuesRes.ok) {
-                    const vData = await venuesRes.json();
-                    setVenueList(vData);
-                }
-
-                setAdminEmail(data.admin_email || '');
-                setAdminBccEmail(data.admin_bcc_email || '');
-                setTestEmail(data.test_email || '');
-                setApplicationActive(data.application_active !== false); // デフォルトtrue
+                    setAdminEmail(data.admin_email || '');
+                    setAdminBccEmail(data.admin_bcc_email || '');
+                    setTestEmail(data.test_email || '');
+                    setApplicationActive(data.application_active !== false); // デフォルトtrue
 
                 // リマインド関連
-                const ensureTemplate = (t: any, def: any) => (t && typeof t === 'object' && 'subject' in t) ? t : def;
+                const ensureTemplate = (t: any, def: any) => {
+                    try {
+                        return (t && typeof t === 'object' && t !== null && 'subject' in t && 'body' in t) ? t : def;
+                    } catch (e) { return def; }
+                };
                 setEmailTemplateReminderVenuePaid(ensureTemplate(data.email_template_reminder_venue_paid, DEFAULT_TEMPLATE_REMINDER_VENUE_PAID));
                 setEmailTemplateReminderVenueUnpaid(ensureTemplate(data.email_template_reminder_venue_unpaid, DEFAULT_TEMPLATE_REMINDER_VENUE_UNPAID));
                 setEmailTemplateReminderOnlinePaid(ensureTemplate(data.email_template_reminder_online_paid, DEFAULT_TEMPLATE_REMINDER_ONLINE_PAID));
                 setEmailTemplateReminderOnlineUnpaid(ensureTemplate(data.email_template_reminder_online_unpaid, DEFAULT_TEMPLATE_REMINDER_ONLINE_UNPAID));
                 
-                const ensureObj = (o: any) => (o && typeof o === 'object' && !Array.isArray(o)) ? o : {};
+                const ensureObj = (o: any) => {
+                    try {
+                        return (o && typeof o === 'object' && o !== null && !Array.isArray(o)) ? o : {};
+                    } catch (e) { return {}; }
+                };
                 setOnlineViewingLinks(ensureObj(data.online_viewing_links));
                 setLectureDates(ensureObj(data.lecture_dates));
 
                 if (openModal) {
                     setShowSettingsModal(true);
+                }
+                } catch (err) {
+                    console.error('Error parsing settings inner:', err);
                 }
             } else {
                 if (openModal) alert('設定の取得に失敗しました');
