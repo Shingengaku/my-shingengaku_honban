@@ -181,19 +181,19 @@ export default function AdminDashboard() {
         router.refresh();
     };
 
-    // 高度なフィルター状慁E(褁E��選抁E
+    // 高度なフィルター状態(複数選択)
     const [filterRank, setFilterRank] = useState<Set<string>>(new Set());
     const [filterGen, setFilterGen] = useState<Set<string>>(new Set());
     const [filterProduct, setFilterProduct] = useState<Set<string>>(new Set());
     // 新しい会場フィルター
     const [filterVenueLecture, setFilterVenueLecture] = useState<Set<string>>(new Set());
     const [filterVenueSocial, setFilterVenueSocial] = useState<Set<string>>(new Set());
-    // オンライン視�Eフィルター
+    // オンライン視聴フィルター
     const [filterOnlineOption, setFilterOnlineOption] = useState<Set<string>>(new Set());
     const [filterOnlineArea, setFilterOnlineArea] = useState<Set<string>>(new Set());
     const [filterParticipationType, setFilterParticipationType] = useState<'all' | 'venue' | 'online'>('all');
 
-    // 編雁E��ーダルの状慁E
+    // 編集モーダルの状態
     const [editingApp, setEditingApp] = useState<Application | null>(null);
     const [editForm, setEditForm] = useState<Partial<Application & { member_generation?: number }>>({});
     const [showModal, setShowModal] = useState(false);
@@ -203,20 +203,20 @@ export default function AdminDashboard() {
     const [createForm, setCreateForm] = useState<Partial<Application & { member_generation?: number }>>({});
     const [creating, setCreating] = useState(false);
 
-    // メールプレビューモーダルの状慁E
+    // メールプレビューモーダルの状態
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [emailPreview, setEmailPreview] = useState<{ subject: string, content: string, email?: string, cc?: string, bcc?: string } | null>(null);
 
-    // 設定モーダルの状慁E
+    // 設定モーダルの状態
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [paymentLinksData, setPaymentLinksData] = useState<PaymentLinkItem[]>([]);
     const [baseSocialFeeTokyo, setBaseSocialFeeTokyo] = useState<number>(11000);
     const [baseSocialFeeFukuoka, setBaseSocialFeeFukuoka] = useState<number>(13000);
 
-    // メールチE��プレート�E状慁E
-    const [emailTemplate, setEmailTemplate] = useState({ subject: '', body: '' }); // マッチした場吁E
+    // メールテンプレートの状態
+    const [emailTemplate, setEmailTemplate] = useState({ subject: '', body: '' }); // マッチした場合
     const [emailTemplateGeneral, setEmailTemplateGeneral] = useState({ subject: '', body: '' });
-    const [emailTemplateFree, setEmailTemplateFree] = useState({ subject: '', body: '' }); // 0冁E無斁Eの場吁E
+    const [emailTemplateFree, setEmailTemplateFree] = useState({ subject: '', body: '' }); // 0円無料の場合
     const [emailTemplateFreeOnline, setEmailTemplateFreeOnline] = useState({ subject: '', body: '' }); // 0円(オンライン)
     const [emailTemplateResend, setEmailTemplateResend] = useState({ subject: '', body: '' });
     const [emailTemplateForgotPass, setEmailTemplateForgotPass] = useState({ subject: '', body: '' });
@@ -285,6 +285,9 @@ export default function AdminDashboard() {
     }, [apps, venueList]);
     const [exportTermLabel, setExportTermLabel] = useState('期'); // デフォルト「期」
     const [exportRemarks, setExportRemarks] = useState('');
+    const [exportMonth, setExportMonth] = useState('');
+    const [exportTokyoDate, setExportTokyoDate] = useState('');
+    const [exportFukuokaDate, setExportFukuokaDate] = useState('');
 
     // Persist Export Settings
     useEffect(() => {
@@ -450,8 +453,8 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         fetchApplications();
-        fetchRanks(); // ランク惁E��を取征E
-        fetchOnlineOptions(); // オンラインマスタ取征E
+        fetchRanks(); // ランク惁E��を取得
+        fetchOnlineOptions(); // オンラインマスタ取得
         fetchSettings(false); // 設定をロード（モーダルは開かなぁE��E
     }, []);
 
@@ -464,8 +467,8 @@ export default function AdminDashboard() {
                 // チE�Eタの整形 (participation_typeの補完など)
                 const formatted = data.map((d: any) => ({
                     ...d,
-                    // タグから推測する場合�EロジチE�� (後方互換性)
-                    participation_type: d.participation_type || (d.venue && ['LIVE視�E', 'アーカイブ視�E'].some((o: string) => d.venue.includes(o)) ? 'online' : 'venue')
+                    // タグから推測する場合�Eロジック�� (後方互換性)
+                    participation_type: d.participation_type || (d.venue && ['LIVE視聴', 'アーカイブ視聴'].some((o: string) => d.venue.includes(o)) ? 'online' : 'venue')
                 }));
                 setApps(formatted);
             }
@@ -507,7 +510,7 @@ export default function AdminDashboard() {
             if (settingsRes.ok) {
                 const data = await settingsRes.json();
 
-                // 決済リンクを解极E
+                // 決済リンクを解析
                 let linksArr: PaymentLinkItem[] = [];
                 const val = data.payment_links;
 
@@ -1258,7 +1261,7 @@ export default function AdminDashboard() {
     // Simple Excel Export using exceljs
     const handleSimpleExcelExport = async () => {
         const monthStr = exportMonth || (new Date().getMonth() + 1).toString();
-        if (!confirm(`【簡易版】エクセルファイルを生成しますか？\n対象月: ${monthStr}月\n東京日程: ${exportTokyoDate}〜\n福岡日程: ${exportFukuokaDate}〜\n(東京・福岡・オンラインの3列表示・A4縦・罫線あり・グループ分け・連番)`)) return;
+        if (!confirm(`【【簡易版】エクセルファイルを生成しますか？\n対象月: ${monthStr}月\n東京日程: ${exportTokyoDate}〜\n福岡日程: ${exportFukuokaDate}〜\n(東京・福岡・オンラインの3列表示・A4縦・罫線あり・グループ分け・連番)`)) return;
 
         setLoading(true);
         try {
@@ -1990,7 +1993,6 @@ export default function AdminDashboard() {
                         </div>
                         <button onClick={fetchApplications} className="text-sm text-blue-600 hover:underline">再読込</button>
                         <button onClick={() => fetchSettings(true)} className="text-sm text-gray-600 hover:text-gray-900 border px-3 py-1 rounded">設定変更</button>
-                        <span className="text-[10px] text-gray-400 mr-2">Logic Ver 2.1 (Security Patch applied)</span>
                         <button onClick={handleLogout} className='text-sm text-red-600 hover:bg-red-50 border border-red-200 px-3 py-1 rounded ml-2'>ログアウト</button>
                     </div>
                 </div>
@@ -1998,13 +2000,14 @@ export default function AdminDashboard() {
                 {/* コントロールバー */}
                 <div className="bg-white p-4 rounded-lg shadow mb-6 space-y-4">
                     <div className="flex flex-wrap gap-4 justify-between items-center">
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 items-center">
                             <button onClick={() => setFilter('unpaid')} className={`px-4 py-2 rounded-md ${filter === 'unpaid' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`}>未決済</button>
                             <button onClick={() => setFilter('paid')} className={`px-4 py-2 rounded-md ${filter === 'paid' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`}>決済済</button>
                             <button onClick={() => setFilter('cancelled')} className={`px-4 py-2 rounded-md ${filter === 'cancelled' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`}>キャンセル</button>
                             <button onClick={() => setFilter('all')} className={`px-4 py-2 rounded-md ${filter === 'all' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`}>全て</button>
-                            <div className="w-px bg-gray-300 h-8 mx-2 mt-1"></div>
+                            <div className="w-px bg-gray-300 h-8 mx-2"></div>
                             <button onClick={() => setShowCreateModal(true)} className="px-4 py-2 rounded-md bg-green-600 text-white font-bold hover:bg-green-700">新規登録</button>
+                            <span className="ml-4 text-[10px] font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-200">System Logic v2.1</span>
                         </div>
                         {/* 統計表示 */}
                         <div className="flex gap-4 text-sm bg-gray-50 px-4 py-2 rounded border border-gray-200">
