@@ -132,24 +132,27 @@ const getParticipationStatus = (app: any, venueList: any[] = []) => {
     const onlineVenueInput = (app.online_venues || '').trim();
     const pType = (app.participation_type || '').toLowerCase().trim();
 
-    // 強力なキーワード判定
+    // 強力なキーワード判定 + ユーティリティ使用
     const onlineKeywords = ['オンライン', 'LIVE', 'ライブ', '視聴', 'アーカイブ', '配信'];
     const hasOnlineKeyword = onlineKeywords.some(k => venueName.toUpperCase().includes(k.toUpperCase()));
-    const isExplicitOnline = pType === 'online' || hasOnlineKeyword;
+    const isExplicitOnline = pType === 'online' || hasOnlineKeyword || (typeof isOnlineVenue === 'function' && isOnlineVenue(venueName));
 
     let venueArea: 'tokyo' | 'fukuoka' | 'both' | null = null;
     let onlineArea: 'tokyo' | 'fukuoka' | 'both' | null = null;
 
-    // 1. オンライン判定（オンライン・配信のキーワードがあれば必ずonlineAreaとして処理）
+    // 1. オンライン判定
     if (isExplicitOnline || onlineVenueInput) {
         const v = (onlineVenueInput || venueName).toUpperCase();
         if (v.includes('東京') && v.includes('福岡')) onlineArea = 'both';
         else if (v.includes('福岡')) onlineArea = 'fukuoka';
         else if (v.includes('東京')) onlineArea = 'tokyo';
-        else onlineArea = 'tokyo'; 
+        else onlineArea = 'tokyo'; // デフォルト
     }
 
-    // 2. 実会場判定（isExplicitOnlineがTRUEの場合は、この人のこのレコードは実会場としてカウントしない）
+    // 2. 実会場判定
+    // 明示的にオンラインと判定されているレコードであっても、venueに「東京」などの地名が含まれていれば
+    // (かつ「LIVE視聴」などのオンラインキーワードが「主」でない場合など) 実会場としてカウントする可能性を考慮。
+    // しかし、基本は isExplicitOnline が FALSE の場合のみ実会場としてカウントする（重複防止のため）。
     if (!isExplicitOnline) {
         const v = venueName.toUpperCase();
         const masterVenue = venueList.find(mv => mv.name === venueName && mv.type === 'lecture');
@@ -242,8 +245,9 @@ export default function AdminDashboard() {
         const map = new Map<string, { venueArea: Set<string>, onlineArea: Set<string> }>();
         apps.forEach(app => {
             if ((app.payment_status || '').toLowerCase() === 'cancelled') return;
-            // 氏名から全ての空白を除去して表記揺れを吸収
-            const name = (app.input_name || '').replace(/\s+/g, '');
+            
+            // 氏名から全角・半角すべての空白を除去して表記揺れを吸収
+            const name = (app.input_name || '').replace(/[\s\u3000]+/g, '');
             const email = (app.input_email || '').toLowerCase().trim();
             const key = `${name}|${email}`;
             if (!key || key === '|') return;
@@ -271,11 +275,12 @@ export default function AdminDashboard() {
         map.forEach((areas, key) => {
             const hasTokyo = areas.venueArea.has('tokyo');
             const hasFukuoka = areas.venueArea.has('fukuoka');
+            // 実会場が東京・福岡の両方にある場合は「重複（赤）」
             const isBoth = hasTokyo && hasFukuoka;
             
             const hasAnyVenue = areas.venueArea.size > 0;
             const hasAnyOnline = areas.onlineArea.size > 0;
-            // 実会場とオンラインの混在（実会場重複がない場合のみ緑）
+            // 実会場とオンラインの混在（実会場重複がない場合のみ「ハイブリッド（緑）」）
             const isHybrid = !isBoth && hasAnyVenue && hasAnyOnline;
             
             const debug = `V:[${Array.from(areas.venueArea).join(',')}] O:[${Array.from(areas.onlineArea).join(',')}]`;
@@ -1313,7 +1318,7 @@ export default function AdminDashboard() {
 
             // Data Preparation for rows
             const getMemberInfo = (app: Application) => {
-                const nameKey = `${(app.input_name || '').replace(/\s+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
+                const nameKey = `${(app.input_name || '').replace(/[\s\u3000]+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
                 const personStatus = personStatusMap.get(nameKey);
                 
                 let name = app.input_name + 'さま';
@@ -2373,7 +2378,7 @@ export default function AdminDashboard() {
                                             <div className="text-sm font-medium">
                                                 <span 
                                                     className={(() => {
-                                                        const nameKey = `${(app.input_name || '').replace(/\s+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
+                                                        const nameKey = `${(app.input_name || '').replace(/[\s\u3000]+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
                                                         const personStatus = personStatusMap.get(nameKey);
                                                         
                                                         if (personStatus?.isBoth) return 'text-red-600 font-bold underline decoration-red-300';
@@ -2381,7 +2386,7 @@ export default function AdminDashboard() {
                                                         return 'text-gray-900';
                                                     })()}
                                                     title={(() => {
-                                                        const nameKey = `${(app.input_name || '').replace(/\s+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
+                                                        const nameKey = `${(app.input_name || '').replace(/[\s\u3000]+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
                                                         return personStatusMap.get(nameKey)?.debug || '';
                                                     })()}
                                                 >
