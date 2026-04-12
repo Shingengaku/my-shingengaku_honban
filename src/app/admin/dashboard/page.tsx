@@ -1371,6 +1371,16 @@ export default function AdminDashboard() {
                 return status.onlineArea === 'fukuoka' || status.onlineArea === 'both';
             }).map(getMemberInfo);
 
+            const rawOthers = allValidApps.filter(a => {
+                const status = getParticipationStatus(a, venueList);
+                const isTokyo = status.venueArea === 'tokyo' || status.venueArea === 'both';
+                const isFukuoka = status.venueArea === 'fukuoka' || status.venueArea === 'both';
+                const isOnlineT = status.onlineArea === 'tokyo' || status.onlineArea === 'both';
+                const isOnlineF = status.onlineArea === 'fukuoka' || status.onlineArea === 'both';
+                // どのカテゴリ（東京・福岡・オンライン東京・オンライン福岡）にも該当しない場合
+                return !isTokyo && !isFukuoka && !isOnlineT && !isOnlineF;
+            }).map(getMemberInfo);
+
             // Grouping Helper
             const groupList = (list: any[]) => {
                 return {
@@ -1400,7 +1410,7 @@ export default function AdminDashboard() {
             // Headers
             ws.mergeCells('A1:N1');
             const titleCell = ws.getCell('A1');
-            titleCell.value = `神言学集中講座 ${monthStr}月`;
+            titleCell.value = `神言学集中講座 ${monthStr}月 (総申込件数: ${allValidApps.length}名)`;
             titleCell.font = { size: 16, bold: true };
             titleCell.alignment = { horizontal: 'center' };
             titleCell.border = { bottom: { style: 'thick' } };
@@ -1573,10 +1583,20 @@ export default function AdminDashboard() {
                 resOF = renderBlock(rO, 10, '経営幹部', onlineFukuokaGroups.executive, seqO);
                 rO = resOF.nextRow; seqO = resOF.nextSeq;
                 resOF = renderBlock(rO, 10, 'GoGo 55000 ご紹介', onlineFukuokaGroups.referral, seqO);
-                rO = resOF.nextRow;
+                    rO = resOF.nextRow;
             }
 
             if (rO > maxRow) maxRow = rO;
+
+            // どのカテゴリにも分類されなかった「その他/不明」があれば末尾に追加
+            if (rawOthers.length > 0) {
+                maxRow += 2; // 少し空ける
+                const othersGroup = groupList(rawOthers);
+                const resOthers = renderBlock(maxRow, 0, '⚠️ 判定不能（会場名を確認してください）', othersGroup.terms, 1);
+                maxRow = resOthers.nextRow;
+            }
+
+            ws.getRow(1).height = 30;
 
             // Render Remarks if exists
             if (exportRemarks) {
