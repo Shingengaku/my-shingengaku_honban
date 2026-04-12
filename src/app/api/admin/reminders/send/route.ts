@@ -54,23 +54,26 @@ export async function POST(request: Request) {
                     continue;
                 }
 
-                // Determine Area
-                let area: string = 'tokyo'; // Default
-                const venueName = app.venue || '';
+                // Determine Area (Matches frontend logic in reminderSummary)
+                let area: string = 'tokyo';
+                const venueName = (app.venue || '').trim();
                 const pType = app.participation_type || 'venue';
-                
-                // Try finding in master
+                const onlineVenues = (app.online_venues || '').trim();
+
+                const isOnline = pType === 'online' || isOnlineVenue(venueName);
+
+                // 1. Check master data
                 const masterVenue = venuesMaster?.find(mv => mv.name === venueName && mv.type === 'lecture');
-                if (masterVenue?.area && ['tokyo', 'fukuoka'].includes(masterVenue.area)) {
-                    area = masterVenue.area;
-                } else if (venueName.includes('福岡')) {
+                const masterOnline = onlineVenues ? venuesMaster?.find(mv => onlineVenues.includes(mv.name) && mv.type === 'lecture') : null;
+
+                if (masterVenue?.area === 'fukuoka' || masterOnline?.area === 'fukuoka') {
                     area = 'fukuoka';
-                } else if (app.online_venues?.includes('福岡')) {
+                } else if (venueName.includes('福岡') || onlineVenues.includes('福岡')) {
                     area = 'fukuoka';
                 }
+                // Default is 'tokyo' (including 'both' cases for simplicity in email content selection)
 
                 const isPaid = app.payment_status === 'paid';
-                const isOnline = pType === 'online' || isOnlineVenue(venueName);
 
                 // Select Template
                 let template;
@@ -80,8 +83,8 @@ export async function POST(request: Request) {
                         : (settings.email_template_reminder_online_unpaid || DEFAULT_EMAIL_TEMPLATE_REMINDER_ONLINE_UNPAID);
                 } else {
                     template = isPaid
-                        ? (settings.email_template_reminder_reminder_venue_paid || DEFAULT_EMAIL_TEMPLATE_REMINDER_VENUE_PAID)
-                        : (settings.email_template_reminder_reminder_venue_unpaid || DEFAULT_EMAIL_TEMPLATE_REMINDER_VENUE_UNPAID);
+                        ? (settings.email_template_reminder_venue_paid || DEFAULT_EMAIL_TEMPLATE_REMINDER_VENUE_PAID)
+                        : (settings.email_template_reminder_venue_unpaid || DEFAULT_EMAIL_TEMPLATE_REMINDER_VENUE_UNPAID);
                 }
 
                 // Prepare Variables
