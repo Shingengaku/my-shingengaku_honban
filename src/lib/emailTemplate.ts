@@ -207,12 +207,18 @@ export const DEFAULT_EMAIL_TEMPLATE_REMINDER_ONLINE_UNPAID = {
 };
 
 export function processEmailTemplate(templateBody: string, vars: Record<string, string>): string {
+    if (typeof templateBody !== 'string') return '';
     let content = templateBody;
     for (const [key, value] of Object.entries(vars)) {
         // gフラグを使用したreplaceAll相当の処理
-        // 自動エスケープはここでは完全ではありませんが、既知のキーには十分です
-        const regex = new RegExp(`{{${key}}}`, 'g');
-        content = content.replace(regex, value || '');
+        // 正規表現に特殊文字が含まれる可能性を考慮し、簡単なエスケープまたは安全な置換を検討
+        try {
+            const regex = new RegExp(`{{${key}}}`, 'g');
+            content = content.replace(regex, value || '');
+        } catch (e) {
+            // キーに特殊文字が含まれていてRegExpが失敗した場合のフォールバック
+            content = content.split(`{{${key}}}`).join(value || '');
+        }
     }
     return content;
 }

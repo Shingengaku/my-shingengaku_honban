@@ -76,6 +76,10 @@ export async function GET() {
 
     return {
       ...app,
+      input_name: app.input_name || '',
+      input_email: app.input_email || '',
+      input_furigana: app.input_furigana || '',
+      tags: Array.isArray(app.tags) ? app.tags : [],
       members,
       payment_key: app.payment_key
     };

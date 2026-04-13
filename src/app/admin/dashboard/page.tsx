@@ -171,7 +171,7 @@ const getParticipationStatus = (app: any, venueList: any[] = []) => {
 };
 
 export default function AdminDashboard() {
-    const VERSION = "2026-04-12-2330";
+    const VERSION = "2026-04-13-0019";
     const [apps, setApps] = useState<Application[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'unpaid' | 'paid' | 'cancelled'>('all');
@@ -225,7 +225,7 @@ export default function AdminDashboard() {
     const [emailTemplateResend, setEmailTemplateResend] = useState({ subject: '', body: '' });
     const [emailTemplateForgotPass, setEmailTemplateForgotPass] = useState({ subject: '', body: '' });
     const [emailTemplateMultiple, setEmailTemplateMultiple] = useState({ subject: '', body: '' });
-    const [selectedTemplateTab, setSelectedTemplateTab] = useState<'matched' | 'general' | 'free' | 'free_online' | 'resend' | 'forgot' | 'multiple'>('matched');
+    const [selectedTemplateTab, setSelectedTemplateTab] = useState<'matched' | 'general' | 'free' | 'free_online' | 'resend' | 'forgot' | 'multiple' | 'reminder'>('matched');
     const [customResendModal, setCustomResendModal] = useState<{ isOpen: boolean, appId: string | null, subject: string, body: string, email: string }>({ isOpen: false, appId: null, subject: '', body: '', email: '' });
 
     const [adminEmail, setAdminEmail] = useState('');
@@ -254,15 +254,18 @@ export default function AdminDashboard() {
 
     // 追加：人物単位の参加状況マップ（名寄せはせず、判定のみで使用）
     const personStatusMap = useMemo(() => {
-        const map = new Map<string, { venueArea: Set<string>, onlineArea: Set<string> }>();
-        apps.forEach(app => {
+        try {
+            const map = new Map<string, { venueArea: Set<string>, onlineArea: Set<string> }>();
+            if (!Array.isArray(apps)) return new Map();
+
+            apps.forEach(app => {
+                if (!app) return;
             if ((app.payment_status || '').toLowerCase() === 'cancelled') return;
             
-            // 氏名から全角・半角すべての空白を除去して表記揺れを吸収
             const name = (app.input_name || '').replace(/[\s\u3000]+/g, '');
             const email = (app.input_email || '').toLowerCase().trim();
-            const key = `${name}|${email}`;
-            if (!key || key === '|') return;
+            const key = (name || email) ? `${name}|${email}` : null;
+            if (!key) return;
 
             if (!map.has(key)) map.set(key, { venueArea: new Set(), onlineArea: new Set() });
             const status = getParticipationStatus(app, venueList);
@@ -299,6 +302,10 @@ export default function AdminDashboard() {
             result.set(key, { isBoth, isHybrid, debug });
         });
         return result;
+        } catch (e) {
+            console.error('Error in personStatusMap calculation:', e);
+            return new Map<string, { isBoth: boolean, isHybrid: boolean, debug: string }>();
+        }
     }, [apps, venueList]);
     const [exportTermLabel, setExportTermLabel] = useState('期'); // デフォルト「期」
     const [exportRemarks, setExportRemarks] = useState('');
@@ -501,18 +508,18 @@ export default function AdminDashboard() {
             const res = await fetch('/api/admin/applications', { cache: 'no-store' });
             if (res.ok) {
                 const data = await res.json();
-                // チE�Eタの整形 (participation_typeの補完など)
+                // データの整形 (participation_typeの補完など)
                 if (!Array.isArray(data)) { setApps([]); return; }
                 const formatted = data.map((d: any) => ({
                     ...d,
-                    // タグから推測する場合�Eロジック�� (後方互換性)
+                    // タグから推測する場合のロジック (後方互換性)
                     participation_type: d.participation_type || (d.venue && ['LIVE視聴', 'アーカイブ視聴'].some((o: string) => d.venue.includes(o)) ? 'online' : 'venue')
                 }));
                 setApps(formatted);
             }
         } catch (e) {
             console.error(e);
-            alert('チE�Eタ取得に失敗しました');
+            alert('データ取得に失敗しました');
         } finally {
             setLoading(false);
         }
@@ -644,7 +651,7 @@ export default function AdminDashboard() {
     };
 
     const generateKeyCandidates = () => {
-        // 明示皁E��定義された商品名マスタリストを使用
+        // 明示的に定義された商品名マスタリストを使用
         return paymentLinksData.map(p => p.name).filter(Boolean);
     };
     const keyCandidates = useMemo(() => generateKeyCandidates(), [paymentLinksData]);
@@ -794,7 +801,7 @@ export default function AdminDashboard() {
     const nameCounts = useMemo(() => {
         const counts: Record<string, number> = {};
         apps.forEach(app => {
-            const n = app.input_name.trim();
+            const n = (app.input_name || '').trim();
             counts[n] = (counts[n] || 0) + 1;
         });
         return counts;
@@ -2547,7 +2554,7 @@ export default function AdminDashboard() {
                                                 >
                                                     {app.input_name}
                                                 </span>
-                                                {(nameCounts[app.input_name.trim()] || 0) > 1 && !isIgnored && (
+                                                {((nameCounts[(app.input_name || '').trim()] || 0) > 1 && !isIgnored) && (
                                                     <div className="mt-1">
                                                         {app.is_duplicate_confirmed ? (
                                                             <span
@@ -3214,7 +3221,7 @@ export default function AdminDashboard() {
                                             <div key={area} className="space-y-2">
                                                 <h5 className="font-bold text-sm text-indigo-700 uppercase">{String(area || '').toUpperCase()} エリア</h5>
                                                 <div>
-                                                    <label className="block text-[10px] text-gray-500">開催日時 ({{lecture_date}}変数用)</label>
+                                                    <label className="block text-[10px] text-gray-500">開催日時 ({"{{lecture_date}}"}変数用)</label>
                                                     <input 
                                                         className="border w-full p-2 rounded text-sm" 
                                                         value={lectureDates[area] || ''} 
@@ -3223,7 +3230,7 @@ export default function AdminDashboard() {
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-[10px] text-gray-500">視聴リンク ({{viewing_link}}変数用)</label>
+                                                    <label className="block text-[10px] text-gray-500">視聴リンク ({"{{viewing_link}}"}変数用)</label>
                                                     <input 
                                                         className="border w-full p-2 rounded text-sm" 
                                                         value={onlineViewingLinks[area] || ''} 

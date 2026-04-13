@@ -101,7 +101,10 @@ export async function POST(request: Request) {
             venue: displayVenue,
             social_venue: displaySocialVenue,
             amount: totalAmount.toLocaleString(),
-            payment_link_section: (matchedProduct && paymentUrl) ? paymentUrl : ''
+            payment_link_section: (matchedProduct && paymentUrl) ? paymentUrl : '',
+            // リマインド用変数のフォールバック（プレビュー時）
+            lecture_date: '（開催日時）',
+            viewing_link: '（オンライン視聴URL）'
         };
 
         const content = processEmailTemplate(template.body, vars);
