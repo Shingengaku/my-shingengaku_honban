@@ -171,7 +171,7 @@ const getParticipationStatus = (app: any, venueList: any[] = []) => {
 };
 
 export default function AdminDashboard() {
-    const VERSION = "2026-04-13-0019";
+    const VERSION = "2026-04-14-2325";
     const [apps, setApps] = useState<Application[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'unpaid' | 'paid' | 'cancelled'>('all');
@@ -1355,8 +1355,11 @@ export default function AdminDashboard() {
 
             // Helper: Find Master-defined group priority (1:Tokushin, 2:Terms, 3:Executive, 4:Referral)
             const getPriorityByMaster = (app: Application) => {
-                // 1. Rank Master Check
+                // 1. Tokushin check (Highest Priority - Moving fallback check to top as requested)
                 const rankName = app.applied_rank_name || app.members?.ranks?.name || '';
+                if (rankName.includes('特進') || (app.members?.is_tokushin)) return 1;
+
+                // 2. Rank Master Check
                 const masterRank = (ranks as any[]).find(r => r.name === rankName);
                 if (masterRank?.group) {
                     if (masterRank.group === 'tokushin') return 1;
@@ -1366,7 +1369,7 @@ export default function AdminDashboard() {
                     if (masterRank.group === 'referral') return 5;
                 }
 
-                // 2. Product Master Check (by Payment Key)
+                // 3. Product Master Check (by Payment Key)
                 const masterProduct = paymentLinksData.find(p => p.key === app.payment_key);
                 if (masterProduct?.group) {
                     if (masterProduct.group === 'tokushin') return 1;
@@ -1376,10 +1379,9 @@ export default function AdminDashboard() {
                     if (masterProduct.group === 'referral') return 5;
                 }
 
-                // 3. Fallback keywords (Safety for new/unmatched data)
+                // 4. Fallback keywords (Safety for new/unmatched data)
                 const vL = (app.venue || '').toLowerCase();
                 const k = (app.payment_key || '').toLowerCase();
-                if (rankName.includes('特進') || (app.members?.is_tokushin)) return 1;
                 if (rankName.includes('一般')) return 3;
                 if (rankName.includes('経営幹部')) return 4;
                 if (vL.includes('紹介') || vL.includes('ご紹介') || k.includes('紹介') || k.includes('ご紹介')) return 5;
@@ -1416,7 +1418,6 @@ export default function AdminDashboard() {
                 return normalizeKana(a.furigana).localeCompare(normalizeKana(b.furigana), 'ja');
             };
 
-            // キャンセルされたデータは含まないようにする
             // キャンセルされたデータは含まないようにする
             // 名寄せせず、全ての有効な申込みを走査（2カ所参加、ハイブリッド等を漏れなく抽出）
             const allValidApps = apps.filter(a => (a.payment_status || '').toLowerCase() !== 'cancelled');
@@ -1467,6 +1468,35 @@ export default function AdminDashboard() {
             const onlineTokyoGroups = groupList(rawOnlineTokyo);
             const onlineFukuokaGroups = groupList(rawOnlineFukuoka);
 
+            // Determine Venue Rendering Order by Date (New requirement)
+            const parseDay = (s: string) => {
+                const m = s.match(/\d+/);
+                return m ? parseInt(m[0]) : 99;
+            };
+            const dayT = parseDay(exportTokyoDate);
+            const dayF = parseDay(exportFukuokaDate);
+            const isFukuokaFirst = dayF < dayT;
+
+            const venueOrder = isFukuokaFirst 
+                ? [
+                    { id: 'fukuoka', title: '福岡会場', date: exportFukuokaDate, groups: fukuokaGroups, count: rawFukuoka.length, colOffset: 0 },
+                    { id: 'tokyo', title: '東京会場', date: exportTokyoDate, groups: tokyoGroups, count: rawTokyo.length, colOffset: 5 }
+                  ]
+                : [
+                    { id: 'tokyo', title: '東京会場', date: exportTokyoDate, groups: tokyoGroups, count: rawTokyo.length, colOffset: 0 },
+                    { id: 'fukuoka', title: '福岡会場', date: exportFukuokaDate, groups: fukuokaGroups, count: rawFukuoka.length, colOffset: 5 }
+                  ];
+
+            const onlineOrder = isFukuokaFirst
+                ? [
+                    { id: 'fukuoka', title: 'オンライン（福岡配信分）', groups: onlineFukuokaGroups, list: rawOnlineFukuoka },
+                    { id: 'tokyo', title: 'オンライン（東京配信分）', groups: onlineTokyoGroups, list: rawOnlineTokyo }
+                  ]
+                : [
+                    { id: 'tokyo', title: 'オンライン（東京配信分）', groups: onlineTokyoGroups, list: rawOnlineTokyo },
+                    { id: 'fukuoka', title: 'オンライン（福岡配信分）', groups: onlineFukuokaGroups, list: rawOnlineFukuoka }
+                  ];
+
             // Columns (4 cols + spacers)
             const colWidths = [4, 14, 5, 5];
             const spacerWidth = 2;
@@ -1488,18 +1518,19 @@ export default function AdminDashboard() {
             titleCell.border = { bottom: { style: 'thick' } };
 
             // Counts Row
-            ws.getRow(2).height = 40; // Ensure height for 2 lines
-            ws.mergeCells('A2:D2');
-            ws.getCell('A2').value = `東京会場 ${monthStr}月${exportTokyoDate}\n参加者: ${rawTokyo.length}名`;
-            ws.getCell('A2').font = { bold: true };
-            ws.getCell('A2').alignment = { wrapText: true, horizontal: 'center', vertical: 'middle' };
-            ws.getCell('A2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
-
-            ws.mergeCells('F2:I2');
-            ws.getCell('F2').value = `福岡会場 ${monthStr}月${exportFukuokaDate}\n参加者: ${rawFukuoka.length}名`;
-            ws.getCell('F2').font = { bold: true };
-            ws.getCell('F2').alignment = { wrapText: true, horizontal: 'center', vertical: 'middle' };
-            ws.getCell('F2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
+            ws.getRow(2).height = 40; 
+            
+            // Render Headers for Venues (Ordered)
+            venueOrder.forEach(v => {
+                const startCol = v.colOffset + 1;
+                const endCol = v.colOffset + 4;
+                const cellRef = ws.getRow(2).getCell(startCol);
+                ws.mergeCells(2, startCol, 2, endCol);
+                cellRef.value = `${v.title} ${monthStr}月${v.date}\n参加者: ${v.count}名`;
+                cellRef.font = { bold: true };
+                cellRef.alignment = { wrapText: true, horizontal: 'center', vertical: 'middle' };
+                cellRef.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
+            });
 
             ws.mergeCells('K2:N2');
             ws.getCell('K2').value = `オンライン配信\n申込者: ${rawOnlineTokyo.length + rawOnlineFukuoka.length}名`;
@@ -1519,7 +1550,7 @@ export default function AdminDashboard() {
                 titleCellRef.fill = {
                     type: 'pattern',
                     pattern: 'solid',
-                    fgColor: { argb: title.includes('配信分') ? 'FFD9EAD3' : 'FFD3D3D3' } // オンライン区分は薄緑、それ以外は薄グレー
+                    fgColor: { argb: title.includes('配信分') ? 'FFD9EAD3' : 'FFD3D3D3' } 
                 };
                 titleCellRef.font = { bold: true };
                 titleCellRef.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
@@ -1578,87 +1609,54 @@ export default function AdminDashboard() {
             const startRow = 4;
             let maxRow = 4;
 
-            // Tokyo Render
-            let rT = startRow;
-            let seqT = 1;
-            let resT = renderBlock(rT, 0, '特進', tokyoGroups.tokushin, seqT);
-            rT = resT.nextRow; seqT = resT.nextSeq;
+            // Render Real Venues (Tokyo/Fukuoka in determined order)
+            venueOrder.forEach(v => {
+                let rV = startRow;
+                let seqV = 1;
+                let resV = renderBlock(rV, v.colOffset, '特進', v.groups.tokushin, seqV);
+                rV = resV.nextRow; seqV = resV.nextSeq;
 
-            resT = renderBlock(rT, 0, exportTermLabel || '期生', tokyoGroups.terms, seqT);
-            rT = resT.nextRow; seqT = resT.nextSeq;
+                resV = renderBlock(rV, v.colOffset, exportTermLabel || '期生', v.groups.terms, seqV);
+                rV = resV.nextRow; seqV = resV.nextSeq;
 
-            resT = renderBlock(rT, 0, '一般 (未受講)', tokyoGroups.general, seqT);
-            rT = resT.nextRow; seqT = resT.nextSeq;
+                resV = renderBlock(rV, v.colOffset, '一般 (未受講)', v.groups.general, seqV);
+                rV = resV.nextRow; seqV = resV.nextSeq;
 
-            resT = renderBlock(rT, 0, '経営幹部', tokyoGroups.executive, seqT);
-            rT = resT.nextRow; seqT = resT.nextSeq;
+                resV = renderBlock(rV, v.colOffset, '経営幹部', v.groups.executive, seqV);
+                rV = resV.nextRow; seqV = resV.nextSeq;
 
-            resT = renderBlock(rT, 0, 'GoGo 55000 ご紹介', tokyoGroups.referral, seqT);
-            rT = resT.nextRow;
+                resV = renderBlock(rV, v.colOffset, 'GoGo 55000 ご紹介', v.groups.referral, seqV);
+                rV = resV.nextRow;
 
-            if (rT > maxRow) maxRow = rT;
+                if (rV > maxRow) maxRow = rV;
+            });
 
-            // Fukuoka Render
-            let rF = startRow;
-            let seqF = 1;
-            let resF = renderBlock(rF, 5, '特進', fukuokaGroups.tokushin, seqF);
-            rF = resF.nextRow; seqF = resF.nextSeq;
-
-            resF = renderBlock(rF, 5, exportTermLabel || '期生', fukuokaGroups.terms, seqF);
-            rF = resF.nextRow; seqF = resF.nextSeq;
-
-            resF = renderBlock(rF, 5, '一般 (未受講)', fukuokaGroups.general, seqF);
-            rF = resF.nextRow; seqF = resF.nextSeq;
-
-            resF = renderBlock(rF, 5, '経営幹部', fukuokaGroups.executive, seqF);
-            rF = resF.nextRow; seqF = resF.nextSeq;
-
-            resF = renderBlock(rF, 5, 'GoGo 55000 ご紹介', fukuokaGroups.referral, seqF);
-            rF = resF.nextRow;
-
-            if (rF > maxRow) maxRow = rF;
-
-            // Online Render
+            // Online Render (Ordered sub-sections)
             let rO = startRow;
             let seqO = 1;
 
-            // Online Tokyo Sub-section (Always show header to clarify 0 applicants)
-            let resOT = renderBlock(rO, 10, 'オンライン（東京配信分）', [], 0);
-            rO = resOT.nextRow;
-            
-            if (rawOnlineTokyo.length > 0) {
-                resOT = renderBlock(rO, 10, '特進', onlineTokyoGroups.tokushin, seqO);
-                rO = resOT.nextRow; seqO = resOT.nextSeq;
-                resOT = renderBlock(rO, 10, exportTermLabel || '期生', onlineTokyoGroups.terms, seqO);
-                rO = resOT.nextRow; seqO = resOT.nextSeq;
-                resOT = renderBlock(rO, 10, '一般 (未受講)', onlineTokyoGroups.general, seqO);
-                rO = resOT.nextRow; seqO = resOT.nextSeq;
-                resOT = renderBlock(rO, 10, '経営幹部', onlineTokyoGroups.executive, seqO);
-                rO = resOT.nextRow; seqO = resOT.nextSeq;
-                resOT = renderBlock(rO, 10, 'GoGo 55000 ご紹介', onlineTokyoGroups.referral, seqO);
-                rO = resOT.nextRow; seqO = resOT.nextSeq;
-            }
-
-            rO++; // Spacer
-
-            // Online Fukuoka Sub-section (Always show header)
-            let resOF = renderBlock(rO, 10, 'オンライン（福岡配信分）', [], 0);
-            rO = resOF.nextRow;
-            
-            if (rawOnlineFukuoka.length > 0) {
-                resOF = renderBlock(rO, 10, '特進', onlineFukuokaGroups.tokushin, seqO);
-                rO = resOF.nextRow; seqO = resOF.nextSeq;
-                resOF = renderBlock(rO, 10, exportTermLabel || '期生', onlineFukuokaGroups.terms, seqO);
-                rO = resOF.nextRow; seqO = resOF.nextSeq;
-                resOF = renderBlock(rO, 10, '一般 (未受講)', onlineFukuokaGroups.general, seqO);
-                rO = resOF.nextRow; seqO = resOF.nextSeq;
-                resOF = renderBlock(rO, 10, '経営幹部', onlineFukuokaGroups.executive, seqO);
-                rO = resOF.nextRow; seqO = resOF.nextSeq;
-                resOF = renderBlock(rO, 10, 'GoGo 55000 ご紹介', onlineFukuokaGroups.referral, seqO);
-                    rO = resOF.nextRow;
-            }
+            onlineOrder.forEach((o, idx) => {
+                // Header for sub-section
+                let resO = renderBlock(rO, 10, o.title, [], 0);
+                rO = resO.nextRow;
+                
+                if (o.list.length > 0) {
+                    resO = renderBlock(rO, 10, '特進', o.groups.tokushin, seqO);
+                    rO = resO.nextRow; seqO = resO.nextSeq;
+                    resO = renderBlock(rO, 10, exportTermLabel || '期生', o.groups.terms, seqO);
+                    rO = resO.nextRow; seqO = resO.nextSeq;
+                    resO = renderBlock(rO, 10, '一般 (未受講)', o.groups.general, seqO);
+                    rO = resO.nextRow; seqO = resO.nextSeq;
+                    resO = renderBlock(rO, 10, '経営幹部', o.groups.executive, seqO);
+                    rO = resO.nextRow; seqO = resO.nextSeq;
+                    resO = renderBlock(rO, 10, 'GoGo 55000 ご紹介', o.groups.referral, seqO);
+                    rO = resO.nextRow; seqO = resO.nextSeq;
+                }
+                if (idx === 0) rO++; // Spacer between Tokyo/Fukuoka in Online column
+            });
 
             if (rO > maxRow) maxRow = rO;
+
 
             // どのカテゴリにも分類されなかった「その他/不明」があれば末尾に追加
             if (rawOthers.length > 0) {
