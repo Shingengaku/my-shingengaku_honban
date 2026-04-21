@@ -1919,24 +1919,42 @@ export default function AdminDashboard() {
         };
 
         selectedApps.forEach(app => {
+            const normVenue = normalizeVenue(app.venue);
+            if (normVenue === '参加しない') return;
+
             const status = getParticipationStatus(app, venueList);
-            const isOnline = app.participation_type === 'online' || isOnlineVenue(app.venue || '');
+            const isOnline = app.participation_type === 'online' || isOnlineVenue(app.venue || '') || isOnlineVenue(app.online_venues || '');
             const isPaid = app.payment_status === 'paid';
             
             if (isPaid) summary.paid++; else summary.unpaid++;
 
-            let area = 'tokyo';
-            // 簡易的なエリア判定 (API側と極力合わせる)
-            if (status.venueArea === 'fukuoka' || status.onlineArea === 'fukuoka') {
+            let area: 'tokyo' | 'fukuoka' | 'both' = 'tokyo';
+            if (normVenue === '東京・福岡' || (app.online_venues || '').includes('東京・福岡')) {
+                area = 'both';
+            } else if (status.venueArea === 'fukuoka' || status.onlineArea === 'fukuoka') {
                 area = 'fukuoka';
             } else if (app.venue?.includes('福岡') || app.online_venues?.includes('福岡')) {
                 area = 'fukuoka';
             }
 
             if (isOnline) {
-                if (area === 'fukuoka') summary.fukuoka_online++; else summary.tokyo_online++;
+                if (area === 'both') {
+                    summary.tokyo_online++;
+                    summary.fukuoka_online++;
+                } else if (area === 'fukuoka') {
+                    summary.fukuoka_online++;
+                } else {
+                    summary.tokyo_online++;
+                }
             } else {
-                if (area === 'fukuoka') summary.fukuoka_venue++; else summary.tokyo_venue++;
+                if (area === 'both') {
+                    summary.tokyo_venue++;
+                    summary.fukuoka_venue++;
+                } else if (area === 'fukuoka') {
+                    summary.fukuoka_venue++;
+                } else {
+                    summary.tokyo_venue++;
+                }
             }
         });
 

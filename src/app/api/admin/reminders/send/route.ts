@@ -48,13 +48,13 @@ export async function POST(request: Request) {
 
         for (const app of apps) {
             try {
-                // Skip cancelled
-                if (app.payment_status === 'cancelled') {
-                    results.push({ id: app.id, status: 'skipped', reason: 'cancelled' });
+                const normVenue = normalizeVenue(app.venue);
+                if (normVenue === '参加しない') {
+                    results.push({ id: app.id, status: 'skipped', reason: 'not_attending' });
                     continue;
                 }
 
-                // Determine Area (Matches frontend logic in reminderSummary)
+                // Determine Area
                 let area: string = 'tokyo';
                 const venueName = (app.venue || '').trim();
                 const pType = app.participation_type || 'venue';
@@ -62,16 +62,17 @@ export async function POST(request: Request) {
 
                 const isOnline = pType === 'online' || isOnlineVenue(venueName) || isOnlineVenue(onlineVenues);
 
-                // 1. Check master data
+                // 1. Check master data & normalization
                 const masterVenue = venuesMaster?.find(mv => mv.name === venueName && mv.type === 'lecture');
                 const masterOnline = onlineVenues ? venuesMaster?.find(mv => onlineVenues.includes(mv.name) && mv.type === 'lecture') : null;
 
-                if (masterVenue?.area === 'fukuoka' || masterOnline?.area === 'fukuoka') {
+                if (normVenue === '東京・福岡' || onlineVenues.includes('東京・福岡')) {
+                    area = 'both';
+                } else if (masterVenue?.area === 'fukuoka' || masterOnline?.area === 'fukuoka') {
                     area = 'fukuoka';
                 } else if (venueName.includes('福岡') || onlineVenues.includes('福岡') || (app.venue || '').includes('福岡')) {
                     area = 'fukuoka';
                 }
-                // Default is 'tokyo' (including 'both' cases for simplicity in email content selection)
 
                 const isPaid = app.payment_status === 'paid';
 
@@ -94,9 +95,29 @@ export async function POST(request: Request) {
                 
                 // Get Area-specific date and link
                 const lectureDates = settings.lecture_dates || {};
-                const viewingLinks = settings.online_viewing_links || {};
-                const lectureDate = lectureDates[area] || (area === 'tokyo' ? '6月14日(日)' : '6月7日(日)');
-                const viewingLink = viewingLinks[area] || '';
+                const onlineViewingLinks = settings.online_viewing_links || {};
+                
+                let lectureDate = '';
+                let viewingLink = '';
+
+                if (area === 'both') {
+                    const dates = [];
+                    if (lectureDates.tokyo) dates.push(`【東京】${lectureDates.tokyo}`);
+                    if (lectureDates.fukuoka) dates.push(`【福岡】${lectureDates.fukuoka}`);
+                    lectureDate = dates.length > 0 ? dates.join(' / ') : '6月14日(日)・6月7日(日)';
+
+                    const links = [];
+                    if (onlineViewingLinks.tokyo) links.push(`【東京エリア配信分】${onlineViewingLinks.tokyo}`);
+                    if (onlineViewingLinks.fukuoka) links.push(`【福岡エリア配信分】${onlineViewingLinks.fukuoka}`);
+                    viewingLink = links.length > 0 ? links.join('\n') : '';
+                } else {
+                    lectureDate = lectureDates[area] || (area === 'tokyo' ? '6月14日(日)' : '6月7日(日)');
+                    viewingLink = onlineViewingLinks[area] || '';
+                }
+
+                if (isOnline && !viewingLink) {
+                    viewingLink = '※別途ご連絡します。';
+                }
 
                 // Payment Link (for unpaid)
                 let paymentUrl = '';
