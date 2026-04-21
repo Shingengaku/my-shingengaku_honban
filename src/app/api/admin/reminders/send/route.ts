@@ -60,7 +60,7 @@ export async function POST(request: Request) {
                 const pType = app.participation_type || 'venue';
                 const onlineVenues = (app.online_venues || '').trim();
 
-                const isOnline = pType === 'online' || isOnlineVenue(venueName);
+                const isOnline = pType === 'online' || isOnlineVenue(venueName) || isOnlineVenue(onlineVenues);
 
                 // 1. Check master data
                 const masterVenue = venuesMaster?.find(mv => mv.name === venueName && mv.type === 'lecture');
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
 
                 if (masterVenue?.area === 'fukuoka' || masterOnline?.area === 'fukuoka') {
                     area = 'fukuoka';
-                } else if (venueName.includes('福岡') || onlineVenues.includes('福岡')) {
+                } else if (venueName.includes('福岡') || onlineVenues.includes('福岡') || (app.venue || '').includes('福岡')) {
                     area = 'fukuoka';
                 }
                 // Default is 'tokyo' (including 'both' cases for simplicity in email content selection)
@@ -120,7 +120,7 @@ export async function POST(request: Request) {
                     rank: rankName,
                     venue: displayVenue,
                     social_venue: displaySocial,
-                    amount: app.total_amount.toLocaleString(),
+                    amount: (app.total_amount || 0).toLocaleString(),
                     payment_link_section: paymentUrl,
                     lecture_date: lectureDate,
                     viewing_link: viewingLink

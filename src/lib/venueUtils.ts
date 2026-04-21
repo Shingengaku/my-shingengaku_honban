@@ -185,7 +185,8 @@ export function matchProduct(paymentLinks: any[], appData: {
  */
 export function isOnlineVenue(venueName: string | null | undefined): boolean {
     if (!venueName) return false;
-    return venueName.includes('LIVE') || venueName === 'アーカイブ視聴';
+    const v = venueName.toUpperCase();
+    return v.includes('LIVE') || v.includes('ONLINE') || v.includes('オンライン') || v === 'アーカイブ視聴';
 }
 
 /**
