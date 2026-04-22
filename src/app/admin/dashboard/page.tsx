@@ -2229,8 +2229,8 @@ export default function AdminDashboard() {
                         {/* 統計表示 */}
                         <div className="flex gap-4 text-sm bg-gray-50 px-4 py-2 rounded border border-gray-200">
                             <div className="flex flex-col items-center">
-                                <span className="text-gray-500 text-xs">お申込み総数</span>
-                                <span className="font-bold text-gray-800">{apps.length}</span>
+                                <span className="text-indigo-600 text-[10px] font-bold">有効申込数</span>
+                                <span className="font-bold text-gray-800 text-lg leading-tight">{apps.filter(a => a.payment_status !== 'cancelled').length}</span>
                             </div>
                             <div className="w-px bg-gray-300 h-8 mx-1"></div>
                             <div className="flex flex-col items-center">
@@ -2242,10 +2242,15 @@ export default function AdminDashboard() {
                                 <span className='text-gray-500 text-xs'>決済済</span>
                                 <span className="font-bold text-green-600">{apps.filter(a => a.payment_status === 'paid').length}</span>
                             </div>
-                            <div className="w-px bg-gray-300 h-8 mx-1"></div>
+                            <div className="w-px bg-gray-300 h-8 mx-2"></div>
                             <div className="flex flex-col items-center">
                                 <span className="text-gray-500 text-xs">キャンセル</span>
                                 <span className="font-bold text-gray-600">{apps.filter(a => a.payment_status === 'cancelled').length}</span>
+                            </div>
+                            <div className="w-px bg-gray-300 h-8 mx-1"></div>
+                            <div className="flex flex-col items-center">
+                                <span className="text-gray-400 text-[10px]">全体件数</span>
+                                <span className="font-bold text-gray-500">{apps.length}</span>
                             </div>
                             <div className="w-px bg-gray-300 h-8 mx-1"></div>
                             <div className="flex flex-col items-center">
