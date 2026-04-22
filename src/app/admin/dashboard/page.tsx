@@ -2425,11 +2425,11 @@ export default function AdminDashboard() {
             </div>
 
             {/* テーブル */}
-            <div className="bg-white rounded-lg shadow overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+            <div className="bg-white rounded-lg shadow overflow-auto max-h-[calc(100vh-320px)] relative border border-gray-200">
+                <table className="min-w-full divide-y divide-gray-200 border-separate border-spacing-0">
+                    <thead className="bg-gray-50 sticky top-0 z-20 shadow-sm">
                         <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10 sticky top-0 bg-gray-50 z-20 border-b">
                                 <input
                                     type="checkbox"
                                     onChange={(e) => {
@@ -2440,43 +2440,43 @@ export default function AdminDashboard() {
                                 />
                             </th>
                             <th
-                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky top-0 bg-gray-50 z-20 border-b"
                                 onClick={() => requestSort('created_at')}
                             >
                                 申込日時{getSortIcon('created_at')}
                             </th>
                             <th
-                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky top-0 bg-gray-50 z-20 border-b"
                                 onClick={() => requestSort('payment_status')}
                             >
                                 状態{getSortIcon('payment_status')}
                             </th>
                             <th
-                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky top-0 bg-gray-50 z-20 border-b"
                                 onClick={() => requestSort('name')}
                             >
                                 名前 / Email {getSortIcon('name')}
                             </th>
                             <th
-                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky top-0 bg-gray-50 z-20 border-b"
                                 onClick={() => requestSort('rank')}
                             >
                                 属性 / 備考{getSortIcon('rank')}
                             </th>
                             <th
-                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky top-0 bg-gray-50 z-20 border-b"
                                 onClick={() => requestSort('generation')}
                             >
                                 期{getSortIcon('generation')}
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">会場 / オンライン / 懇親会</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-50 z-20 border-b">会場 / オンライン / 懇親会</th>
                             <th
-                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky top-0 bg-gray-50 z-20 border-b"
                                 onClick={() => requestSort('total_amount')}
                             >
                                 金額 / 商品名{getSortIcon('total_amount')}
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-50 z-20 border-b">操作</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
