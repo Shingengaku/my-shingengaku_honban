@@ -10,6 +10,13 @@ import {
     DEFAULT_EMAIL_TEMPLATE_REMINDER_ONLINE_UNPAID
 } from '@/lib/emailTemplate';
 import { normalizeVenue, getVenueDisplayName, matchProduct, isOnlineVenue } from '@/lib/venueUtils';
+// Utility to parse "6月14日(日)" into a comparable value
+const parseMonthDay = (s: string) => {
+    if (!s) return null;
+    const match = s.match(/(\d+)月(\d+)日/);
+    if (!match) return null;
+    return parseInt(match[1]) * 100 + parseInt(match[2]);
+};
 
 export async function POST(request: Request) {
     try {
@@ -101,15 +108,34 @@ export async function POST(request: Request) {
                 let viewingLink = '';
 
                 if (area === 'both') {
-                    const dates = [];
-                    if (lectureDates.tokyo) dates.push(`【東京】${lectureDates.tokyo}`);
-                    if (lectureDates.fukuoka) dates.push(`【福岡】${lectureDates.fukuoka}`);
-                    lectureDate = dates.length > 0 ? dates.join(' / ') : '6月14日(日)・6月7日(日)';
+                    const tokyoDate = lectureDates.tokyo;
+                    const fukuokaDate = lectureDates.fukuoka;
+                    
+                    const dateItems = [];
+                    if (tokyoDate) dateItems.push({ label: '東京', date: tokyoDate });
+                    if (fukuokaDate) dateItems.push({ label: '福岡', date: fukuokaDate });
 
-                    const links = [];
-                    if (onlineViewingLinks.tokyo) links.push(`【東京エリア配信分】${onlineViewingLinks.tokyo}`);
-                    if (onlineViewingLinks.fukuoka) links.push(`【福岡エリア配信分】${onlineViewingLinks.fukuoka}`);
-                    viewingLink = links.length > 0 ? links.join('\n') : '';
+                    // Sort chronologically
+                    dateItems.sort((a, b) => {
+                        const valA = parseMonthDay(a.date) || 9999;
+                        const valB = parseMonthDay(b.date) || 9999;
+                        return valA - valB;
+                    });
+
+                    lectureDate = dateItems.map(item => `【${item.label}】${item.date}`).join(' / ');
+                    if (!lectureDate) lectureDate = '6月7日(日)・6月14日(日)'; // Basic fallback
+
+                    const linkItems = [];
+                    if (onlineViewingLinks.tokyo) linkItems.push({ label: '東京エリア配信分', link: onlineViewingLinks.tokyo, area: '東京' });
+                    if (onlineViewingLinks.fukuoka) linkItems.push({ label: '福岡エリア配信分', link: onlineViewingLinks.fukuoka, area: '福岡' });
+
+                    // Sort links by same order as dates
+                    const order = dateItems.map(i => i.label);
+                    linkItems.sort((a, b) => {
+                        return order.indexOf(a.area) - order.indexOf(b.area);
+                    });
+
+                    viewingLink = linkItems.map(item => `【${item.label}】${item.link}`).join('\n');
                 } else {
                     lectureDate = lectureDates[area] || (area === 'tokyo' ? '6月14日(日)' : '6月7日(日)');
                     viewingLink = onlineViewingLinks[area] || '';
