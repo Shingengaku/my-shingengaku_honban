@@ -10,11 +10,31 @@ import {
     DEFAULT_EMAIL_TEMPLATE_REMINDER_ONLINE_UNPAID
 } from '@/lib/emailTemplate';
 import { normalizeVenue, getVenueDisplayName, matchProduct, isOnlineVenue } from '@/lib/venueUtils';
-// Utility to parse "6月14日(日)" into a comparable value
-const parseMonthDay = (s: string) => {
-    if (!s) return null;
+// Utility to format ISO string to Japanese date-time
+const formatJapaneseDateTime = (iso: string) => {
+    if (!iso) return '';
+    const date = new Date(iso);
+    if (isNaN(date.getTime())) return iso; // Return as-is if not a valid ISO date
+
+    const days = ['日', '月', '火', '水', '木', '金', '土'];
+    const m = date.getMonth() + 1;
+    const d = date.getDate();
+    const w = days[date.getDay()];
+    const h = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    
+    return `${m}月${d}日(${w}) ${h}:${min}`;
+};
+
+// Utility to get comparable time value
+const getTimeValue = (s: string) => {
+    if (!s) return 9999999999999;
+    const date = new Date(s);
+    if (!isNaN(date.getTime())) return date.getTime();
+    
+    // Fallback for old text format
     const match = s.match(/(\d+)月(\d+)日/);
-    if (!match) return null;
+    if (!match) return 9999999999999;
     return parseInt(match[1]) * 100 + parseInt(match[2]);
 };
 
@@ -117,12 +137,10 @@ export async function POST(request: Request) {
 
                     // Sort chronologically
                     dateItems.sort((a, b) => {
-                        const valA = parseMonthDay(a.date) || 9999;
-                        const valB = parseMonthDay(b.date) || 9999;
-                        return valA - valB;
+                        return getTimeValue(a.date) - getTimeValue(b.date);
                     });
 
-                    lectureDate = dateItems.map(item => `【${item.label}】${item.date}`).join(' / ');
+                    lectureDate = dateItems.map(item => `【${item.label}】${formatJapaneseDateTime(item.date)}`).join(' / ');
                     if (!lectureDate) lectureDate = '6月7日(日)・6月14日(日)'; // Basic fallback
 
                     const linkItems = [];
@@ -137,7 +155,7 @@ export async function POST(request: Request) {
 
                     viewingLink = linkItems.map(item => `【${item.label}】${item.link}`).join('\n');
                 } else {
-                    lectureDate = lectureDates[area] || (area === 'tokyo' ? '6月14日(日)' : '6月7日(日)');
+                    lectureDate = formatJapaneseDateTime(lectureDates[area]) || (area === 'tokyo' ? '6月14日(日)' : '6月7日(日)');
                     viewingLink = onlineViewingLinks[area] || '';
                 }
 

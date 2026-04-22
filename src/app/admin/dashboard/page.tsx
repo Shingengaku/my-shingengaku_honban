@@ -3298,9 +3298,9 @@ export default function AdminDashboard() {
                                                 <div>
                                                     <label className="block text-[10px] text-gray-500">開催日時 ({"{{lecture_date}}"}変数用)</label>
                                                     <input 
+                                                        type="datetime-local"
                                                         className="border w-full p-2 rounded text-sm" 
                                                         value={lectureDates[area] || ''} 
-                                                        placeholder="例: 6月14日(日) 13:00〜"
                                                         onChange={e => setLectureDates({...lectureDates, [area]: e.target.value})} 
                                                     />
                                                 </div>
