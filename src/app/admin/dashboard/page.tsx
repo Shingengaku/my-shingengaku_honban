@@ -880,6 +880,25 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleUncancel = async (id: string) => {
+        if (!confirm('キャンセルを解除して「未決済」に戻しますか？')) return;
+        try {
+            const res = await fetch('/api/admin/applications/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: [id], status: 'unpaid' }),
+            });
+            if (res.ok) {
+                alert('キャンセルを解除しました');
+                fetchApplications();
+            } else {
+                alert('更新に失敗しました');
+            }
+        } catch (e) {
+            alert('エラーが発生しました');
+        }
+    };
+
     const handleResend = async (id: string) => {
         if (!confirm('再送メールの作成画面を開きますか？')) return;
 
@@ -1064,7 +1083,8 @@ export default function AdminDashboard() {
             member_generation: app.members?.generation,
             cc_email: app.cc_email || adminEmail || '',
             bcc_email: app.bcc_email || adminBccEmail || '',
-            participation_type: app.participation_type
+            participation_type: app.participation_type,
+            payment_status: app.payment_status
         });
         setShowModal(true);
     };
@@ -1217,7 +1237,8 @@ export default function AdminDashboard() {
                 cc_email: editForm.cc_email,
                 bcc_email: editForm.bcc_email,
                 participation_type: editForm.participation_type,
-                online_venues: editForm.online_venues
+                online_venues: editForm.online_venues,
+                payment_status: editForm.payment_status
             };
 
             const res = await fetch('/api/admin/applications/edit', {
@@ -1882,13 +1903,30 @@ export default function AdminDashboard() {
     };
 
     const submitReminders = async () => {
+        const cancelledCount = apps.filter(a => selectedIds.has(a.id) && a.payment_status === 'cancelled').length;
+        if (cancelledCount > 0) {
+            if (!confirm(`選択されたデータの中に、キャンセル済みのものが ${cancelledCount} 件含まれています。\nキャンセル済みのデータを除いて送信しますか？\n（「キャンセル」を押すと送信を中止します）`)) return;
+        }
+
         if (!confirm('選択した参加者にリマインドメールを一括送信しますか？')) return;
+        
+        // 送信対象を絞り込む（キャンセル済みを除外）
+        const targetIds = Array.from(selectedIds).filter(id => {
+            const app = apps.find(a => a.id === id);
+            return app && app.payment_status !== 'cancelled';
+        });
+
+        if (targetIds.length === 0) {
+            alert('送信対象となる（キャンセルされていない）データがありません。');
+            return;
+        }
+
         setReminderSending(true);
         try {
             const res = await fetch('/api/admin/reminders/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ids: Array.from(selectedIds) })
+                body: JSON.stringify({ ids: targetIds })
             });
 
             if (res.ok) {
@@ -2691,8 +2729,10 @@ export default function AdminDashboard() {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex flex-col space-y-1 align-top">
                                             <div className="space-x-2">
                                                 <button onClick={() => openEditModal(app)} className="text-indigo-600 hover:text-indigo-900">編集</button>
-                                                {app.payment_status !== 'cancelled' && (
+                                                {app.payment_status !== 'cancelled' ? (
                                                     <button onClick={() => handleCancel(app.id)} className="text-red-600 hover:text-red-900">キャンセル</button>
+                                                ) : (
+                                                    <button onClick={() => handleUncancel(app.id)} className="text-green-600 hover:text-green-900 font-bold">キャンセル解除</button>
                                                 )}
                                             </div>
                                             <div className="flex gap-2">
@@ -2852,6 +2892,18 @@ export default function AdminDashboard() {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
+                                        <label className="block text-sm font-bold text-gray-700">決済ステータス</label>
+                                        <select
+                                            className={`border w-full p-2 rounded ${editForm.payment_status === 'cancelled' ? 'bg-red-50 text-red-700' : 'bg-white'}`}
+                                            value={editForm.payment_status || ''}
+                                            onChange={e => setEditForm({ ...editForm, payment_status: e.target.value as any })}
+                                        >
+                                            <option value="unpaid">未決済</option>
+                                            <option value="paid">決済済</option>
+                                            <option value="cancelled">キャンセル</option>
+                                        </select>
+                                    </div>
+                                    <div>
                                         <label className="block text-sm font-bold text-gray-700">判定属性</label>
                                         <select
                                             className="border w-full p-2 rounded bg-indigo-50"
@@ -2862,7 +2914,9 @@ export default function AdminDashboard() {
                                             {ranks.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
                                         </select>
                                     </div>
-                                    <div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 mt-4">
+                                    <div className="col-span-2">
                                         <label className="block text-sm font-bold text-gray-700 text-indigo-700">合計金額 (自動計算/マスタ連動)</label>
                                         <input
                                             type="number"
