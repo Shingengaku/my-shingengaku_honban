@@ -3380,13 +3380,13 @@ export default function AdminDashboard() {
                                         {Array.from(new Set((venueList || []).filter(v => v && ['tokyo', 'fukuoka'].includes(v.area)).map(v => v.area))).sort().map(area => (
                                             <div key={area} className="space-y-2">
                                                 <h5 className="font-bold text-sm text-indigo-700 uppercase">{String(area || '').toUpperCase()} エリア</h5>
-                                                <div className="flex gap-2">
-                                                    <div className="flex-1">
-                                                        <label className="block text-[10px] text-gray-500">開始日時 ({"{{lecture_date}}"}変数用)</label>
-                                                        <div className="flex gap-1">
+                                                <div className="space-y-4">
+                                                    <div>
+                                                        <label className="block text-[10px] text-gray-500 font-bold mb-1">開始日時 ({"{{lecture_date}}"}変数用)</label>
+                                                        <div className="flex flex-col gap-1">
                                                             <input 
                                                                 type="date"
-                                                                className="border flex-1 p-2 rounded text-sm bg-white hover:border-indigo-400 transition-colors" 
+                                                                className="border w-full p-2 rounded text-sm bg-white hover:border-indigo-400 transition-colors" 
                                                                 value={(lectureDates[area] || '').split('T')[0]} 
                                                                 onChange={e => {
                                                                     const time = (lectureDates[area] || '').split('T')[1] || '00:00';
@@ -3396,16 +3396,16 @@ export default function AdminDashboard() {
                                                             <DrumTimePicker 
                                                                 value={lectureDates[area] || ''}
                                                                 onChange={val => setLectureDates({...lectureDates, [area]: val})}
-                                                                className="w-24"
+                                                                className="w-full"
                                                             />
                                                         </div>
                                                     </div>
-                                                    <div className="flex-1">
-                                                        <label className="block text-[10px] text-gray-500">終了日時</label>
-                                                        <div className="flex gap-1">
+                                                    <div>
+                                                        <label className="block text-[10px] text-gray-500 font-bold mb-1">終了日時</label>
+                                                        <div className="flex flex-col gap-1">
                                                             <input 
                                                                 type="date"
-                                                                className="border flex-1 p-2 rounded text-sm bg-white hover:border-indigo-400 transition-colors" 
+                                                                className="border w-full p-2 rounded text-sm bg-white hover:border-indigo-400 transition-colors" 
                                                                 value={(lectureEndDates[area] || '').split('T')[0]} 
                                                                 onChange={e => {
                                                                     const time = (lectureEndDates[area] || '').split('T')[1] || '00:00';
@@ -3415,7 +3415,7 @@ export default function AdminDashboard() {
                                                             <DrumTimePicker 
                                                                 value={lectureEndDates[area] || ''}
                                                                 onChange={val => setLectureEndDates({...lectureEndDates, [area]: val})}
-                                                                className="w-24"
+                                                                className="w-full"
                                                             />
                                                         </div>
                                                     </div>
