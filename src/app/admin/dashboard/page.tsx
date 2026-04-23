@@ -2366,8 +2366,8 @@ export default function AdminDashboard() {
                                 <span className="text-xs font-bold text-gray-500">出力設定:</span>
                                 <input
                                     type="text"
-                                    placeholder="月 (例: 10)"
-                                    className="border rounded px-1 py-0.5 text-xs w-12 text-right"
+                                    placeholder="月"
+                                    className="border rounded px-2 py-1 text-sm w-12 text-center bg-white hover:border-indigo-400 transition-colors"
                                     value={exportMonth}
                                     onChange={(e) => setExportMonth(e.target.value)}
                                 />
@@ -2379,7 +2379,7 @@ export default function AdminDashboard() {
                                     <div className="flex items-center gap-1">
                                         <input
                                             type="date"
-                                            className="border rounded px-1 py-0.5 text-[10px] w-24"
+                                            className="border rounded px-2 py-1 text-sm w-32 bg-white hover:border-indigo-400 transition-colors"
                                             value={(lectureDates['tokyo'] || '').split('T')[0]}
                                             onChange={(e) => {
                                                 const time = (lectureDates['tokyo'] || '').split('T')[1] || '00:00';
@@ -2395,7 +2395,7 @@ export default function AdminDashboard() {
                                     <div className="flex items-center gap-1">
                                         <input
                                             type="date"
-                                            className="border rounded px-1 py-0.5 text-[10px] w-24"
+                                            className="border rounded px-2 py-1 text-sm w-32 bg-white hover:border-indigo-400 transition-colors"
                                             value={(lectureEndDates['tokyo'] || '').split('T')[0]}
                                             onChange={(e) => {
                                                 const time = (lectureEndDates['tokyo'] || '').split('T')[1] || '00:00';
@@ -2413,7 +2413,7 @@ export default function AdminDashboard() {
                                     <div className="flex items-center gap-1">
                                         <input
                                             type="date"
-                                            className="border rounded px-1 py-0.5 text-[10px] w-24"
+                                            className="border rounded px-2 py-1 text-sm w-32 bg-white hover:border-indigo-400 transition-colors"
                                             value={(lectureDates['fukuoka'] || '').split('T')[0]}
                                             onChange={(e) => {
                                                 const time = (lectureDates['fukuoka'] || '').split('T')[1] || '00:00';
@@ -2429,7 +2429,7 @@ export default function AdminDashboard() {
                                     <div className="flex items-center gap-1">
                                         <input
                                             type="date"
-                                            className="border rounded px-1 py-0.5 text-[10px] w-24"
+                                            className="border rounded px-2 py-1 text-sm w-32 bg-white hover:border-indigo-400 transition-colors"
                                             value={(lectureEndDates['fukuoka'] || '').split('T')[0]}
                                             onChange={(e) => {
                                                 const time = (lectureEndDates['fukuoka'] || '').split('T')[1] || '00:00';
@@ -2454,7 +2454,7 @@ export default function AdminDashboard() {
                                 <input
                                     type="text"
                                     placeholder="期"
-                                    className="border rounded px-1 py-0.5 text-xs w-16"
+                                    className="border rounded px-2 py-1 text-sm w-16 text-center bg-white hover:border-indigo-400 transition-colors"
                                     value={exportTermLabel}
                                     onChange={(e) => setExportTermLabel(e.target.value)}
                                 />
@@ -3386,7 +3386,7 @@ export default function AdminDashboard() {
                                                         <div className="flex gap-1">
                                                             <input 
                                                                 type="date"
-                                                                className="border flex-1 p-2 rounded text-sm" 
+                                                                className="border flex-1 p-2 rounded text-sm bg-white hover:border-indigo-400 transition-colors" 
                                                                 value={(lectureDates[area] || '').split('T')[0]} 
                                                                 onChange={e => {
                                                                     const time = (lectureDates[area] || '').split('T')[1] || '00:00';
@@ -3405,7 +3405,7 @@ export default function AdminDashboard() {
                                                         <div className="flex gap-1">
                                                             <input 
                                                                 type="date"
-                                                                className="border flex-1 p-2 rounded text-sm" 
+                                                                className="border flex-1 p-2 rounded text-sm bg-white hover:border-indigo-400 transition-colors" 
                                                                 value={(lectureEndDates[area] || '').split('T')[0]} 
                                                                 onChange={e => {
                                                                     const time = (lectureEndDates[area] || '').split('T')[1] || '00:00';
