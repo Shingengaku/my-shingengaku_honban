@@ -176,6 +176,11 @@ export async function POST(request: Request) {
                 supabaseAdmin.from('app_settings').upsert({ key: 'lecture_dates', value: body.lecture_dates }, { onConflict: 'key' })
             );
         }
+        if (body.lecture_end_dates) {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'lecture_end_dates', value: body.lecture_end_dates }, { onConflict: 'key' })
+            );
+        }
 
         await Promise.all(updates);
 

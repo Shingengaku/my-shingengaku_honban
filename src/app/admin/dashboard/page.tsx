@@ -246,6 +246,7 @@ export default function AdminDashboard() {
     const [emailTemplateReminderOnlineUnpaid, setEmailTemplateReminderOnlineUnpaid] = useState({ subject: '', body: '' });
     const [onlineViewingLinks, setOnlineViewingLinks] = useState<Record<string, string>>({});
     const [lectureDates, setLectureDates] = useState<Record<string, string>>({});
+    const [lectureEndDates, setLectureEndDates] = useState<Record<string, string>>({});
     const [reminderSettingsTab, setReminderSettingsTab] = useState<'venue' | 'online'>('venue');
 
     // ソート機能の状態
@@ -310,17 +311,11 @@ export default function AdminDashboard() {
     const [exportTermLabel, setExportTermLabel] = useState('期'); // デフォルト「期」
     const [exportRemarks, setExportRemarks] = useState('');
     const [exportMonth, setExportMonth] = useState('');
-    const [exportTokyoDate, setExportTokyoDate] = useState('');
-    const [exportFukuokaDate, setExportFukuokaDate] = useState('');
 
     // Persist Export Settings
     useEffect(() => {
         const savedMonth = localStorage.getItem('shingengaku_export_month');
         if (savedMonth) setExportMonth(savedMonth);
-        const savedTokyo = localStorage.getItem('shingengaku_export_tokyo');
-        if (savedTokyo) setExportTokyoDate(savedTokyo);
-        const savedFukuoka = localStorage.getItem('shingengaku_export_fukuoka');
-        if (savedFukuoka) setExportFukuokaDate(savedFukuoka);
 
         const savedTermLabel = localStorage.getItem('shingengaku_export_term_label');
         if (savedTermLabel) setExportTermLabel(savedTermLabel);
@@ -333,12 +328,8 @@ export default function AdminDashboard() {
     }, [exportMonth]);
 
     useEffect(() => {
-        localStorage.setItem('shingengaku_export_tokyo', exportTokyoDate);
-    }, [exportTokyoDate]);
-
-    useEffect(() => {
-        localStorage.setItem('shingengaku_export_fukuoka', exportFukuokaDate);
-    }, [exportFukuokaDate]);
+        localStorage.setItem('shingengaku_export_month', exportMonth);
+    }, [exportMonth]);
 
     useEffect(() => {
         localStorage.setItem('shingengaku_export_term_label', exportTermLabel);
@@ -635,6 +626,7 @@ export default function AdminDashboard() {
                 };
                 setOnlineViewingLinks(ensureObj(data.online_viewing_links));
                 setLectureDates(ensureObj(data.lecture_dates));
+                setLectureEndDates(ensureObj(data.lecture_end_dates));
 
                 if (openModal) {
                     setShowSettingsModal(true);
@@ -687,6 +679,7 @@ export default function AdminDashboard() {
                     email_template_reminder_online_unpaid: emailTemplateReminderOnlineUnpaid,
                     online_viewing_links: onlineViewingLinks,
                     lecture_dates: lectureDates,
+                    lecture_end_dates: lectureEndDates,
                     admin_email: adminEmail,
                     admin_bcc_email: adminBccEmail,
                     test_email: testEmail,
@@ -1357,8 +1350,39 @@ export default function AdminDashboard() {
 
     // Simple Excel Export using exceljs
     const handleSimpleExcelExport = async () => {
-        const monthStr = exportMonth || (new Date().getMonth() + 1).toString();
-        if (!confirm(`【【簡易版】エクセルファイルを生成しますか？\n対象月: ${monthStr}月\n東京日程: ${exportTokyoDate}〜\n福岡日程: ${exportFukuokaDate}〜\n(東京・福岡・オンラインの3列表示・A4縦・罫線あり・グループ分け・連番)`)) return;
+        const getMonthFromDate = (s?: string) => {
+            if (!s) return null;
+            const d = new Date(s);
+            return isNaN(d.getTime()) ? null : (d.getMonth() + 1).toString();
+        };
+
+        const formatDateForExcel = (startStr: string, endStr?: string) => {
+            if (!startStr) return '';
+            const start = new Date(startStr);
+            if (isNaN(start.getTime())) return startStr;
+            const day = start.getDate();
+            const startHM = start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+            if (endStr) {
+                const end = new Date(endStr);
+                if (!isNaN(end.getTime())) {
+                    const endHM = end.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+                    return `${day}日 ${startHM}〜${endHM}`;
+                }
+            }
+            return `${day}日 ${startHM}〜`;
+        };
+
+        const dateT = lectureDates['tokyo'] || '';
+        const dateF = lectureDates['fukuoka'] || '';
+        const dateEndT = lectureEndDates['tokyo'] || '';
+        const dateEndF = lectureEndDates['fukuoka'] || '';
+
+        const labelT = formatDateForExcel(dateT, dateEndT);
+        const labelF = formatDateForExcel(dateF, dateEndF);
+
+        const monthStr = exportMonth || getMonthFromDate(dateT) || getMonthFromDate(dateF) || (new Date().getMonth() + 1).toString();
+
+        if (!confirm(`【【簡易版】エクセルファイルを生成しますか？\n対象月: ${monthStr}月\n東京日程: ${labelT}\n福岡日程: ${labelF}\n(東京・福岡・オンラインの3列表示・A4縦・罫線あり・グループ分け・連番)`)) return;
 
         setLoading(true);
         try {
@@ -1489,23 +1513,25 @@ export default function AdminDashboard() {
             const onlineTokyoGroups = groupList(rawOnlineTokyo);
             const onlineFukuokaGroups = groupList(rawOnlineFukuoka);
 
-            // Determine Venue Rendering Order by Date (New requirement)
+            // Determine Venue Rendering Order by Date
             const parseDay = (s: string) => {
-                const m = s.match(/\d+/);
-                return m ? parseInt(m[0]) : 99;
+                if (!s) return 99;
+                const d = new Date(s);
+                return isNaN(d.getTime()) ? 99 : d.getDate();
             };
-            const dayT = parseDay(exportTokyoDate);
-            const dayF = parseDay(exportFukuokaDate);
+
+            const dayT = parseDay(dateT);
+            const dayF = parseDay(dateF);
             const isFukuokaFirst = dayF < dayT;
 
             const venueOrder = isFukuokaFirst 
                 ? [
-                    { id: 'fukuoka', title: '福岡会場', date: exportFukuokaDate, groups: fukuokaGroups, count: rawFukuoka.length, colOffset: 0 },
-                    { id: 'tokyo', title: '東京会場', date: exportTokyoDate, groups: tokyoGroups, count: rawTokyo.length, colOffset: 5 }
+                    { id: 'fukuoka', title: '福岡会場', date: labelF, groups: fukuokaGroups, count: rawFukuoka.length, colOffset: 0 },
+                    { id: 'tokyo', title: '東京会場', date: labelT, groups: tokyoGroups, count: rawTokyo.length, colOffset: 5 }
                   ]
                 : [
-                    { id: 'tokyo', title: '東京会場', date: exportTokyoDate, groups: tokyoGroups, count: rawTokyo.length, colOffset: 0 },
-                    { id: 'fukuoka', title: '福岡会場', date: exportFukuokaDate, groups: fukuokaGroups, count: rawFukuoka.length, colOffset: 5 }
+                    { id: 'tokyo', title: '東京会場', date: labelT, groups: tokyoGroups, count: rawTokyo.length, colOffset: 0 },
+                    { id: 'fukuoka', title: '福岡会場', date: labelF, groups: fukuokaGroups, count: rawFukuoka.length, colOffset: 5 }
                   ];
 
             const onlineOrder = isFukuokaFirst
@@ -2346,23 +2372,39 @@ export default function AdminDashboard() {
                                 />
                                 <span className="text-xs">月</span>
                             </div>
-                            <div className="flex gap-2 mb-1 justify-end items-center">
-                                <span className="text-xs text-gray-500">東京</span>
-                                <input
-                                    type="text"
-                                    placeholder="日程 (例: 15日)"
-                                    className="border rounded px-1 py-0.5 text-xs w-20"
-                                    value={exportTokyoDate}
-                                    onChange={(e) => setExportTokyoDate(e.target.value)}
-                                />
-                                <span className="text-xs text-gray-500 ml-1">福岡</span>
-                                <input
-                                    type="text"
-                                    placeholder="日程 (例: 22日)"
-                                    className="border rounded px-1 py-0.5 text-xs w-20"
-                                    value={exportFukuokaDate}
-                                    onChange={(e) => setExportFukuokaDate(e.target.value)}
-                                />
+                            <div className="flex flex-col gap-1 mb-1 justify-end items-end">
+                                <div className="flex gap-2 items-center">
+                                    <span className="text-[10px] text-gray-500 font-bold">東京</span>
+                                    <input
+                                        type="datetime-local"
+                                        className="border rounded px-1 py-0.5 text-[10px] w-36"
+                                        value={lectureDates['tokyo'] || ''}
+                                        onChange={(e) => setLectureDates({...lectureDates, tokyo: e.target.value})}
+                                    />
+                                    <span className="text-[10px] text-gray-400">〜</span>
+                                    <input
+                                        type="datetime-local"
+                                        className="border rounded px-1 py-0.5 text-[10px] w-36"
+                                        value={lectureEndDates['tokyo'] || ''}
+                                        onChange={(e) => setLectureEndDates({...lectureEndDates, tokyo: e.target.value})}
+                                    />
+                                </div>
+                                <div className="flex gap-2 items-center">
+                                    <span className="text-[10px] text-gray-500 font-bold">福岡</span>
+                                    <input
+                                        type="datetime-local"
+                                        className="border rounded px-1 py-0.5 text-[10px] w-36"
+                                        value={lectureDates['fukuoka'] || ''}
+                                        onChange={(e) => setLectureDates({...lectureDates, fukuoka: e.target.value})}
+                                    />
+                                    <span className="text-[10px] text-gray-400">〜</span>
+                                    <input
+                                        type="datetime-local"
+                                        className="border rounded px-1 py-0.5 text-[10px] w-36"
+                                        value={lectureEndDates['fukuoka'] || ''}
+                                        onChange={(e) => setLectureEndDates({...lectureEndDates, fukuoka: e.target.value})}
+                                    />
+                                </div>
                             </div>
                             <div className="flex gap-2 mb-2 justify-end items-center">
                                 <span className="text-xs text-gray-500">期表記</span>
@@ -3295,14 +3337,25 @@ export default function AdminDashboard() {
                                         {Array.from(new Set((venueList || []).filter(v => v && ['tokyo', 'fukuoka'].includes(v.area)).map(v => v.area))).sort().map(area => (
                                             <div key={area} className="space-y-2">
                                                 <h5 className="font-bold text-sm text-indigo-700 uppercase">{String(area || '').toUpperCase()} エリア</h5>
-                                                <div>
-                                                    <label className="block text-[10px] text-gray-500">開催日時 ({"{{lecture_date}}"}変数用)</label>
-                                                    <input 
-                                                        type="datetime-local"
-                                                        className="border w-full p-2 rounded text-sm" 
-                                                        value={lectureDates[area] || ''} 
-                                                        onChange={e => setLectureDates({...lectureDates, [area]: e.target.value})} 
-                                                    />
+                                                <div className="flex gap-2">
+                                                    <div className="flex-1">
+                                                        <label className="block text-[10px] text-gray-500">開始日時 ({"{{lecture_date}}"}変数用)</label>
+                                                        <input 
+                                                            type="datetime-local"
+                                                            className="border w-full p-2 rounded text-sm" 
+                                                            value={lectureDates[area] || ''} 
+                                                            onChange={e => setLectureDates({...lectureDates, [area]: e.target.value})} 
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <label className="block text-[10px] text-gray-500">終了日時</label>
+                                                        <input 
+                                                            type="datetime-local"
+                                                            className="border w-full p-2 rounded text-sm" 
+                                                            value={lectureEndDates[area] || ''} 
+                                                            onChange={e => setLectureEndDates({...lectureEndDates, [area]: e.target.value})} 
+                                                        />
+                                                    </div>
                                                 </div>
                                                 <div>
                                                     <label className="block text-[10px] text-gray-500">視聴リンク ({"{{viewing_link}}"}変数用)</label>
