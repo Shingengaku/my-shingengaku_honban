@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import DrumTimePicker from '@/components/admin/DrumTimePicker';
 import { matchProduct, getVenueDisplayName, isOnlineVenue, getSocialOptionsForLecture, normalizeVenue } from '@/lib/venueUtils';
 
 // 型定義
@@ -2374,37 +2375,79 @@ export default function AdminDashboard() {
                             </div>
                             <div className="flex flex-col gap-1 mb-1 justify-end items-end">
                                 <div className="flex gap-2 items-center">
-                                    <span className="text-[10px] text-gray-500 font-bold">東京</span>
-                                    <input
-                                        type="datetime-local"
-                                        className="border rounded px-1 py-0.5 text-[10px] w-36"
-                                        value={lectureDates['tokyo'] || ''}
-                                        onChange={(e) => setLectureDates({...lectureDates, tokyo: e.target.value})}
-                                    />
+                                    <span className="text-[10px] text-gray-500 font-bold w-6">東京</span>
+                                    <div className="flex items-center gap-1">
+                                        <input
+                                            type="date"
+                                            className="border rounded px-1 py-0.5 text-[10px] w-24"
+                                            value={(lectureDates['tokyo'] || '').split('T')[0]}
+                                            onChange={(e) => {
+                                                const time = (lectureDates['tokyo'] || '').split('T')[1] || '00:00';
+                                                setLectureDates({...lectureDates, tokyo: `${e.target.value}T${time}`});
+                                            }}
+                                        />
+                                        <DrumTimePicker 
+                                            value={lectureDates['tokyo'] || ''}
+                                            onChange={(val) => setLectureDates({...lectureDates, tokyo: val})}
+                                        />
+                                    </div>
                                     <span className="text-[10px] text-gray-400">〜</span>
-                                    <input
-                                        type="datetime-local"
-                                        className="border rounded px-1 py-0.5 text-[10px] w-36"
-                                        value={lectureEndDates['tokyo'] || ''}
-                                        onChange={(e) => setLectureEndDates({...lectureEndDates, tokyo: e.target.value})}
-                                    />
+                                    <div className="flex items-center gap-1">
+                                        <input
+                                            type="date"
+                                            className="border rounded px-1 py-0.5 text-[10px] w-24"
+                                            value={(lectureEndDates['tokyo'] || '').split('T')[0]}
+                                            onChange={(e) => {
+                                                const time = (lectureEndDates['tokyo'] || '').split('T')[1] || '00:00';
+                                                setLectureEndDates({...lectureEndDates, tokyo: `${e.target.value}T${time}`});
+                                            }}
+                                        />
+                                        <DrumTimePicker 
+                                            value={lectureEndDates['tokyo'] || ''}
+                                            onChange={(val) => setLectureEndDates({...lectureEndDates, tokyo: val})}
+                                        />
+                                    </div>
                                 </div>
                                 <div className="flex gap-2 items-center">
-                                    <span className="text-[10px] text-gray-500 font-bold">福岡</span>
-                                    <input
-                                        type="datetime-local"
-                                        className="border rounded px-1 py-0.5 text-[10px] w-36"
-                                        value={lectureDates['fukuoka'] || ''}
-                                        onChange={(e) => setLectureDates({...lectureDates, fukuoka: e.target.value})}
-                                    />
+                                    <span className="text-[10px] text-gray-500 font-bold w-6">福岡</span>
+                                    <div className="flex items-center gap-1">
+                                        <input
+                                            type="date"
+                                            className="border rounded px-1 py-0.5 text-[10px] w-24"
+                                            value={(lectureDates['fukuoka'] || '').split('T')[0]}
+                                            onChange={(e) => {
+                                                const time = (lectureDates['fukuoka'] || '').split('T')[1] || '00:00';
+                                                setLectureDates({...lectureDates, fukuoka: `${e.target.value}T${time}`});
+                                            }}
+                                        />
+                                        <DrumTimePicker 
+                                            value={lectureDates['fukuoka'] || ''}
+                                            onChange={(val) => setLectureDates({...lectureDates, fukuoka: val})}
+                                        />
+                                    </div>
                                     <span className="text-[10px] text-gray-400">〜</span>
-                                    <input
-                                        type="datetime-local"
-                                        className="border rounded px-1 py-0.5 text-[10px] w-36"
-                                        value={lectureEndDates['fukuoka'] || ''}
-                                        onChange={(e) => setLectureEndDates({...lectureEndDates, fukuoka: e.target.value})}
-                                    />
+                                    <div className="flex items-center gap-1">
+                                        <input
+                                            type="date"
+                                            className="border rounded px-1 py-0.5 text-[10px] w-24"
+                                            value={(lectureEndDates['fukuoka'] || '').split('T')[0]}
+                                            onChange={(e) => {
+                                                const time = (lectureEndDates['fukuoka'] || '').split('T')[1] || '00:00';
+                                                setLectureEndDates({...lectureEndDates, fukuoka: `${e.target.value}T${time}`});
+                                            }}
+                                        />
+                                        <DrumTimePicker 
+                                            value={lectureEndDates['fukuoka'] || ''}
+                                            onChange={(val) => setLectureEndDates({...lectureEndDates, fukuoka: val})}
+                                        />
+                                    </div>
                                 </div>
+                                <button 
+                                    onClick={saveSettings}
+                                    className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-200 hover:bg-indigo-100 mt-1 font-bold"
+                                >
+                                    設定を保存
+                                </button>
                             </div>
                             <div className="flex gap-2 mb-2 justify-end items-center">
                                 <span className="text-xs text-gray-500">期表記</span>
@@ -3340,21 +3383,41 @@ export default function AdminDashboard() {
                                                 <div className="flex gap-2">
                                                     <div className="flex-1">
                                                         <label className="block text-[10px] text-gray-500">開始日時 ({"{{lecture_date}}"}変数用)</label>
-                                                        <input 
-                                                            type="datetime-local"
-                                                            className="border w-full p-2 rounded text-sm" 
-                                                            value={lectureDates[area] || ''} 
-                                                            onChange={e => setLectureDates({...lectureDates, [area]: e.target.value})} 
-                                                        />
+                                                        <div className="flex gap-1">
+                                                            <input 
+                                                                type="date"
+                                                                className="border flex-1 p-2 rounded text-sm" 
+                                                                value={(lectureDates[area] || '').split('T')[0]} 
+                                                                onChange={e => {
+                                                                    const time = (lectureDates[area] || '').split('T')[1] || '00:00';
+                                                                    setLectureDates({...lectureDates, [area]: `${e.target.value}T${time}`});
+                                                                }} 
+                                                            />
+                                                            <DrumTimePicker 
+                                                                value={lectureDates[area] || ''}
+                                                                onChange={val => setLectureDates({...lectureDates, [area]: val})}
+                                                                className="w-24"
+                                                            />
+                                                        </div>
                                                     </div>
                                                     <div className="flex-1">
                                                         <label className="block text-[10px] text-gray-500">終了日時</label>
-                                                        <input 
-                                                            type="datetime-local"
-                                                            className="border w-full p-2 rounded text-sm" 
-                                                            value={lectureEndDates[area] || ''} 
-                                                            onChange={e => setLectureEndDates({...lectureEndDates, [area]: e.target.value})} 
-                                                        />
+                                                        <div className="flex gap-1">
+                                                            <input 
+                                                                type="date"
+                                                                className="border flex-1 p-2 rounded text-sm" 
+                                                                value={(lectureEndDates[area] || '').split('T')[0]} 
+                                                                onChange={e => {
+                                                                    const time = (lectureEndDates[area] || '').split('T')[1] || '00:00';
+                                                                    setLectureEndDates({...lectureEndDates, [area]: `${e.target.value}T${time}`});
+                                                                }} 
+                                                            />
+                                                            <DrumTimePicker 
+                                                                value={lectureEndDates[area] || ''}
+                                                                onChange={val => setLectureEndDates({...lectureEndDates, [area]: val})}
+                                                                className="w-24"
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div>
