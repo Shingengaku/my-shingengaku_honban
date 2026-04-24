@@ -123,11 +123,17 @@ export async function POST(request: Request) {
                 // Get Area-specific date and link
                 const lectureDates = settings.lecture_dates || {};
                 const onlineViewingLinks = settings.online_viewing_links || {};
+                const zoomIds = settings.zoom_ids || {};
+                const zoomPasses = settings.zoom_passes || {};
                 
                 let lectureDate = '';
                 let viewingLink = '';
+                let zoomId = '';
+                let zoomPass = '';
+                let zoomInfo = '';
 
                 if (area === 'both') {
+                    // ... (rest of date logic)
                     const tokyoDate = lectureDates.tokyo;
                     const fukuokaDate = lectureDates.fukuoka;
                     
@@ -140,7 +146,7 @@ export async function POST(request: Request) {
                         return getTimeValue(a.date) - getTimeValue(b.date);
                     });
 
-                    lectureDate = dateItems.map(item => `【${item.label}】${formatJapaneseDateTime(item.date)}`).join(' / ');
+                    lectureDate = dateItems.map(item => `【${item.label}】${formatJapaneseDateTime(item.date)}`).join('\n');
                     if (!lectureDate) lectureDate = '6月7日(日)・6月14日(日)'; // Basic fallback
 
                     const linkItems = [];
@@ -154,14 +160,43 @@ export async function POST(request: Request) {
                     });
 
                     viewingLink = linkItems.map(item => `【${item.label}】${item.link}`).join('\n');
+
+                    const zoomIdItems = [];
+                    if (zoomIds.tokyo) zoomIdItems.push(`東京：${zoomIds.tokyo}`);
+                    if (zoomIds.fukuoka) zoomIdItems.push(`福岡：${zoomIds.fukuoka}`);
+                    zoomId = zoomIdItems.join(' / ');
+
+                    const zoomPassItems = [];
+                    if (zoomPasses.tokyo) zoomPassItems.push(`東京：${zoomPasses.tokyo}`);
+                    if (zoomPasses.fukuoka) zoomPassItems.push(`福岡：${zoomPasses.fukuoka}`);
+                    zoomPass = zoomPassItems.join(' / ');
+
+                    const zoomInfoItems = [];
+                    for (const item of dateItems) {
+                        const areaKey = item.label === '東京' ? 'tokyo' : 'fukuoka';
+                        if (zoomIds[areaKey] || zoomPasses[areaKey]) {
+                            zoomInfoItems.push(`【${item.label}】\nZOOM ID：${zoomIds[areaKey] || '（別途案内）'}\nパスワード：${zoomPasses[areaKey] || '（なし）'}`);
+                        }
+                    }
+                    zoomInfo = zoomInfoItems.join('\n\n');
+
                 } else {
+                    const areaLabel = area === 'tokyo' ? '東京' : '福岡';
                     lectureDate = formatJapaneseDateTime(lectureDates[area]) || (area === 'tokyo' ? '6月14日(日)' : '6月7日(日)');
                     viewingLink = onlineViewingLinks[area] || '';
+                    zoomId = zoomIds[area] ? `${areaLabel}：${zoomIds[area]}` : '';
+                    zoomPass = zoomPasses[area] ? `${areaLabel}：${zoomPasses[area]}` : '';
+                    
+                    if (zoomIds[area] || zoomPasses[area]) {
+                        zoomInfo = `【${areaLabel}】\nZOOM ID：${zoomIds[area] || '（別途案内）'}\nパスワード：${zoomPasses[area] || '（なし）'}`;
+                    }
                 }
 
                 if (isOnline && !viewingLink) {
                     viewingLink = '※別途ご連絡します。';
                 }
+
+                // Payment Link (for unpaid)
 
                 // Payment Link (for unpaid)
                 let paymentUrl = '';
@@ -188,7 +223,10 @@ export async function POST(request: Request) {
                     amount: (app.total_amount || 0).toLocaleString(),
                     payment_link_section: paymentUrl,
                     lecture_date: lectureDate,
-                    viewing_link: viewingLink
+                    viewing_link: viewingLink,
+                    zoom_id: zoomId,
+                    zoom_pass: zoomPass,
+                    zoom_info: zoomInfo
                 };
 
                 const emailSubject = processEmailTemplate(template.subject, vars);

@@ -246,6 +246,8 @@ export default function AdminDashboard() {
     const [emailTemplateReminderOnlinePaid, setEmailTemplateReminderOnlinePaid] = useState({ subject: '', body: '' });
     const [emailTemplateReminderOnlineUnpaid, setEmailTemplateReminderOnlineUnpaid] = useState({ subject: '', body: '' });
     const [onlineViewingLinks, setOnlineViewingLinks] = useState<Record<string, string>>({});
+    const [zoomIds, setZoomIds] = useState<Record<string, string>>({});
+    const [zoomPasses, setZoomPasses] = useState<Record<string, string>>({});
     const [lectureDates, setLectureDates] = useState<Record<string, string>>({});
     const [lectureEndDates, setLectureEndDates] = useState<Record<string, string>>({});
     const [reminderSettingsTab, setReminderSettingsTab] = useState<'venue' | 'online'>('venue');
@@ -479,7 +481,7 @@ export default function AdminDashboard() {
 
     const DEFAULT_TEMPLATE_REMINDER_ONLINE_PAID = {
         subject: '【神言学】オンライン視聴URLのご案内',
-        body: `{{name}} 様\n\n神言学講座へのお申込みありがとうございます。\nオンライン視聴用のURLをご案内いたします。\n\n【視聴URL】\n{{viewing_link}}\n\n【開催日時】\n{{lecture_date}}\n\n※開始10分前からアクセス可能です。\n当日は画面越しにお会いできることを楽しみにしております。`
+        body: `{{name}} 様\n\n神言学講座へのお申込みありがとうございます。\nオンライン視聴用のURLをご案内いたします。\n\n【視聴URL】\n{{viewing_link}}\n\n【ZOOM情報】\n{{zoom_info}}\n\n【開催日時】\n{{lecture_date}}\n\n※開始10分前からアクセス可能です。\n当日は画面越しにお会いできることを楽しみにしております。`
     };
 
     const DEFAULT_TEMPLATE_REMINDER_ONLINE_UNPAID = {
@@ -626,6 +628,8 @@ export default function AdminDashboard() {
                     } catch (e) { return {}; }
                 };
                 setOnlineViewingLinks(ensureObj(data.online_viewing_links));
+                setZoomIds(ensureObj(data.zoom_ids));
+                setZoomPasses(ensureObj(data.zoom_passes));
                 setLectureDates(ensureObj(data.lecture_dates));
                 setLectureEndDates(ensureObj(data.lecture_end_dates));
 
@@ -679,6 +683,8 @@ export default function AdminDashboard() {
                     email_template_reminder_online_paid: emailTemplateReminderOnlinePaid,
                     email_template_reminder_online_unpaid: emailTemplateReminderOnlineUnpaid,
                     online_viewing_links: onlineViewingLinks,
+                    zoom_ids: zoomIds,
+                    zoom_passes: zoomPasses,
                     lecture_dates: lectureDates,
                     lecture_end_dates: lectureEndDates,
                     admin_email: adminEmail,
@@ -817,7 +823,7 @@ export default function AdminDashboard() {
                 alert('エラーが発生しました');
             }
         } catch (e) {
-            alert('通信エラー');
+            alert('エラーが発生しました');
         } finally {
             setLoading(false);
         }
@@ -1930,11 +1936,6 @@ export default function AdminDashboard() {
     };
 
     const submitReminders = async () => {
-        const cancelledCount = apps.filter(a => selectedIds.has(a.id) && a.payment_status === 'cancelled').length;
-        if (cancelledCount > 0) {
-            if (!confirm(`選択されたデータの中に、キャンセル済みのものが ${cancelledCount} 件含まれています。\nキャンセル済みのデータを除いて送信しますか？\n（「キャンセル」を押すと送信を中止します）`)) return;
-        }
-
         if (!confirm('選択した参加者にリマインドメールを一括送信しますか？')) return;
         
         // 送信対象を絞り込む（キャンセル済みを除外）
@@ -1980,10 +1981,16 @@ export default function AdminDashboard() {
             tokyo_online: 0,
             fukuoka_online: 0,
             paid: 0,
-            unpaid: 0
+            unpaid: 0,
+            cancelled: 0
         };
 
         selectedApps.forEach(app => {
+            if (app.payment_status === 'cancelled') {
+                summary.cancelled++;
+                return;
+            }
+
             const normVenue = normalizeVenue(app.venue);
             if (normVenue === '参加しない') return;
 
@@ -2717,7 +2724,7 @@ export default function AdminDashboard() {
                                                         )}
                                                     </div>
                                                 )}
-                                                {/* 紹介老E��チE�� */}
+                                                {/* 紹介老EチE */}
                                                 {app.tags?.includes('ご紹介') && (
                                                     <div className="mt-1">
                                                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
@@ -3207,7 +3214,9 @@ export default function AdminDashboard() {
 
                             <div className="bg-yellow-50 p-3 rounded text-xs mb-2">
                                 利用可能な変数:
-                                {selectedTemplateTab !== 'forgot' ? (
+                                {selectedTemplateTab === 'reminder' ? (
+                                    <> {'{{name}}'}, {'{{rank}}'}, {'{{venue}}'}, {'{{social_venue}}'}, {'{{amount}}'}, {'{{payment_link_section}}'}, {'{{lecture_date}}'}, {'{{viewing_link}}'}, {'{{zoom_id}}'}, {'{{zoom_pass}}'}, {'{{zoom_info}}'}</>
+                                ) : selectedTemplateTab !== 'forgot' ? (
                                     <> {'{{name}}'}, {'{{rank}}'}, {'{{venue}}'}, {'{{social_venue}}'}, {'{{amount}}'}, {'{{payment_link_section}}'}</>
                                 ) : (
                                     <> {'{{username}}'}, {'{{reset_link}}'}</>
@@ -3423,10 +3432,24 @@ export default function AdminDashboard() {
                                                 <div>
                                                     <label className="block text-[10px] text-gray-500">視聴リンク ({"{{viewing_link}}"}変数用)</label>
                                                     <input 
-                                                        className="border w-full p-2 rounded text-sm" 
+                                                        className="border w-full p-2 rounded text-sm mb-2" 
                                                         value={onlineViewingLinks[area] || ''} 
                                                         placeholder="https://zoom.us/..."
                                                         onChange={e => setOnlineViewingLinks({...onlineViewingLinks, [area]: e.target.value})} 
+                                                    />
+                                                    <label className="block text-[10px] text-gray-500">ZOOM ID ({"{{zoom_id}}"}変数用)</label>
+                                                    <input 
+                                                        className="border w-full p-2 rounded text-sm mb-2" 
+                                                        value={zoomIds[area] || ''} 
+                                                        placeholder="123 456 7890"
+                                                        onChange={e => setZoomIds({...zoomIds, [area]: e.target.value})} 
+                                                    />
+                                                    <label className="block text-[10px] text-gray-500">パスワード ({"{{zoom_pass}}"}変数用)</label>
+                                                    <input 
+                                                        className="border w-full p-2 rounded text-sm" 
+                                                        value={zoomPasses[area] || ''} 
+                                                        placeholder="password123"
+                                                        onChange={e => setZoomPasses({...zoomPasses, [area]: e.target.value})} 
                                                     />
                                                 </div>
                                             </div>
@@ -3449,6 +3472,7 @@ export default function AdminDashboard() {
                                                         value={emailTemplateReminderVenuePaid?.body || ''} 
                                                         onChange={e => setEmailTemplateReminderVenuePaid(prev => ({...(prev || {subject: '', body: ''}), body: e.target.value}))} 
                                                     />
+                                                    <button onClick={() => setEmailTemplateReminderVenuePaid(DEFAULT_TEMPLATE_REMINDER_VENUE_PAID)} className="text-[10px] text-blue-600 hover:underline mt-1">デフォルトに戻す</button>
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs font-bold text-gray-600 mb-1">会場参加・未決済用</label>
@@ -3462,6 +3486,7 @@ export default function AdminDashboard() {
                                                         value={emailTemplateReminderVenueUnpaid?.body || ''} 
                                                         onChange={e => setEmailTemplateReminderVenueUnpaid(prev => ({...(prev || {subject: '', body: ''}), body: e.target.value}))} 
                                                     />
+                                                    <button onClick={() => setEmailTemplateReminderVenueUnpaid(DEFAULT_TEMPLATE_REMINDER_VENUE_UNPAID)} className="text-[10px] text-blue-600 hover:underline mt-1">デフォルトに戻す</button>
                                                 </div>
                                             </>
                                         ) : (
@@ -3478,6 +3503,7 @@ export default function AdminDashboard() {
                                                         value={emailTemplateReminderOnlinePaid?.body || ''} 
                                                         onChange={e => setEmailTemplateReminderOnlinePaid(prev => ({...(prev || {subject: '', body: ''}), body: e.target.value}))} 
                                                     />
+                                                    <button onClick={() => setEmailTemplateReminderOnlinePaid(DEFAULT_TEMPLATE_REMINDER_ONLINE_PAID)} className="text-[10px] text-blue-600 hover:underline mt-1">デフォルトに戻す</button>
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs font-bold text-gray-600 mb-1">ライブ視聴・未決済用</label>
@@ -3491,6 +3517,7 @@ export default function AdminDashboard() {
                                                         value={emailTemplateReminderOnlineUnpaid?.body || ''} 
                                                         onChange={e => setEmailTemplateReminderOnlineUnpaid(prev => ({...(prev || {subject: '', body: ''}), body: e.target.value}))} 
                                                     />
+                                                    <button onClick={() => setEmailTemplateReminderOnlineUnpaid(DEFAULT_TEMPLATE_REMINDER_ONLINE_UNPAID)} className="text-[10px] text-blue-600 hover:underline mt-1">デフォルトに戻す</button>
                                                 </div>
                                             </>
                                         )}
@@ -3550,14 +3577,14 @@ export default function AdminDashboard() {
                             <p className="text-sm text-gray-700 font-bold mb-3">送信対象の内訳:</p>
                             <div className="grid grid-cols-2 gap-4 text-xs">
                                 <div>
-                                    <p className="text-gray-500 mb-1">■ 会場参加 (合計: {reminderSummary.tokyo_venue + reminderSummary.fukuoka_venue}名)</p>
+                                    <p className="text-gray-500 mb-1 font-bold">■ 会場参加 (合計: {reminderSummary.tokyo_venue + reminderSummary.fukuoka_venue}名)</p>
                                     <ul className="pl-3 space-y-1">
                                         <li>東京エリア: {reminderSummary.tokyo_venue}名</li>
                                         <li>福岡エリア: {reminderSummary.fukuoka_venue}名</li>
                                     </ul>
                                 </div>
                                 <div>
-                                    <p className="text-gray-500 mb-1">■ ライブ視聴 (合計: {reminderSummary.tokyo_online + reminderSummary.fukuoka_online}名)</p>
+                                    <p className="text-gray-500 mb-1 font-bold">■ ライブ視聴 (合計: {reminderSummary.tokyo_online + reminderSummary.fukuoka_online}名)</p>
                                     <ul className="pl-3 space-y-1">
                                         <li>東京エリア配信分: {reminderSummary.tokyo_online}名</li>
                                         <li>福岡エリア配信分: {reminderSummary.fukuoka_online}名</li>
@@ -3571,12 +3598,62 @@ export default function AdminDashboard() {
                                 <div>
                                     <span className="text-gray-600">未決済:</span> <span className="font-bold text-red-600">{reminderSummary.unpaid}名</span>
                                 </div>
+                                <div className="border-l pl-3 border-indigo-200">
+                                    <span className="text-gray-600">キャンセル済:</span> <span className="font-bold text-gray-400">{reminderSummary.cancelled}名</span>
+                                </div>
+                            </div>
+                            {reminderSummary.cancelled > 0 && (
+                                <p className="text-[10px] text-red-500 mt-2 font-bold">
+                                    ※キャンセル済みのデータは送信対象から自動的に除外されます。
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="mb-6">
+                            <p className="text-sm text-gray-700 font-bold mb-2">送信文面のプレビュー:</p>
+                            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                                <div className="border rounded bg-gray-50">
+                                    <div className="bg-gray-100 px-3 py-1.5 text-[10px] font-bold border-b flex justify-between">
+                                        <span>【会場参加・決済済】</span>
+                                        <span className="text-gray-500 font-normal">件名: {emailTemplateReminderVenuePaid.subject}</span>
+                                    </div>
+                                    <pre className="p-3 text-[10px] whitespace-pre-wrap font-sans text-gray-600">
+                                        {emailTemplateReminderVenuePaid.body}
+                                    </pre>
+                                </div>
+                                <div className="border rounded bg-gray-50">
+                                    <div className="bg-gray-100 px-3 py-1.5 text-[10px] font-bold border-b flex justify-between">
+                                        <span>【会場参加・未決済】</span>
+                                        <span className="text-gray-500 font-normal">件名: {emailTemplateReminderVenueUnpaid.subject}</span>
+                                    </div>
+                                    <pre className="p-3 text-[10px] whitespace-pre-wrap font-sans text-gray-600">
+                                        {emailTemplateReminderVenueUnpaid.body}
+                                    </pre>
+                                </div>
+                                <div className="border rounded bg-gray-50">
+                                    <div className="bg-gray-100 px-3 py-1.5 text-[10px] font-bold border-b flex justify-between">
+                                        <span>【ライブ視聴・決済済】</span>
+                                        <span className="text-gray-500 font-normal">件名: {emailTemplateReminderOnlinePaid.subject}</span>
+                                    </div>
+                                    <pre className="p-3 text-[10px] whitespace-pre-wrap font-sans text-gray-600">
+                                        {emailTemplateReminderOnlinePaid.body}
+                                    </pre>
+                                </div>
+                                <div className="border rounded bg-gray-50">
+                                    <div className="bg-gray-100 px-3 py-1.5 text-[10px] font-bold border-b flex justify-between">
+                                        <span>【ライブ視聴・未決済】</span>
+                                        <span className="text-gray-500 font-normal">件名: {emailTemplateReminderOnlineUnpaid.subject}</span>
+                                    </div>
+                                    <pre className="p-3 text-[10px] whitespace-pre-wrap font-sans text-gray-600">
+                                        {emailTemplateReminderOnlineUnpaid.body}
+                                    </pre>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="text-sm text-gray-600 space-y-2 mb-6">
+                        <div className="text-[11px] text-gray-500 space-y-1 mb-6 bg-yellow-50 p-3 rounded border border-yellow-100">
                             <p>※ 設定画面で登録した各エリアの「開催日時」および「視聴リンク」が自動的に挿入されます。</p>
-                            <p>※ 決済状況や参加タイプに応じて、4種類のテンプレートが自動的に選択されます。</p>
+                            <p>※ 決済状況や参加タイプに応じて、上記の4種類のテンプレートから自動選択されます。</p>
                         </div>
 
                         <div className="flex justify-end gap-3">

@@ -6,6 +6,11 @@ interface TemplateVars {
     social_venue: string;
     amount: string;
     payment_link_section: string;
+    lecture_date?: string;
+    viewing_link?: string;
+    zoom_id?: string;
+    zoom_pass?: string;
+    zoom_info?: string;
 }
 
 export const DEFAULT_EMAIL_TEMPLATE = {
@@ -139,13 +144,13 @@ export const DEFAULT_EMAIL_TEMPLATE_REMINDER_VENUE_PAID = {
     subject: '【神言学】講座開催間近のご案内',
     body: `{{name}} 様
 
-神言学講座へのお申込みありがとうございます。
-開催が近づいてまいりましたので、改めてご案内申し上げます。
-
 【開催概要】
 日時：{{lecture_date}}
 会場：{{venue}}
 懇親会：{{social_venue}}
+
+神言学講座へのお申込みありがとうございます。
+開催が近づいてまいりましたので、改めてご案内申し上げます。
 
 当日は会場にてお待ちしております。`
 };
@@ -153,6 +158,11 @@ export const DEFAULT_EMAIL_TEMPLATE_REMINDER_VENUE_PAID = {
 export const DEFAULT_EMAIL_TEMPLATE_REMINDER_VENUE_UNPAID = {
     subject: '【神言学】講座お申込み内容のご確認と決済のお願い',
     body: `{{name}} 様
+
+【開催概要】
+日時：{{lecture_date}}
+会場：{{venue}}
+懇親会：{{social_venue}}
 
 神言学講座へのお申込みありがとうございます。
 開催が近づいてまいりましたが、受講料のご決済がまだ確認できておりません。
@@ -162,11 +172,6 @@ export const DEFAULT_EMAIL_TEMPLATE_REMINDER_VENUE_UNPAID = {
 ▼ご決済リンク
 {{payment_link_section}}
 
-【開催概要】
-日時：{{lecture_date}}
-会場：{{venue}}
-懇親会：{{social_venue}}
-
 当日お会いできることを楽しみにしております。`
 };
 
@@ -174,14 +179,17 @@ export const DEFAULT_EMAIL_TEMPLATE_REMINDER_ONLINE_PAID = {
     subject: '【神言学】オンライン視聴URLのご案内',
     body: `{{name}} 様
 
+【開催日時】
+{{lecture_date}}
+
 神言学講座へのお申込みありがとうございます。
 オンライン視聴用のURLをご案内いたします。
 
 【視聴URL】
 {{viewing_link}}
 
-【開催日時】
-{{lecture_date}}
+【ZOOM情報】
+{{zoom_info}}
 
 ※開始10分前からアクセス可能です。
 当日は画面越しにお会いできることを楽しみにしております。`
@@ -191,6 +199,9 @@ export const DEFAULT_EMAIL_TEMPLATE_REMINDER_ONLINE_UNPAID = {
     subject: '【神言学】オンライン視聴お申込み内容のご確認と決済のお願い',
     body: `{{name}} 様
 
+【開催日時】
+{{lecture_date}}
+
 神言学講座へのお申込みありがとうございます。
 開催が近づいてまいりましたが、受講料のご決済がまだ確認できておりません。
 
@@ -199,9 +210,6 @@ export const DEFAULT_EMAIL_TEMPLATE_REMINDER_ONLINE_UNPAID = {
 
 ▼ご決済リンク
 {{payment_link_section}}
-
-【開催日時】
-{{lecture_date}}
 
 当日お会いできることを楽しみにしております。`
 };

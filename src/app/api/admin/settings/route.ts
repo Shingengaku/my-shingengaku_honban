@@ -171,6 +171,21 @@ export async function POST(request: Request) {
                 supabaseAdmin.from('app_settings').upsert({ key: 'online_viewing_links', value: body.online_viewing_links }, { onConflict: 'key' })
             );
         }
+        if (body.zoom_ids) {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'zoom_ids', value: body.zoom_ids }, { onConflict: 'key' })
+            );
+        }
+        if (body.zoom_passes) {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'zoom_passes', value: body.zoom_passes }, { onConflict: 'key' })
+            );
+        }
+        if (body.email_template_multiple) {
+            updates.push(
+                supabaseAdmin.from('app_settings').upsert({ key: 'email_template_multiple', value: body.email_template_multiple }, { onConflict: 'key' })
+            );
+        }
         if (body.lecture_dates) {
             updates.push(
                 supabaseAdmin.from('app_settings').upsert({ key: 'lecture_dates', value: body.lecture_dates }, { onConflict: 'key' })
