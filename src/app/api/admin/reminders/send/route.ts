@@ -182,7 +182,7 @@ export async function POST(request: Request) {
 
                 } else {
                     const areaLabel = area === 'tokyo' ? '東京' : '福岡';
-                    lectureDate = formatJapaneseDateTime(lectureDates[area]) || (area === 'tokyo' ? '6月14日(日)' : '6月7日(日)');
+                    lectureDate = `【${areaLabel}】${formatJapaneseDateTime(lectureDates[area]) || (area === 'tokyo' ? '6月14日(日)' : '6月7日(日)')}`;
                     viewingLink = onlineViewingLinks[area] || '';
                     zoomId = zoomIds[area] ? `${areaLabel}：${zoomIds[area]}` : '';
                     zoomPass = zoomPasses[area] ? `${areaLabel}：${zoomPasses[area]}` : '';
