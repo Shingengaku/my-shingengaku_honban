@@ -311,7 +311,8 @@ export default function AdminDashboard() {
             return new Map<string, { isBoth: boolean, isHybrid: boolean, debug: string }>();
         }
     }, [apps, venueList]);
-    const [exportTermLabel, setExportTermLabel] = useState('期'); // デフォルト「期」
+    const [exportTermLabel, setExportTermLabel] = useState('リピート＆本講座');
+    const [exportCampaignLabel, setExportCampaignLabel] = useState('水無月のご縁ｷｬﾝﾍﾟｰﾝ ご紹介');
     const [exportRemarks, setExportRemarks] = useState('');
     const [exportMonth, setExportMonth] = useState('');
 
@@ -320,8 +321,12 @@ export default function AdminDashboard() {
         const savedMonth = localStorage.getItem('shingengaku_export_month');
         if (savedMonth) setExportMonth(savedMonth);
 
-        const savedTermLabel = localStorage.getItem('shingengaku_export_term_label');
+        const savedTermLabel = localStorage.getItem('shingengaku_export_term_label_v2');
         if (savedTermLabel) setExportTermLabel(savedTermLabel);
+        
+        const savedCampaignLabel = localStorage.getItem('shingengaku_export_campaign_label');
+        if (savedCampaignLabel) setExportCampaignLabel(savedCampaignLabel);
+
         const savedRemarks = localStorage.getItem('shingengaku_export_remarks');
         if (savedRemarks) setExportRemarks(savedRemarks);
     }, []);
@@ -335,8 +340,12 @@ export default function AdminDashboard() {
     }, [exportMonth]);
 
     useEffect(() => {
-        localStorage.setItem('shingengaku_export_term_label', exportTermLabel);
+        localStorage.setItem('shingengaku_export_term_label_v2', exportTermLabel);
     }, [exportTermLabel]);
+
+    useEffect(() => {
+        localStorage.setItem('shingengaku_export_campaign_label', exportCampaignLabel);
+    }, [exportCampaignLabel]);
 
     useEffect(() => {
         localStorage.setItem('shingengaku_export_remarks', exportRemarks);
@@ -1747,7 +1756,7 @@ export default function AdminDashboard() {
                 let resV = renderBlock(rV, v.colOffset, '特進', v.groups.tokushin, seqV);
                 rV = resV.nextRow; seqV = resV.nextSeq;
 
-                resV = renderBlock(rV, v.colOffset, exportTermLabel || '期生', v.groups.terms, seqV);
+                resV = renderBlock(rV, v.colOffset, exportTermLabel || 'リピート＆本講座', v.groups.terms, seqV);
                 rV = resV.nextRow; seqV = resV.nextSeq;
 
                 resV = renderBlock(rV, v.colOffset, '一般 (未受講)', v.groups.general, seqV);
@@ -1756,7 +1765,7 @@ export default function AdminDashboard() {
                 resV = renderBlock(rV, v.colOffset, '経営幹部', v.groups.executive, seqV);
                 rV = resV.nextRow; seqV = resV.nextSeq;
 
-                resV = renderBlock(rV, v.colOffset, '水無月のご縁ｷｬﾝﾍﾟｰﾝ ご紹介', v.groups.referral, seqV);
+                resV = renderBlock(rV, v.colOffset, exportCampaignLabel || '水無月のご縁ｷｬﾝﾍﾟｰﾝ ご紹介', v.groups.referral, seqV);
                 rV = resV.nextRow;
 
                 if (rV > maxRow) maxRow = rV;
@@ -1774,13 +1783,13 @@ export default function AdminDashboard() {
                 if (o.list.length > 0) {
                     resO = renderBlock(rO, 10, '特進', o.groups.tokushin, seqO);
                     rO = resO.nextRow; seqO = resO.nextSeq;
-                    resO = renderBlock(rO, 10, exportTermLabel || '期生', o.groups.terms, seqO);
+                    resO = renderBlock(rO, 10, exportTermLabel || 'リピート＆本講座', o.groups.terms, seqO);
                     rO = resO.nextRow; seqO = resO.nextSeq;
                     resO = renderBlock(rO, 10, '一般 (未受講)', o.groups.general, seqO);
                     rO = resO.nextRow; seqO = resO.nextSeq;
                     resO = renderBlock(rO, 10, '経営幹部', o.groups.executive, seqO);
                     rO = resO.nextRow; seqO = resO.nextSeq;
-                    resO = renderBlock(rO, 10, '水無月のご縁ｷｬﾝﾍﾟｰﾝ ご紹介', o.groups.referral, seqO);
+                    resO = renderBlock(rO, 10, exportCampaignLabel || '水無月のご縁ｷｬﾝﾍﾟｰﾝ ご紹介', o.groups.referral, seqO);
                     rO = resO.nextRow; seqO = resO.nextSeq;
                 }
                 if (idx === 0) rO++; // Spacer between Tokyo/Fukuoka in Online column
@@ -2538,10 +2547,18 @@ export default function AdminDashboard() {
                                 <span className="text-xs text-gray-500">期表記</span>
                                 <input
                                     type="text"
-                                    placeholder="期"
-                                    className="border rounded px-2 py-1 text-sm w-16 text-center bg-white hover:border-indigo-400 transition-colors"
+                                    placeholder="リピート＆本講座"
+                                    className="border rounded px-2 py-1 text-sm w-36 text-center bg-white hover:border-indigo-400 transition-colors"
                                     value={exportTermLabel}
                                     onChange={(e) => setExportTermLabel(e.target.value)}
+                                />
+                                <span className="text-xs text-gray-500 ml-2">紹介・ｷｬﾝﾍﾟｰﾝ表記</span>
+                                <input
+                                    type="text"
+                                    placeholder="水無月のご縁ｷｬﾝﾍﾟｰﾝ ご紹介"
+                                    className="border rounded px-2 py-1 text-sm w-48 text-center bg-white hover:border-indigo-400 transition-colors"
+                                    value={exportCampaignLabel}
+                                    onChange={(e) => setExportCampaignLabel(e.target.value)}
                                 />
                             </div>
                             <div className="w-full mb-2">

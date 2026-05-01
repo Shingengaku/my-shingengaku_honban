@@ -74,7 +74,7 @@ export async function POST(request: Request) {
                 social_venue: social_venue || 'none',
                 attend_social: attendSocial,
                 total_amount: total_amount || 0,
-                payment_status: payment_status || 'unpaid',
+                payment_status: payment_status || (total_amount === 0 ? 'paid' : 'unpaid'),
                 applied_rank_name: applied_rank_name || '一般',
                 matched_member_id: targetMemberId,
                 remarks: remarks || null,

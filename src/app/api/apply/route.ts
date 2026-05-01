@@ -162,7 +162,7 @@ export async function POST(request: Request) {
 
         const totalAmount = matchedProduct ? (Number(matchedProduct.lecture_fee) + Number(matchedProduct.social_fee)) : 0;
         const paymentUrl = matchedProduct?.url || null;
-        const paymentStatus = 'unpaid';
+        const paymentStatus = (matchedProduct && totalAmount === 0) ? 'paid' : 'unpaid';
 
         // 備考欄の作成
         const tags: string[] = [];

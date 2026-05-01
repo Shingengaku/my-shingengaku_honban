@@ -30,7 +30,7 @@ export async function POST(request: Request) {
             // 複製したものは未決済にリセットする
             return {
                 ...rest,
-                payment_status: 'unpaid'
+                payment_status: app.total_amount === 0 ? 'paid' : 'unpaid'
             };
         });
 
