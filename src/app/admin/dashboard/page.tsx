@@ -2571,11 +2571,11 @@ export default function AdminDashboard() {
             </div>
 
             {/* テーブル */}
-            <div className="bg-white rounded-lg shadow overflow-auto max-h-[calc(100vh-200px)] relative border border-gray-200">
+            <div className="bg-white rounded-lg shadow overflow-auto max-h-[calc(100vh-140px)] relative border border-gray-200">
                 <table className="min-w-full divide-y divide-gray-200 border-separate border-spacing-0">
                     <thead className="bg-gray-50 sticky top-0 z-20 shadow-sm">
                         <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10 sticky top-0 bg-gray-50 z-20 border-b">
+                            <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10 sticky top-0 bg-gray-50 z-20 border-b">
                                 <input
                                     type="checkbox"
                                     onChange={(e) => {
@@ -2586,50 +2586,50 @@ export default function AdminDashboard() {
                                 />
                             </th>
                             <th
-                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky top-0 bg-gray-50 z-20 border-b"
+                                className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky top-0 bg-gray-50 z-20 border-b"
                                 onClick={() => requestSort('created_at')}
                             >
                                 申込日時{getSortIcon('created_at')}
                             </th>
                             <th
-                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky top-0 bg-gray-50 z-20 border-b"
+                                className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky top-0 bg-gray-50 z-20 border-b"
                                 onClick={() => requestSort('payment_status')}
                             >
                                 状態{getSortIcon('payment_status')}
                             </th>
                             <th
-                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky top-0 bg-gray-50 z-20 border-b"
+                                className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky top-0 bg-gray-50 z-20 border-b"
                                 onClick={() => requestSort('name')}
                             >
                                 名前 / Email {getSortIcon('name')}
                             </th>
                             <th
-                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky top-0 bg-gray-50 z-20 border-b"
+                                className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky top-0 bg-gray-50 z-20 border-b"
                                 onClick={() => requestSort('rank')}
                             >
                                 属性 / 備考{getSortIcon('rank')}
                             </th>
                             <th
-                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky top-0 bg-gray-50 z-20 border-b"
+                                className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky top-0 bg-gray-50 z-20 border-b"
                                 onClick={() => requestSort('generation')}
                             >
                                 期{getSortIcon('generation')}
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-50 z-20 border-b">会場 / オンライン / 懇親会</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-50 z-20 border-b">会場 / オンライン / 懇親会</th>
                             <th
-                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky top-0 bg-gray-50 z-20 border-b"
+                                className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky top-0 bg-gray-50 z-20 border-b"
                                 onClick={() => requestSort('total_amount')}
                             >
                                 金額 / 商品名{getSortIcon('total_amount')}
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-50 z-20 border-b">操作</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0 bg-gray-50 z-20 border-b">操作</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {loading ? (
-                            <tr><td colSpan={9} className="px-6 py-4 text-center">読み込み中...</td></tr>
+                            <tr><td colSpan={9} className="px-3 py-2 text-center">読み込み中...</td></tr>
                         ) : sortedApps.length === 0 ? (
-                            <tr><td colSpan={9} className="px-6 py-4 text-center">データがありません</td></tr>
+                            <tr><td colSpan={9} className="px-3 py-2 text-center">データがありません</td></tr>
                         ) : (
                             sortedApps.map((app) => {
                                 const rankName = app.applied_rank_name || app.members?.ranks?.name || '一般';
@@ -2672,7 +2672,7 @@ export default function AdminDashboard() {
 
                                 return (
                                     <tr key={app.id} className={`${selectedIds.has(app.id) ? 'bg-indigo-50' : (isAlert ? 'bg-red-50' : '')} ${isAlert ? 'text-red-600' : ''}`}>
-                                        <td className="px-6 py-4 whitespace-nowrap align-top">
+                                        <td className="px-3 py-2 whitespace-nowrap align-top">
                                             <input
                                                 type="checkbox"
                                                 checked={selectedIds.has(app.id)}
@@ -2680,10 +2680,10 @@ export default function AdminDashboard() {
                                                 className="mt-1"
                                             />
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 align-top">
+                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 align-top">
                                             {new Date(app.created_at).toLocaleString('ja-JP')}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap align-top">
+                                        <td className="px-3 py-2 whitespace-nowrap align-top">
                                             <div className="flex flex-col gap-1 items-start">
                                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                                                     app.payment_status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
@@ -2745,7 +2745,7 @@ export default function AdminDashboard() {
                                             </div>
                                         </td>
 
-                                        <td className="px-6 py-4 whitespace-nowrap align-top">
+                                        <td className="px-3 py-2 whitespace-nowrap align-top">
                                             <div className="text-sm font-medium">
                                                 <span 
                                                     className={(() => {
@@ -2794,7 +2794,7 @@ export default function AdminDashboard() {
                                             <div className="text-xs text-gray-500">{furigana}</div>
                                             <div className="text-xs text-gray-400">{app.input_email}</div>
                                         </td>
-                                        <td className="px-6 py-4 align-top">
+                                        <td className="px-3 py-2 align-top">
                                             <div className="text-sm text-gray-900">{rankName}</div>
                                             {app.remarks && (
                                                 <div className="text-xs text-gray-500 mt-1 whitespace-pre-wrap max-w-xs">{app.remarks}</div>
@@ -2808,10 +2808,10 @@ export default function AdminDashboard() {
                                                 </button>
                                             )}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap align-top">
+                                        <td className="px-3 py-2 whitespace-nowrap align-top">
                                             <div className="text-sm text-gray-500">{gen}</div>
                                         </td>
-                                        <td className="px-6 py-4 align-top">
+                                        <td className="px-3 py-2 align-top">
                                             <div className="text-sm text-gray-900">
                                                 <span className="font-bold text-xs text-gray-400 block">講義:</span>
                                                 {(() => {
@@ -2834,7 +2834,7 @@ export default function AdminDashboard() {
                                                 }
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 align-top">
+                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 align-top">
                                             <div className="flex flex-col items-start gap-1">
                                                 <span>¥{app.total_amount.toLocaleString()}</span>
                                                 {(() => {
@@ -2881,7 +2881,7 @@ export default function AdminDashboard() {
                                             </div>
                                             <div className="text-xs text-gray-400 select-all cursor-pointer truncate max-w-[150px] mt-1" title={displayProductName}>{displayProductName}</div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex flex-col space-y-1 align-top">
+                                        <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 flex flex-col space-y-1 align-top">
                                             <div className="space-x-2">
                                                 <button onClick={() => openEditModal(app)} className="text-indigo-600 hover:text-indigo-900">編集</button>
                                                 {app.payment_status !== 'cancelled' ? (
@@ -2990,36 +2990,37 @@ export default function AdminDashboard() {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-bold text-gray-700">参加会場 (講義)</label>
-                                        {/* オンラインの場合はテキスト入力（またはオンラインマスタ）簡易的に自由入力とする */}
                                         {editForm.participation_type === 'online' ? (
                                             <>
-                                                <input
+                                                <label className="block text-sm font-bold text-gray-700">オンライン対象会場 <span className="text-red-500">*</span></label>
+                                                <select
                                                     className="border w-full p-2 rounded bg-indigo-50"
-                                                    value={editForm.venue || ''}
-                                                    placeholder="オンラインオプション名(例 LIVE視聴)"
-                                                    onChange={(e) => handleFieldChange('venue', e.target.value)}
-                                                />
-                                                <input
-                                                    className="border w-full p-2 rounded mt-2 bg-indigo-50"
                                                     value={editForm.online_venues || ''}
-                                                    placeholder="対象会場(例 東京・福岡)"
-                                                    onChange={(e) => setEditForm({...editForm, online_venues: e.target.value})}
-                                                />
+                                                    onChange={(e) => handleFieldChange('online_venues', e.target.value)}
+                                                >
+                                                    <option value="">対象会場を選択</option>
+                                                    {venueList.filter(v => v.type === 'lecture').map(opt => (
+                                                        <option key={opt.id} value={opt.name}>{opt.name}</option>
+                                                    ))}
+                                                    <option value="東京・福岡">東京・福岡</option>
+                                                </select>
                                             </>
                                         ) : (
-                                            <select
-                                                className="border w-full p-2 rounded"
-                                                value={editForm.venue || ''}
-                                                onChange={(e) => handleFieldChange('venue', e.target.value)}
-                                            >
-                                                <option value="">(選択なし)</option>
-                                                {venueList.filter(v => v.type === 'lecture').map(opt => (
-                                                    <option key={opt.id} value={opt.name}>{opt.name}</option>
-                                                ))}
-                                                <option value="東京・福岡">東京・福岡</option>
-                                                <option value="参加しない">参加しない</option>
-                                            </select>
+                                            <>
+                                                <label className="block text-sm font-bold text-gray-700">参加会場 (講義)</label>
+                                                <select
+                                                    className="border w-full p-2 rounded"
+                                                    value={editForm.venue || ''}
+                                                    onChange={(e) => handleFieldChange('venue', e.target.value)}
+                                                >
+                                                    <option value="">(選択なし)</option>
+                                                    {venueList.filter(v => v.type === 'lecture').map(opt => (
+                                                        <option key={opt.id} value={opt.name}>{opt.name}</option>
+                                                    ))}
+                                                    <option value="東京・福岡">東京・福岡</option>
+                                                    <option value="参加しない">参加しない</option>
+                                                </select>
+                                            </>
                                         )}
                                     </div>
                                     <div>
@@ -3929,8 +3930,9 @@ export default function AdminDashboard() {
                                         onChange={e => handleCreateFieldChange('online_venues', e.target.value)}
                                     >
                                         <option value="">選択してください</option>
-                                        <option value="東京">東京</option>
-                                        <option value="福岡">福岡</option>
+                                        {venueList.filter(v => v.type === 'lecture').map(opt => (
+                                            <option key={opt.id} value={opt.name}>{opt.name}</option>
+                                        ))}
                                         <option value="東京・福岡">東京・福岡</option>
                                     </select>
                                     <p className="text-xs text-gray-500 mt-1">LIVE視聴参加者がどの会場の配信を視聴するかを選択してください</p>
