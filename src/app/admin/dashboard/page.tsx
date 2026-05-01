@@ -1146,6 +1146,29 @@ export default function AdminDashboard() {
                         next.participation_type = 'venue';
                     }
                 }
+
+                // 参加形式が明示的に変更された場合、不整合を防ぐためデフォルト値に調整
+                if (field === 'participation_type') {
+                    if (value === 'online' && !next.venue?.includes('LIVE') && !next.venue?.includes('オンライン') && !next.venue?.includes('アーカイブ')) {
+                        next.venue = 'LIVE視聴';
+                    } else if (value === 'venue' && (next.venue?.includes('LIVE') || next.venue?.includes('オンライン') || next.venue?.includes('アーカイブ'))) {
+                        next.venue = '';
+                    }
+                    
+                    // 金額の再計算のため、再マッチングを試みる
+                    const updatedMatchData = {
+                        ...matchData,
+                        participation_type: value,
+                        venue: next.venue
+                    };
+                    const reMatchedProduct = matchProduct(paymentLinksData, updatedMatchData);
+                    if (reMatchedProduct) {
+                        next.payment_key = reMatchedProduct.name;
+                        const lectureFee = Number(reMatchedProduct.lecture_fee) || 0;
+                        const socialFee = Number(reMatchedProduct.social_fee) || 0;
+                        next.total_amount = lectureFee + socialFee;
+                    }
+                }
             }
             return next;
         });
@@ -1188,6 +1211,27 @@ export default function AdminDashboard() {
                         next.participation_type = 'online';
                     } else if (venue && venue !== '参加しない') {
                         next.participation_type = 'venue';
+                    }
+                }
+
+                // 参加形式が明示的に変更された場合、不整合を防ぐためデフォルト値に調整
+                if (field === 'participation_type') {
+                    if (value === 'online' && !next.venue?.includes('LIVE') && !next.venue?.includes('オンライン') && !next.venue?.includes('アーカイブ')) {
+                        next.venue = 'LIVE視聴';
+                    } else if (value === 'venue' && (next.venue?.includes('LIVE') || next.venue?.includes('オンライン') || next.venue?.includes('アーカイブ'))) {
+                        next.venue = '';
+                    }
+                    
+                    const updatedMatchData = {
+                        ...matchData,
+                        participation_type: value,
+                        venue: next.venue
+                    };
+                    const reMatchedProduct = matchProduct(paymentLinksData, updatedMatchData);
+                    if (reMatchedProduct) {
+                        const lectureFee = Number(reMatchedProduct.lecture_fee) || 0;
+                        const socialFee = Number(reMatchedProduct.social_fee) || 0;
+                        next.total_amount = lectureFee + socialFee;
                     }
                 }
             }
@@ -1434,9 +1478,14 @@ export default function AdminDashboard() {
                 // 4. Fallback keywords (Safety for new/unmatched data)
                 const vL = (app.venue || '').toLowerCase();
                 const k = (app.payment_key || '').toLowerCase();
+                const tags = app.tags || [];
+                const remarks = app.remarks || '';
+                
+                // 紹介判定を「一般」より先に行う
+                if (vL.includes('紹介') || vL.includes('ご紹介') || k.includes('紹介') || k.includes('ご紹介') || tags.includes('ご紹介') || rankName.includes('紹介') || rankName.includes('ご紹介') || (remarks.match(/紹介者:\s*([^\n]+)/) && !remarks.includes('紹介者: なし') && !remarks.includes('紹介者: 未入力'))) return 5;
+
                 if (rankName.includes('一般')) return 3;
                 if (rankName.includes('経営幹部')) return 4;
-                if (vL.includes('紹介') || vL.includes('ご紹介') || k.includes('紹介') || k.includes('ご紹介')) return 5;
 
                 return 2; // Default to Terms
             };
@@ -1635,13 +1684,18 @@ export default function AdminDashboard() {
 
                     const statusLabels: Record<string, string> = { paid: '済み', unpaid: '未決済' };
 
+                    if (d.hasIntroducer) {
+                        r.height = 32; // 行の高さを広げる
+                    }
+
                     c1.value = currentSeq++;
-                    c1.alignment = { horizontal: 'center' };
+                    c1.alignment = { horizontal: 'center', vertical: 'middle' };
                     c2.value = d.name;
+                    c2.alignment = { wrapText: true, vertical: 'middle' };
                     c3.value = d.term;
-                    c3.alignment = { horizontal: 'center' };
+                    c3.alignment = { horizontal: 'center', vertical: 'middle' };
                     c4.value = statusLabels[d.paymentStatus] || '';
-                    c4.alignment = { horizontal: 'center' };
+                    c4.alignment = { horizontal: 'center', vertical: 'middle' };
 
                     // Borders
                     [c1, c2, c3, c4].forEach(c => {
@@ -1679,7 +1733,7 @@ export default function AdminDashboard() {
                 resV = renderBlock(rV, v.colOffset, '経営幹部', v.groups.executive, seqV);
                 rV = resV.nextRow; seqV = resV.nextSeq;
 
-                resV = renderBlock(rV, v.colOffset, 'GoGo 55000 ご紹介', v.groups.referral, seqV);
+                resV = renderBlock(rV, v.colOffset, '水無月のご縁ｷｬﾝﾍﾟｰﾝ ご紹介', v.groups.referral, seqV);
                 rV = resV.nextRow;
 
                 if (rV > maxRow) maxRow = rV;
@@ -1703,7 +1757,7 @@ export default function AdminDashboard() {
                     rO = resO.nextRow; seqO = resO.nextSeq;
                     resO = renderBlock(rO, 10, '経営幹部', o.groups.executive, seqO);
                     rO = resO.nextRow; seqO = resO.nextSeq;
-                    resO = renderBlock(rO, 10, 'GoGo 55000 ご紹介', o.groups.referral, seqO);
+                    resO = renderBlock(rO, 10, '水無月のご縁ｷｬﾝﾍﾟｰﾝ ご紹介', o.groups.referral, seqO);
                     rO = resO.nextRow; seqO = resO.nextSeq;
                 }
                 if (idx === 0) rO++; // Spacer between Tokyo/Fukuoka in Online column
@@ -1996,9 +2050,9 @@ export default function AdminDashboard() {
 
             const status = getParticipationStatus(app, venueList);
             const isOnline = app.participation_type === 'online' || isOnlineVenue(app.venue || '') || isOnlineVenue(app.online_venues || '');
-            const isPaid = app.payment_status === 'paid';
+            const isPaidOrFree = app.payment_status === 'paid' || (app.total_amount === 0 && app.payment_status !== 'cancelled');
             
-            if (isPaid) summary.paid++; else summary.unpaid++;
+            if (isPaidOrFree) summary.paid++; else summary.unpaid++;
 
             let area: 'tokyo' | 'fukuoka' | 'both' = 'tokyo';
             if (normVenue === '東京・福岡' || (app.online_venues || '').includes('東京・福岡')) {
@@ -2227,9 +2281,9 @@ export default function AdminDashboard() {
 
 
     return (
-        <div className="min-h-screen bg-gray-100 p-8">
+        <div className="min-h-screen bg-gray-100 p-4">
             <div className="max-w-7xl mx-auto">
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex justify-between items-center mb-2">
                     <h1 className='text-2xl font-bold text-gray-800'>神言学 管理ダッシュボード</h1>
                     <div className="flex items-center space-x-2 ml-auto">
                         <div className="flex space-x-2 mr-4 border-r pr-4 border-gray-300">
@@ -2249,8 +2303,8 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* コントロールバー */}
-                <div className="bg-white p-4 rounded-lg shadow mb-6 space-y-4">
-                    <div className="flex flex-wrap gap-4 justify-between items-center">
+                <div className="bg-white p-3 rounded-lg shadow mb-2 space-y-2">
+                    <div className="flex flex-wrap gap-2 justify-between items-center">
                         <div className="flex gap-2 items-center">
                             <button onClick={() => setFilter('unpaid')} className={`px-4 py-2 rounded-md ${filter === 'unpaid' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`}>未決済</button>
                             <button onClick={() => setFilter('paid')} className={`px-4 py-2 rounded-md ${filter === 'paid' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`}>決済済</button>
@@ -2489,7 +2543,7 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                <div className="flex justify-between items-center text-sm">
+                <div className="flex justify-between items-center text-sm mb-2">
                     <div>
                         {selectedIds.size > 0 && (
                             <div className="flex gap-2">
@@ -2517,7 +2571,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* テーブル */}
-            <div className="bg-white rounded-lg shadow overflow-auto max-h-[calc(100vh-320px)] relative border border-gray-200">
+            <div className="bg-white rounded-lg shadow overflow-auto max-h-[calc(100vh-200px)] relative border border-gray-200">
                 <table className="min-w-full divide-y divide-gray-200 border-separate border-spacing-0">
                     <thead className="bg-gray-50 sticky top-0 z-20 shadow-sm">
                         <tr>
@@ -2631,10 +2685,14 @@ export default function AdminDashboard() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap align-top">
                                             <div className="flex flex-col gap-1 items-start">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${app.payment_status === 'paid' ? 'bg-green-100 text-green-800' :
-                                                    app.payment_status === 'cancelled' ? 'bg-gray-100 text-gray-800' : 'bg-red-100 text-red-800'
-                                                    }`}>
-                                                    {app.payment_status === 'paid' ? '決済済' : app.payment_status === 'cancelled' ? 'キャンセル' : '未決済'}
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                    app.payment_status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+                                                    (app.payment_status === 'paid' || app.total_amount === 0) ? 'bg-green-100 text-green-800' :
+                                                    'bg-red-100 text-red-800'
+                                                }`}>
+                                                    {app.payment_status === 'cancelled' ? 'キャンセル' :
+                                                     app.total_amount === 0 ? '決済不要' :
+                                                     app.payment_status === 'paid' ? '決済済' : '未決済'}
                                                 </span>
                                                 {/* @ts-ignore */}
                                                 {app.environment === 'production' ? (
@@ -2918,6 +2976,18 @@ export default function AdminDashboard() {
 
 
 
+                                <div className="mb-4">
+                                    <label className="block text-sm font-bold text-gray-700">参加形式</label>
+                                    <select
+                                        className="border w-full p-2 rounded bg-white"
+                                        value={editForm.participation_type || 'venue'}
+                                        onChange={(e) => handleFieldChange('participation_type', e.target.value)}
+                                    >
+                                        <option value="venue">会場参加</option>
+                                        <option value="online">オンライン視聴</option>
+                                    </select>
+                                </div>
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700">参加会場 (講義)</label>
@@ -3080,7 +3150,18 @@ export default function AdminDashboard() {
             {customResendModal.isOpen && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
                     <div className="bg-white p-5 rounded-lg shadow-xl w-[600px] h-[80vh] flex flex-col">
-                        <h3 className="text-lg font-bold mb-4">再送メールの編集</h3>
+                        <h3 className="text-lg font-bold mb-4 text-indigo-700 flex items-center gap-2">
+                            <span>✉️</span> 再送メールの編集
+                        </h3>
+                        
+                        <div className="bg-amber-50 border-l-4 border-amber-400 p-3 mb-4 rounded-r shadow-sm">
+                            <p className="text-xs text-amber-800 leading-relaxed">
+                                <span className="font-bold">⚠️ 注意事項</span><br />
+                                ここでの修正内容は、<span className="font-bold">今回の送信にのみ</span>反映されます。<br />
+                                申込者データやオリジナルのテンプレートには保存・反映されませんので、安心して調整してください。
+                            </p>
+                        </div>
+                        
                         <p className="text-sm text-gray-600 mb-4">内容を編集して「送信」ボタンを押してください。</p>
 
                         <div className="mb-2">
