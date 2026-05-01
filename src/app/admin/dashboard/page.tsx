@@ -2528,10 +2528,12 @@ export default function AdminDashboard() {
                                     onChange={(e) => setExportRemarks(e.target.value)}
                                 />
                             </div>
-                            <button onClick={() => exportCSV(false)} className="px-4 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm w-48 mb-1">全データCSV出力</button>
-                            <button onClick={() => exportCSV(true)} className="px-4 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm w-48 mb-1">表示中のみCSV出力</button>
-                            <button onClick={handleSimpleExcelExport} className="px-4 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm w-48 mb-1">簡易エクセル出力(A4)</button>
-                            <button disabled className="px-4 py-1.5 bg-gray-400 text-white rounded-md cursor-not-allowed text-sm w-48">詳細エクセル出力</button>
+                            <div className="flex flex-wrap justify-end gap-2 mt-1">
+                                <button onClick={() => exportCSV(false)} className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs shadow-sm">全データCSV</button>
+                                <button onClick={() => exportCSV(true)} className="px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-xs shadow-sm">表示中CSV</button>
+                                <button onClick={handleSimpleExcelExport} className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs shadow-sm">簡易エクセル(A4)</button>
+                                <button disabled className="px-3 py-1 bg-gray-400 text-white rounded cursor-not-allowed text-xs shadow-sm">詳細エクセル</button>
+                            </div>
                         </div>
                     </div>
 
