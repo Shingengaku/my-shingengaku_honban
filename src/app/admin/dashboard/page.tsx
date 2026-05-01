@@ -1451,11 +1451,27 @@ export default function AdminDashboard() {
 
             // Helper: Find Master-defined group priority (1:Tokushin, 2:Terms, 3:Executive, 4:Referral)
             const getPriorityByMaster = (app: Application) => {
-                // 1. Tokushin check (Highest Priority - Moving fallback check to top as requested)
                 const rankName = app.applied_rank_name || app.members?.ranks?.name || '';
+                
+                // 1. Tokushin check (Highest Priority)
                 if (rankName.includes('特進') || (app.members?.is_tokushin)) return 1;
 
-                // 2. Rank Master Check
+                // 2. Referral check for General (一般) or explicit referral keywords
+                const vL = (app.venue || '').toLowerCase();
+                const k = (app.payment_key || '').toLowerCase();
+                const tags = app.tags || [];
+                const remarks = app.remarks || '';
+                const hasIntroducer = vL.includes('紹介') || vL.includes('ご紹介') || k.includes('紹介') || k.includes('ご紹介') || tags.includes('ご紹介') || rankName.includes('紹介') || rankName.includes('ご紹介') || (remarks.match(/紹介者:\s*([^\n]+)/) && !remarks.includes('紹介者: なし') && !remarks.includes('紹介者: 未入力'));
+
+                // 「一般」の場合で紹介がある、または名前/商品自体が「紹介」の場合は 5 (水無月のご縁ｷｬﾝﾍﾟｰﾝ) とする
+                if (hasIntroducer && (rankName.includes('一般') || rankName === '')) {
+                    return 5;
+                }
+                if (rankName.includes('紹介') || rankName.includes('ご紹介')) {
+                    return 5;
+                }
+
+                // 3. Rank Master Check
                 const masterRank = (ranks as any[]).find(r => r.name === rankName);
                 if (masterRank?.group) {
                     if (masterRank.group === 'tokushin') return 1;
@@ -1465,7 +1481,7 @@ export default function AdminDashboard() {
                     if (masterRank.group === 'referral') return 5;
                 }
 
-                // 3. Product Master Check (by Payment Key)
+                // 4. Product Master Check (by Payment Key)
                 const masterProduct = paymentLinksData.find(p => p.key === app.payment_key);
                 if (masterProduct?.group) {
                     if (masterProduct.group === 'tokushin') return 1;
@@ -1474,15 +1490,6 @@ export default function AdminDashboard() {
                     if (masterProduct.group === 'executive') return 4;
                     if (masterProduct.group === 'referral') return 5;
                 }
-
-                // 4. Fallback keywords (Safety for new/unmatched data)
-                const vL = (app.venue || '').toLowerCase();
-                const k = (app.payment_key || '').toLowerCase();
-                const tags = app.tags || [];
-                const remarks = app.remarks || '';
-                
-                // 紹介判定を「一般」より先に行う
-                if (vL.includes('紹介') || vL.includes('ご紹介') || k.includes('紹介') || k.includes('ご紹介') || tags.includes('ご紹介') || rankName.includes('紹介') || rankName.includes('ご紹介') || (remarks.match(/紹介者:\s*([^\n]+)/) && !remarks.includes('紹介者: なし') && !remarks.includes('紹介者: 未入力'))) return 5;
 
                 if (rankName.includes('一般')) return 3;
                 if (rankName.includes('経営幹部')) return 4;
