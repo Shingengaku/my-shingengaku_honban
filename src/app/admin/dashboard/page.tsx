@@ -1496,6 +1496,22 @@ export default function AdminDashboard() {
                 const personStatus = personStatusMap.get(nameKey);
                 
                 let name = app.input_name + 'さま';
+                let hasIntroducer = false;
+                
+                // 紹介者の抽出 (備考から)
+                const remarks = app.remarks || '';
+                const introMatch = remarks.match(/紹介者:\s*([^\n]+)/);
+                if (introMatch && !introMatch[1].includes('なし') && !introMatch[1].includes('未入力')) {
+                    let introName = introMatch[1].trim();
+                    if (!introName.includes('さま') && !introName.includes('様')) {
+                        introName += 'さま';
+                    } else if (introName.includes('様')) {
+                        introName = introName.replace('様', 'さま');
+                    }
+                    name += `\n(${introName}ご紹介)`;
+                    hasIntroducer = true;
+                }
+
                 const rawGen = app.members?.generation;
                 const gen = (rawGen !== undefined && rawGen !== null) ? Number(rawGen) : 99;
                 const term = gen === 99 ? '' : `${gen}期`;
@@ -1507,7 +1523,7 @@ export default function AdminDashboard() {
 
                 const priority = getPriorityByMaster(app);
 
-                return { name, term, furigana, isBoth, isHybrid, gen, priority, paymentStatus: app.payment_status };
+                return { name, term, furigana, isBoth, isHybrid, gen, priority, paymentStatus: app.payment_status, hasIntroducer };
             };
 
             const normalizeKana = (str: string) => str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
