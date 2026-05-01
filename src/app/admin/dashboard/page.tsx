@@ -2073,7 +2073,8 @@ export default function AdminDashboard() {
 
             const status = getParticipationStatus(app, venueList);
             const isOnline = app.participation_type === 'online' || isOnlineVenue(app.venue || '') || isOnlineVenue(app.online_venues || '');
-            const isPaidOrFree = app.payment_status === 'paid' || (app.total_amount === 0 && app.payment_status !== 'cancelled');
+            const isAlert = app.remarks?.includes('商品マスタ') && !app.tags?.includes('confirmed_product_alert');
+            const isPaidOrFree = app.payment_status === 'paid' || (app.total_amount === 0 && app.payment_status !== 'cancelled' && !isAlert);
             
             if (isPaidOrFree) summary.paid++; else summary.unpaid++;
 
@@ -2712,11 +2713,11 @@ export default function AdminDashboard() {
                                             <div className="flex flex-col gap-1 items-start">
                                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                                                     app.payment_status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
-                                                    (app.payment_status === 'paid' || app.total_amount === 0) ? 'bg-green-100 text-green-800' :
+                                                    (app.payment_status === 'paid' || (app.total_amount === 0 && !isAlert)) ? 'bg-green-100 text-green-800' :
                                                     'bg-red-100 text-red-800'
                                                 }`}>
                                                     {app.payment_status === 'cancelled' ? 'キャンセル' :
-                                                     app.total_amount === 0 ? '決済不要' :
+                                                     (app.total_amount === 0 && !isAlert) ? '決済不要' :
                                                      app.payment_status === 'paid' ? '決済済' : '未決済'}
                                                 </span>
                                                 {/* @ts-ignore */}
