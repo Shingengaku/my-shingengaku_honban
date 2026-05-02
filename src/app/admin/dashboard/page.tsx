@@ -1512,6 +1512,7 @@ export default function AdminDashboard() {
                 const personStatus = personStatusMap.get(nameKey);
                 
                 let name = app.input_name + 'さま';
+                let introText = '';
                 let hasIntroducer = false;
                 
                 // 紹介者の抽出 (備考から)
@@ -1524,7 +1525,7 @@ export default function AdminDashboard() {
                     } else if (introName.includes('様')) {
                         introName = introName.replace('様', 'さま');
                     }
-                    name += `\n(${introName}ご紹介)`;
+                    introText = `(${introName}ご紹介)`;
                     hasIntroducer = true;
                 }
 
@@ -1539,7 +1540,7 @@ export default function AdminDashboard() {
 
                 const priority = getPriorityByMaster(app);
 
-                return { name, term, furigana, isBoth, isHybrid, gen, priority, paymentStatus: app.payment_status, hasIntroducer };
+                return { name, introText, term, furigana, isBoth, isHybrid, gen, priority, paymentStatus: app.payment_status, hasIntroducer };
             };
 
             const normalizeKana = (str: string) => str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
@@ -1708,39 +1709,89 @@ export default function AdminDashboard() {
                 // Data
                 let currentSeq = startSeq;
                 data.forEach((d, idx) => {
-                    const r = ws.getRow(currentRow);
-                    const c1 = r.getCell(colOffset + 1);
-                    const c2 = r.getCell(colOffset + 2);
-                    const c3 = r.getCell(colOffset + 3);
-                    const c4 = r.getCell(colOffset + 4);
-
                     const statusLabels: Record<string, string> = { paid: '済み', unpaid: '未決済' };
 
                     if (d.hasIntroducer) {
-                        r.height = 32; // 行の高さを広げる
+                        const r1 = ws.getRow(currentRow);
+                        const r2 = ws.getRow(currentRow + 1);
+
+                        ws.mergeCells(currentRow, colOffset + 1, currentRow + 1, colOffset + 1);
+                        ws.mergeCells(currentRow, colOffset + 3, currentRow + 1, colOffset + 3);
+                        ws.mergeCells(currentRow, colOffset + 4, currentRow + 1, colOffset + 4);
+
+                        const c1 = ws.getCell(currentRow, colOffset + 1);
+                        const c2_1 = ws.getCell(currentRow, colOffset + 2);
+                        const c2_2 = ws.getCell(currentRow + 1, colOffset + 2);
+                        const c3 = ws.getCell(currentRow, colOffset + 3);
+                        const c4 = ws.getCell(currentRow, colOffset + 4);
+
+                        c1.value = currentSeq++;
+                        c1.alignment = { horizontal: 'center', vertical: 'middle' };
+                        
+                        c2_1.value = d.name;
+                        c2_1.alignment = { vertical: 'bottom', wrapText: true };
+                        
+                        c2_2.value = d.introText;
+                        c2_2.alignment = { vertical: 'top', wrapText: true };
+                        
+                        c3.value = d.term;
+                        c3.alignment = { horizontal: 'center', vertical: 'middle' };
+                        c4.value = statusLabels[d.paymentStatus] || '';
+                        c4.alignment = { horizontal: 'center', vertical: 'middle' };
+
+                        // Borders for merged cells
+                        [c1, c3, c4].forEach(c => {
+                            c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                        });
+
+                        // Borders for name cells (no border between them)
+                        c2_1.border = { top: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+                        c2_2.border = { bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+
+                        // Highlight 'Both' matches or 'Hybrid'
+                        if (d.isBoth) {
+                            c2_1.font = { color: { argb: 'FFFF0000' } };
+                            c2_2.font = { color: { argb: 'FFFF0000' }, size: 10 };
+                        } else if (d.isHybrid) {
+                            c2_1.font = { color: { argb: 'FF00B050' } };
+                            c2_2.font = { color: { argb: 'FF00B050' }, size: 10 };
+                        } else {
+                            c2_2.font = { size: 10 };
+                        }
+
+                        // Ensure hidden cells in the merge block also have borders (improves compatibility with some viewers)
+                        ws.getCell(currentRow + 1, colOffset + 1).border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                        ws.getCell(currentRow + 1, colOffset + 3).border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                        ws.getCell(currentRow + 1, colOffset + 4).border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+                        currentRow += 2;
+                    } else {
+                        const r = ws.getRow(currentRow);
+                        const c1 = r.getCell(colOffset + 1);
+                        const c2 = r.getCell(colOffset + 2);
+                        const c3 = r.getCell(colOffset + 3);
+                        const c4 = r.getCell(colOffset + 4);
+
+                        c1.value = currentSeq++;
+                        c1.alignment = { horizontal: 'center', vertical: 'middle' };
+                        c2.value = d.name;
+                        c2.alignment = { wrapText: true, vertical: 'middle' };
+                        c3.value = d.term;
+                        c3.alignment = { horizontal: 'center', vertical: 'middle' };
+                        c4.value = statusLabels[d.paymentStatus] || '';
+                        c4.alignment = { horizontal: 'center', vertical: 'middle' };
+
+                        [c1, c2, c3, c4].forEach(c => {
+                            c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                        });
+
+                        if (d.isBoth) {
+                            c2.font = { color: { argb: 'FFFF0000' } };
+                        } else if (d.isHybrid) {
+                            c2.font = { color: { argb: 'FF00B050' } };
+                        }
+                        currentRow++;
                     }
-
-                    c1.value = currentSeq++;
-                    c1.alignment = { horizontal: 'center', vertical: 'middle' };
-                    c2.value = d.name;
-                    c2.alignment = { wrapText: true, vertical: 'middle' };
-                    c3.value = d.term;
-                    c3.alignment = { horizontal: 'center', vertical: 'middle' };
-                    c4.value = statusLabels[d.paymentStatus] || '';
-                    c4.alignment = { horizontal: 'center', vertical: 'middle' };
-
-                    // Borders
-                    [c1, c2, c3, c4].forEach(c => {
-                        c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                    });
-
-                    // Highlight 'Both' matches or 'Hybrid'
-                    if (d.isBoth) {
-                        c2.font = { color: { argb: 'FFFF0000' } };
-                    } else if (d.isHybrid) {
-                        c2.font = { color: { argb: 'FF00B050' } }; // Standard Excel Green
-                    }
-                    currentRow++;
                 });
 
                 return { nextRow: currentRow, nextSeq: currentSeq };
