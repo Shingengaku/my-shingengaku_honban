@@ -827,6 +827,7 @@ export default function AdminDashboard() {
             });
             if (res.ok) {
                 alert('確認済みにしました');
+                setShowDuplicateModal(false);
                 fetchApplications(); // 再取得
             } else {
                 alert('エラーが発生しました');
