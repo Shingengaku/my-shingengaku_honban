@@ -25,6 +25,63 @@ interface Member {
     terms?: Term;
 }
 
+// 複数選択コンポーネント
+const MultiSelect = ({ label, options, selected, onChange, width = "w-40" }: { label: string, options: { label: string, value: string }[], selected: Set<string>, onChange: (s: Set<string>) => void, width?: string }) => {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <div className={`relative ${width}`}>
+            <button
+                onClick={() => setOpen(!open)}
+                className="w-full text-left border rounded px-2 py-2 text-sm flex justify-between items-center bg-white cursor-pointer hover:border-gray-400"
+            >
+                <span className="truncate block">
+                    {selected.size === 0 ? label : `${selected.size}件選択中`}
+                </span>
+                <span className="text-xs text-gray-500 ml-1">▼</span>
+            </button>
+            {open && (
+                <>
+                    <div className="fixed inset-0 z-10" onClick={() => setOpen(false)}></div>
+                    <div className="absolute top-full left-0 w-full bg-white border rounded shadow-lg z-20 max-h-80 overflow-y-auto mt-1">
+                        <div
+                            className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center border-b"
+                            onClick={() => {
+                                if (selected.size === options.length) onChange(new Set());
+                                else onChange(new Set(options.map(o => o.value)));
+                            }}
+                        >
+                            <span className="text-xs font-bold text-indigo-600">
+                                {selected.size === options.length ? '全て解除' : '全て選択'}
+                            </span>
+                        </div>
+                        {options.map((opt) => (
+                            <div
+                                key={opt.value}
+                                className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0"
+                                onClick={() => {
+                                    const newSet = new Set(selected);
+                                    if (newSet.has(opt.value)) newSet.delete(opt.value);
+                                    else newSet.add(opt.value);
+                                    onChange(newSet);
+                                }}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={selected.has(opt.value)}
+                                    readOnly
+                                    className="pointer-events-none h-4 w-4 text-indigo-600 focus:ring-0"
+                                />
+                                <span className="text-sm truncate select-none text-gray-700">{opt.label}</span>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
+        </div>
+    );
+};
+
 export default function MembersPage() {
     const [members, setMembers] = useState<Member[]>([]);
     const [ranks, setRanks] = useState<Rank[]>([]);
@@ -50,18 +107,46 @@ export default function MembersPage() {
 
     // 検索状態
     const [searchQuery, setSearchQuery] = useState('');
+    const [filterRank, setFilterRank] = useState<Set<string>>(new Set());
+    const [filterTerm, setFilterTerm] = useState<Set<string>>(new Set());
+    const [filterTokushin, setFilterTokushin] = useState<'all' | 'tokushin' | 'normal'>('all');
 
     // フィルターされたメンバー
     const filteredMembers = members.filter(member => {
-        if (!searchQuery) return true;
-        const q = searchQuery.toLowerCase();
-        return (
-            (member.name || '').toLowerCase().includes(q) ||
-            (member.furigana || '').toLowerCase().includes(q) ||
-            (member.email || '').toLowerCase().includes(q) ||
-            (member.ranks?.name || '').toLowerCase().includes(q) ||
-            (member.terms?.name || '').toLowerCase().includes(q) // generation -> terms.name
-        );
+        // Search Filter (AND)
+        if (searchQuery) {
+            const keywords = searchQuery.toLowerCase().split(/[\s,]+/).filter(Boolean);
+            const name = (member.name || '').toLowerCase();
+            const furi = (member.furigana || '').toLowerCase();
+            const email = (member.email || '').toLowerCase();
+            const rankName = (member.ranks?.name || '').toLowerCase();
+            const termName = (member.terms?.name || '').toLowerCase();
+
+            const match = keywords.every(k => 
+                name.includes(k) || furi.includes(k) || email.includes(k) || rankName.includes(k) || termName.includes(k)
+            );
+            if (!match) return false;
+        }
+
+        // Rank Filter
+        if (filterRank.size > 0) {
+            const r = member.ranks?.name || '';
+            if (!filterRank.has(r)) return false;
+        }
+
+        // Term Filter
+        if (filterTerm.size > 0) {
+            const t = member.terms?.name || '';
+            if (!filterTerm.has(t)) return false;
+        }
+
+        // Tokushin Filter
+        if (filterTokushin !== 'all') {
+            if (filterTokushin === 'tokushin' && !member.is_tokushin) return false;
+            if (filterTokushin === 'normal' && member.is_tokushin) return false;
+        }
+
+        return true;
     });
 
     useEffect(() => {
@@ -306,19 +391,12 @@ export default function MembersPage() {
     return (
         <div className="min-h-screen bg-gray-100 p-8">
             <div className="max-w-7xl mx-auto">
-                <div className="flex justify-between items-center mb-8">
+                <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center space-x-4">
                         <h1 className="text-2xl font-bold text-gray-800">受講生マスタ管理</h1>
-                        <input
-                            type="text"
-                            placeholder="検索 (氏名, メール, 属性, 期...)"
-                            className="border border-gray-300 rounded px-3 py-1 text-sm w-64 focus:ring-2 focus:ring-indigo-500"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
                     </div>
                     <div className="space-x-4 flex items-center">
-                        <Link href="/admin/dashboard" className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
+                        <Link href="/admin/dashboard" className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">
                             ← ダッシュボードへ
                         </Link>
 
@@ -339,9 +417,58 @@ export default function MembersPage() {
                             />
                         </label>
 
-                        <button onClick={() => handleOpenModal()} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                        <button onClick={() => handleOpenModal()} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm font-bold">
                             + 新規受講生登録
                         </button>
+                    </div>
+                </div>
+
+                {/* コントロールバー (検索・フィルタ) */}
+                <div className="bg-white p-4 rounded-lg shadow mb-6 space-y-3 border border-gray-200">
+                    <div className="flex flex-wrap gap-4 items-center">
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder="名前,フリガナ,Email等で検索 (スペース区切り)"
+                                className="border border-gray-300 rounded px-3 py-2 text-sm w-80 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                >
+                                    ✕
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="flex gap-2 items-center">
+                            <MultiSelect
+                                label="全ての属性"
+                                options={ranks.map(r => ({ label: r.name, value: r.name }))}
+                                selected={filterRank}
+                                onChange={setFilterRank}
+                                width="w-40"
+                            />
+                            <MultiSelect
+                                label="全ての期"
+                                options={terms.map(t => ({ label: t.name, value: t.name }))}
+                                selected={filterTerm}
+                                onChange={setFilterTerm}
+                                width="w-32"
+                            />
+                            <select
+                                className="border border-gray-300 rounded px-3 py-2 text-sm w-36 bg-white outline-none cursor-pointer hover:border-gray-400"
+                                value={filterTokushin}
+                                onChange={(e) => setFilterTokushin(e.target.value as 'all' | 'tokushin' | 'normal')}
+                            >
+                                <option value="all">特進: すべて</option>
+                                <option value="tokushin">特進のみ</option>
+                                <option value="normal">特進以外</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
