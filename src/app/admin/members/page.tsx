@@ -91,6 +91,11 @@ export default function MembersPage() {
     const [editingMember, setEditingMember] = useState<Member | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+    // 統合モーダル用状態
+    const [showMergeModal, setShowMergeModal] = useState(false);
+    const [mergePrimaryId, setMergePrimaryId] = useState<string>('');
+    const [merging, setMerging] = useState(false);
+
     // フォーム状態
     const [formData, setFormData] = useState({
         name: '',
@@ -282,6 +287,36 @@ export default function MembersPage() {
         if (newSet.has(id)) newSet.delete(id);
         else newSet.add(id);
         setSelectedIds(newSet);
+    };
+
+    const handleMerge = async () => {
+        if (!mergePrimaryId) return;
+        const ids = Array.from(selectedIds);
+        const duplicateId = ids.find(id => id !== mergePrimaryId);
+        if (!duplicateId) return;
+        
+        if (!confirm('統合を実行しますか？\n※「消す（重複）」として選択したデータは完全に削除されます。')) return;
+        setMerging(true);
+        try {
+            const res = await fetch('/api/admin/members/merge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ primaryId: mergePrimaryId, duplicateId })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                alert(data.message);
+                setShowMergeModal(false);
+                setSelectedIds(new Set());
+                fetchData();
+            } else {
+                alert(`エラー: ${data.error}`);
+            }
+        } catch (e) {
+            alert('通信エラー');
+        } finally {
+            setMerging(false);
+        }
     };
 
     /* ... ファイル選択処理（簡略化または後で更新） ... */
@@ -479,13 +514,28 @@ export default function MembersPage() {
                         <span className="text-sm font-medium text-gray-700">
                             <span className="text-red-600 font-bold">{selectedIds.size}</span> 件選択中
                         </span>
-                        <button
-                            onClick={handleBulkDelete}
-                            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm font-bold shadow-sm flex items-center gap-2"
-                        >
-                            <span>🗑️</span>
-                            選択した受講生を一括削除する
-                        </button>
+                        <div className="flex gap-4">
+                            {selectedIds.size === 2 && (
+                                <button
+                                    onClick={() => {
+                                        const ids = Array.from(selectedIds);
+                                        setMergePrimaryId(ids[0]);
+                                        setShowMergeModal(true);
+                                    }}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-bold shadow-sm flex items-center gap-2"
+                                >
+                                    <span>🔄</span>
+                                    選択した2件を統合する
+                                </button>
+                            )}
+                            <button
+                                onClick={handleBulkDelete}
+                                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm font-bold shadow-sm flex items-center gap-2"
+                            >
+                                <span>🗑️</span>
+                                選択した受講生を一括削除する
+                            </button>
+                        </div>
                     </div>
                 )}
 
@@ -694,6 +744,54 @@ export default function MembersPage() {
                     </div>
                 )
             }
+
+            {/* Merge Modal */}
+            {showMergeModal && selectedIds.size === 2 && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50 p-4">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-4xl">
+                        <h3 className="text-lg font-bold mb-4">受講生データの統合</h3>
+                        <p className="text-sm text-gray-600 mb-6">
+                            選択された2つのデータを統合します。<br />
+                            「残す」を選択したデータに、全てのお申し込み履歴が引き継がれます。<br />
+                            <span className="text-red-600 font-bold">※「消す」側として指定されたデータは物理削除されます。</span>
+                        </p>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            {Array.from(selectedIds).map(id => {
+                                const m = members.find(m => m.id === id);
+                                if (!m) return null;
+                                const isPrimary = mergePrimaryId === id;
+                                return (
+                                    <div key={id} className={`border rounded p-4 cursor-pointer transition-colors ${isPrimary ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50'}`} onClick={() => setMergePrimaryId(id)}>
+                                        <div className="flex items-center gap-2 mb-3 border-b pb-2">
+                                            <input type="radio" checked={isPrimary} readOnly className="w-4 h-4 text-blue-600" />
+                                            <span className={`font-bold ${isPrimary ? 'text-blue-700' : 'text-gray-600'}`}>
+                                                {isPrimary ? '残す（正本）' : '消す（重複）'}
+                                            </span>
+                                        </div>
+                                        <div className="space-y-2 text-sm">
+                                            <div><span className="text-gray-500 text-xs block">氏名</span><span className="font-bold">{m.name}</span></div>
+                                            <div><span className="text-gray-500 text-xs block">フリガナ</span>{m.furigana || '-'}</div>
+                                            <div><span className="text-gray-500 text-xs block">メールアドレス</span>{m.email}</div>
+                                            <div><span className="text-gray-500 text-xs block">属性</span>{m.ranks?.name || '-'}</div>
+                                            <div><span className="text-gray-500 text-xs block">期</span>{m.terms?.name || '-'}</div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        
+                        <div className="mt-8 flex justify-end space-x-3">
+                            <button onClick={() => setShowMergeModal(false)} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400" disabled={merging}>
+                                キャンセル
+                            </button>
+                            <button onClick={handleMerge} className="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 disabled:bg-blue-400" disabled={merging}>
+                                {merging ? '統合処理中...' : '統合を実行する'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }
