@@ -255,6 +255,10 @@ export default function AdminDashboard() {
     // ソート機能の状態
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
+    // 未申込者確認機能の状態
+    const [unappliedMembers, setUnappliedMembers] = useState<any[]>([]);
+    const [showUnappliedModal, setShowUnappliedModal] = useState(false);
+    const [loadingUnapplied, setLoadingUnapplied] = useState(false);
 
     // 追加：人物単位の参加状況マップ（名寄せはせず、判定のみで使用）
     const personStatusMap = useMemo(() => {
@@ -525,6 +529,52 @@ export default function AdminDashboard() {
             alert('データ取得に失敗しました');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchUnappliedMembers = async () => {
+        setLoadingUnapplied(true);
+        setShowUnappliedModal(true);
+        try {
+            const res = await fetch('/api/admin/members', { cache: 'no-store' });
+            if (res.ok) {
+                const membersData = await res.json();
+                
+                // 申し込み済みのメンバーIDとメールアドレスのセットを作成（キャンセルを除く）
+                const appliedMemberIds = new Set<string>();
+                const appliedEmails = new Set<string>();
+                
+                apps.forEach(app => {
+                    if (app.payment_status === 'cancelled') return;
+                    if (app.matched_member_id) {
+                        appliedMemberIds.add(String(app.matched_member_id));
+                    }
+                    if (app.input_email) {
+                        appliedEmails.add(app.input_email.toLowerCase().trim());
+                    }
+                });
+
+                // 受講生マスターから、申し込みデータに存在しない人だけを抽出
+                const unapplied = membersData.filter((member: any) => {
+                    const mId = String(member.id);
+                    const mEmail = member.email ? member.email.toLowerCase().trim() : '';
+                    
+                    if (appliedMemberIds.has(mId)) return false;
+                    if (mEmail && appliedEmails.has(mEmail)) return false;
+                    return true;
+                });
+                
+                setUnappliedMembers(unapplied);
+            } else {
+                alert('受講生マスターの取得に失敗しました');
+                setShowUnappliedModal(false);
+            }
+        } catch (e) {
+            console.error('Error fetching unapplied members:', e);
+            alert('エラーが発生しました');
+            setShowUnappliedModal(false);
+        } finally {
+            setLoadingUnapplied(false);
         }
     };
 
@@ -2397,6 +2447,7 @@ export default function AdminDashboard() {
                             <button onClick={() => setFilter('all')} className={`px-4 py-2 rounded-md ${filter === 'all' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`}>全て</button>
                             <div className="w-px bg-gray-300 h-8 mx-2"></div>
                             <button onClick={() => setShowCreateModal(true)} className="px-4 py-2 rounded-md bg-green-600 text-white font-bold hover:bg-green-700">新規登録</button>
+                            <button onClick={fetchUnappliedMembers} className="px-4 py-2 rounded-md bg-yellow-500 text-white font-bold hover:bg-yellow-600 ml-2">未申込者を確認</button>
                             <span className="ml-4 text-[10px] font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-200">System Logic v2.1</span>
                         </div>
                         {/* 統計表示 */}
@@ -4079,6 +4130,89 @@ export default function AdminDashboard() {
                             >
                                 {creating ? '登録中...' : '登録する'}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 未申込者モーダル */}
+            {showUnappliedModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                        <div className="flex justify-between items-center p-4 border-b">
+                            <h2 className="text-xl font-bold">お申し込み未完了の受講生</h2>
+                            <button onClick={() => setShowUnappliedModal(false)} className="text-gray-500 hover:text-gray-700">
+                                ✕ 閉じる
+                            </button>
+                        </div>
+                        
+                        <div className="p-4 flex-grow overflow-auto bg-gray-50">
+                            {loadingUnapplied ? (
+                                <div className="text-center py-10">
+                                    <p className="text-gray-500">データを照合しています...</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="mb-4 flex justify-between items-center">
+                                        <p className="text-sm text-gray-600">
+                                            現在の受講生マスターから、お申し込みデータ（キャンセルを除く）に存在しない方を表示しています。
+                                        </p>
+                                        <div className="font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full text-sm">
+                                            未申込: {unappliedMembers.length} 名
+                                        </div>
+                                    </div>
+                                    
+                                    {unappliedMembers.length === 0 ? (
+                                        <div className="text-center py-10 bg-white rounded shadow-sm">
+                                            <p className="text-gray-500">全ての受講生のお申し込みが完了しています！</p>
+                                        </div>
+                                    ) : (
+                                        <div className="bg-white rounded shadow-sm overflow-hidden">
+                                            <table className="w-full text-sm text-left">
+                                                <thead className="bg-gray-200 text-gray-700">
+                                                    <tr>
+                                                        <th className="p-3 text-left w-20 whitespace-nowrap">期</th>
+                                                        <th className="p-3 text-left">氏名</th>
+                                                        <th className="p-3 text-left">フリガナ</th>
+                                                        <th className="p-3 text-left">メールアドレス</th>
+                                                        <th className="p-3 text-left w-32 whitespace-nowrap">属性</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {unappliedMembers.map(member => (
+                                                        <tr key={member.id} className="border-t hover:bg-gray-50">
+                                                            <td className="p-3 whitespace-nowrap">{member.terms?.name || '-'}</td>
+                                                            <td className="p-3 font-bold whitespace-nowrap">{member.name}</td>
+                                                            <td className="p-3 text-gray-600 whitespace-nowrap">{member.furigana}</td>
+                                                            <td className="p-3">
+                                                                <div className="flex items-center">
+                                                                    <span className="truncate max-w-xs" title={member.email}>{member.email}</span>
+                                                                    {member.email && (
+                                                                        <button 
+                                                                            onClick={() => {
+                                                                                navigator.clipboard.writeText(member.email);
+                                                                                alert('コピーしました: ' + member.email);
+                                                                            }}
+                                                                            className="ml-2 text-xs text-blue-500 hover:text-blue-700 border border-blue-200 rounded px-1 flex-shrink-0"
+                                                                        >
+                                                                            コピー
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-3 whitespace-nowrap">
+                                                                <span className="px-2 py-1 bg-gray-100 rounded text-xs">
+                                                                    {member.ranks?.name || '不明'}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
