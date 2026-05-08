@@ -223,7 +223,7 @@ export default function MembersPage() {
             const [membersRes, ranksRes, termsRes] = await Promise.all([
                 fetch('/api/admin/members'),
                 fetch('/api/admin/ranks'),
-                fetch('/api/terms')
+                fetch('/api/admin/terms')
             ]);
 
             if (membersRes.ok && ranksRes.ok && termsRes.ok) {
