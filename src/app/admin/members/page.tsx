@@ -91,13 +91,26 @@ export default function MembersPage() {
     const [editingMember, setEditingMember] = useState<Member | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-    // 統合モーダル用状態
     const [showMergeModal, setShowMergeModal] = useState(false);
     const [mergePrimaryId, setMergePrimaryId] = useState<string>('');
     const [merging, setMerging] = useState(false);
 
     // 重複検出用状態
     const [showDuplicatesModal, setShowDuplicatesModal] = useState(false);
+    const [duplicateSelectedIds, setDuplicateSelectedIds] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        if (showDuplicatesModal) {
+            const initialSelected = new Set<string>();
+            duplicateGroups.forEach(g => {
+                if (g.length === 2) {
+                    initialSelected.add(g[0].id);
+                    initialSelected.add(g[1].id);
+                }
+            });
+            setDuplicateSelectedIds(initialSelected);
+        }
+    }, [showDuplicatesModal]);
 
     const duplicateGroups = useMemo(() => {
         const groups: Member[][] = [];
@@ -882,37 +895,65 @@ export default function MembersPage() {
                                     重複の可能性があるデータは見つかりませんでした。
                                 </div>
                             ) : (
-                                duplicateGroups.map((group, index) => (
+                                duplicateGroups.map((group, index) => {
+                                    const selectedInGroup = group.filter(m => duplicateSelectedIds.has(m.id));
+                                    const canMerge = selectedInGroup.length === 2;
+
+                                    return (
                                     <div key={index} className="border border-purple-200 bg-purple-50 rounded-lg p-4 shadow-sm">
                                         <div className="flex justify-between items-center mb-3 pb-2 border-b border-purple-100">
                                             <h4 className="font-bold text-purple-800">候補グループ {index + 1} ({group.length}件)</h4>
                                             <button 
+                                                disabled={!canMerge}
                                                 onClick={() => {
                                                     setShowDuplicatesModal(false);
-                                                    const ids = new Set(group.map(g => g.id).slice(0, 2)); // 上位2件を選択
+                                                    const ids = new Set(selectedInGroup.map(g => g.id));
                                                     setSelectedIds(ids);
-                                                    setMergePrimaryId(group[0].id);
+                                                    setMergePrimaryId(selectedInGroup[0].id);
                                                     setShowMergeModal(true);
                                                 }}
-                                                className="px-4 py-1.5 bg-blue-600 text-white text-sm font-bold rounded hover:bg-blue-700 shadow-sm flex items-center gap-1"
+                                                className={`px-4 py-1.5 text-white text-sm font-bold rounded shadow-sm flex items-center gap-1 transition-colors ${canMerge ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'}`}
                                             >
                                                 <span>🔄</span>
-                                                この中から2件を統合する
+                                                選択した2件を統合する
                                             </button>
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                            {group.map(m => (
-                                                <div key={m.id} className="bg-white p-3 rounded border border-gray-200 text-sm shadow-sm relative">
+                                            {group.map(m => {
+                                                const isSelected = duplicateSelectedIds.has(m.id);
+                                                return (
+                                                <div 
+                                                    key={m.id} 
+                                                    onClick={() => {
+                                                        const next = new Set(duplicateSelectedIds);
+                                                        if (next.has(m.id)) {
+                                                            next.delete(m.id);
+                                                        } else {
+                                                            if (selectedInGroup.length < 2) {
+                                                                next.add(m.id);
+                                                            } else {
+                                                                alert('統合できるのは一度に2件までです。別の選択を外してください。');
+                                                            }
+                                                        }
+                                                        setDuplicateSelectedIds(next);
+                                                    }}
+                                                    className={`p-3 rounded border text-sm shadow-sm relative cursor-pointer transition-all ${isSelected ? 'bg-blue-50 border-blue-400 shadow-md ring-1 ring-blue-400' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
+                                                >
+                                                    <div className="absolute top-3 right-3">
+                                                        <input type="checkbox" checked={isSelected} readOnly className="h-4 w-4 text-blue-600 pointer-events-none" />
+                                                    </div>
                                                     <div><span className="text-gray-400 text-xs">氏名:</span> <span className="font-bold">{m.name}</span></div>
                                                     <div><span className="text-gray-400 text-xs">カナ:</span> {m.furigana || '-'}</div>
                                                     <div><span className="text-gray-400 text-xs">Email:</span> {m.email}</div>
                                                     <div><span className="text-gray-400 text-xs">属性:</span> {m.ranks?.name || '-'}</div>
                                                     <div><span className="text-gray-400 text-xs">期:</span> {m.terms?.name || '-'}</div>
                                                 </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
 
