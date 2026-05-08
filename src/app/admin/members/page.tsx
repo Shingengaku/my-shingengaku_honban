@@ -425,13 +425,24 @@ export default function MembersPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 p-8">
-            <div className="max-w-7xl mx-auto">
-                <div className="flex justify-between items-center mb-4">
-                    <div className="flex items-center space-x-4">
-                        <h1 className="text-2xl font-bold text-gray-800">受講生マスタ管理</h1>
-                    </div>
-                    <div className="space-x-4 flex items-center">
+        <div className="h-screen bg-gray-100 flex flex-col overflow-hidden">
+            <div className="flex-none pt-8 px-8 pb-4 overflow-y-auto">
+                <div className="max-w-7xl mx-auto">
+                    <div className="flex justify-between items-center mb-4">
+                        <div className="flex items-center space-x-4">
+                            <h1 className="text-2xl font-bold text-gray-800">受講生マスタ管理</h1>
+                            <div className="flex gap-2">
+                                <span className="bg-blue-100 text-blue-800 text-sm font-bold px-3 py-1 rounded-full shadow-sm border border-blue-200">
+                                    全 {members.length} 名
+                                </span>
+                                {filteredMembers.length !== members.length && (
+                                    <span className="bg-gray-200 text-gray-700 text-sm font-bold px-3 py-1 rounded-full shadow-sm border border-gray-300">
+                                        絞り込み後: {filteredMembers.length} 名
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                        <div className="space-x-4 flex items-center">
                         <Link href="/admin/dashboard" className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">
                             ← ダッシュボードへ
                         </Link>
@@ -591,10 +602,12 @@ export default function MembersPage() {
                 </div>
             </div>
 
-            <div className="bg-white shadow rounded-lg overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
+            <div className="flex-1 overflow-auto px-8 pb-8">
+                <div className="max-w-7xl mx-auto">
+                    <div className="bg-white shadow rounded-lg relative border border-gray-200">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm shadow-gray-200 outline outline-1 outline-gray-200">
+                                <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">
                                 <input
                                     type="checkbox"
@@ -647,6 +660,8 @@ export default function MembersPage() {
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
 
             {/* インポートプレビューモーダル ... (以前と同じか、わずかに更新) */}
             {importPreview && (
