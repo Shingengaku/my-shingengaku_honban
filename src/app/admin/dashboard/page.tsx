@@ -175,7 +175,7 @@ export default function AdminDashboard() {
     const VERSION = "2026-04-14-2325";
     const [apps, setApps] = useState<Application[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState<'all' | 'unpaid' | 'paid' | 'cancelled'>('all');
+    const [filter, setFilter] = useState<'all' | 'unpaid' | 'paid' | 'cancelled' | 'not_required'>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const router = useRouter();
@@ -2252,7 +2252,18 @@ export default function AdminDashboard() {
     }, [selectedIds, apps, venueList]);
     const filteredApps = apps.filter(app => {
         // Status Filter
-        if (filter !== 'all' && app.payment_status !== filter) return false;
+        if (filter !== 'all') {
+            const isAlert = app.remarks?.includes('商品マスタ') && !app.tags?.includes('confirmed_product_alert');
+            const isNotRequired = app.total_amount === 0 && !isAlert;
+
+            if (filter === 'not_required') {
+                if (!isNotRequired) return false;
+            } else if (filter === 'unpaid') {
+                if (app.payment_status !== 'unpaid' || isNotRequired) return false;
+            } else if (app.payment_status !== filter) {
+                return false;
+            }
+        }
 
         // Search Filter
         if (searchQuery) {
@@ -2471,6 +2482,7 @@ export default function AdminDashboard() {
                     <div className="flex flex-wrap gap-2 justify-between items-center">
                         <div className="flex gap-2 items-center">
                             <button onClick={() => setFilter('unpaid')} className={`px-4 py-2 rounded-md ${filter === 'unpaid' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`}>未決済</button>
+                            <button onClick={() => setFilter('not_required')} className={`px-4 py-2 rounded-md ${filter === 'not_required' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`}>決済不要</button>
                             <button onClick={() => setFilter('paid')} className={`px-4 py-2 rounded-md ${filter === 'paid' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`}>決済済</button>
                             <button onClick={() => setFilter('cancelled')} className={`px-4 py-2 rounded-md ${filter === 'cancelled' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`}>キャンセル</button>
                             <button onClick={() => setFilter('all')} className={`px-4 py-2 rounded-md ${filter === 'all' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700'}`}>全て</button>
