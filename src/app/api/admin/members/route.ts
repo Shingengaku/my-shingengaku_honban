@@ -111,6 +111,21 @@ export async function DELETE(request: Request) {
 
         if (!id && !ids) return NextResponse.json({ error: 'ID or IDs are required' }, { status: 400 });
 
+        // 外部キー制約エラー（applications_matched_member_id_fkey）を回避するため、
+        // 対象メンバーが紐づいている申し込みデータの紐付けを事前に解除（NULL化）する
+        try {
+            let updateAppQuery = supabaseAdmin.from('applications').update({ matched_member_id: null });
+            if (ids) {
+                updateAppQuery = updateAppQuery.in('matched_member_id', ids);
+            } else {
+                updateAppQuery = updateAppQuery.eq('matched_member_id', id as string);
+            }
+            await updateAppQuery;
+        } catch (updateErr) {
+            console.error('Error unlinking applications:', updateErr);
+            // エラーが発生しても削除処理は続行を試みる
+        }
+
         let query = supabaseAdmin.from('members').delete();
         if (ids) {
             query = query.in('id', ids);
