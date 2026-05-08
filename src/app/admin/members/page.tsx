@@ -1,6 +1,6 @@
 
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 
 interface Rank {
@@ -95,6 +95,52 @@ export default function MembersPage() {
     const [showMergeModal, setShowMergeModal] = useState(false);
     const [mergePrimaryId, setMergePrimaryId] = useState<string>('');
     const [merging, setMerging] = useState(false);
+
+    // 重複検出用状態
+    const [showDuplicatesModal, setShowDuplicatesModal] = useState(false);
+
+    const duplicateGroups = useMemo(() => {
+        const groups: Member[][] = [];
+        const processedIds = new Set<string>();
+
+        // 1. メールアドレスでグループ化
+        const byEmail = new Map<string, Member[]>();
+        members.forEach(m => {
+            const email = (m.email || '').trim().toLowerCase();
+            if (email) {
+                if (!byEmail.has(email)) byEmail.set(email, []);
+                byEmail.get(email)!.push(m);
+            }
+        });
+
+        byEmail.forEach(group => {
+            if (group.length > 1) {
+                groups.push(group);
+                group.forEach(m => processedIds.add(m.id));
+            }
+        });
+
+        // 2. 氏名（スペース抜）＋期 でグループ化
+        const byNameTerm = new Map<string, Member[]>();
+        members.forEach(m => {
+            if (processedIds.has(m.id)) return;
+            const nameKey = (m.name || '').replace(/\s+/g, '');
+            const termKey = String(m.term_id || '');
+            if (nameKey) {
+                const key = `${nameKey}_${termKey}`;
+                if (!byNameTerm.has(key)) byNameTerm.set(key, []);
+                byNameTerm.get(key)!.push(m);
+            }
+        });
+
+        byNameTerm.forEach(group => {
+            if (group.length > 1) {
+                groups.push(group);
+            }
+        });
+
+        return groups;
+    }, [members]);
 
     // フォーム状態
     const [formData, setFormData] = useState({
@@ -600,6 +646,7 @@ export default function MembersPage() {
                         </div>
                     </details>
                 </div>
+            </div>
             </div>
 
             <div className="flex-1 overflow-auto px-8 pb-8">
