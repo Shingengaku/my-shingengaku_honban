@@ -238,14 +238,15 @@ export default function MembersPage() {
             const res = await fetch(`/api/admin/members?id=${id}`, {
                 method: 'DELETE'
             });
+            const data = await res.json();
             if (res.ok) {
-                alert('削除しました');
+                alert(data.message || '削除しました');
                 fetchData();
             } else {
-                alert('削除失敗');
+                alert(`削除失敗: ${data.error || '不明なエラー'}`);
             }
         } catch (e) {
-            alert('エラー');
+            alert('エラーが発生しました');
         }
     };
 
@@ -261,16 +262,16 @@ export default function MembersPage() {
                 body: JSON.stringify({ ids: Array.from(selectedIds) })
             });
 
+            const data = await res.json();
             if (res.ok) {
-                alert('削除しました');
+                alert(data.message || '削除しました');
                 setSelectedIds(new Set());
                 fetchData();
             } else {
-                const data = await res.json();
                 alert(`削除失敗: ${data.error || '不明なエラー'}`);
             }
         } catch (e) {
-            alert('通信エラー');
+            alert('通信エラーが発生しました');
         } finally {
             setLoading(false);
         }

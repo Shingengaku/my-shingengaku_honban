@@ -109,35 +109,45 @@ export async function DELETE(request: Request) {
             // ボディがない場合は無視
         }
 
-        if (!id && !ids) return NextResponse.json({ error: 'ID or IDs are required' }, { status: 400 });
+        const targetIds = ids || (id ? [id] : []);
+        if (targetIds.length === 0) return NextResponse.json({ error: 'ID or IDs are required' }, { status: 400 });
 
-        // 外部キー制約エラー（applications_matched_member_id_fkey）を回避するため、
-        // 対象メンバーが紐づいている申し込みデータの紐付けを事前に解除（NULL化）する
-        try {
-            let updateAppQuery = supabaseAdmin.from('applications').update({ matched_member_id: null });
-            if (ids) {
-                updateAppQuery = updateAppQuery.in('matched_member_id', ids);
-            } else {
-                updateAppQuery = updateAppQuery.eq('matched_member_id', id as string);
-            }
-            await updateAppQuery;
-        } catch (updateErr) {
-            console.error('Error unlinking applications:', updateErr);
-            // エラーが発生しても削除処理は続行を試みる
+        // 1. お申し込みデータで利用されているメンバーを特定する
+        const { data: usedApps, error: checkErr } = await supabaseAdmin
+            .from('applications')
+            .select('matched_member_id')
+            .in('matched_member_id', targetIds);
+
+        if (checkErr) throw checkErr;
+
+        const usedMemberIds = new Set(usedApps.filter(app => app.matched_member_id).map(app => String(app.matched_member_id)));
+        const unusedMemberIds = targetIds.filter(tid => !usedMemberIds.has(String(tid)));
+
+        // 全て利用中で削除できるものがない場合
+        if (unusedMemberIds.length === 0) {
+            return NextResponse.json({ 
+                error: '選択された受講生は既にお申し込みデータと紐づいているため削除できません。',
+                skipped: targetIds.length,
+                deleted: 0
+            }, { status: 400 });
         }
 
-        let query = supabaseAdmin.from('members').delete();
-        if (ids) {
-            query = query.in('id', ids);
-        } else {
-            query = query.eq('id', id as string);
-        }
+        // 2. 利用されていないメンバーのみ削除を実行
+        const { error: delErr } = await supabaseAdmin
+            .from('members')
+            .delete()
+            .in('id', unusedMemberIds);
 
-        const { error } = await query;
+        if (delErr) throw delErr;
 
-        if (error) throw error;
-
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ 
+            success: true, 
+            deleted: unusedMemberIds.length,
+            skipped: usedMemberIds.size,
+            message: usedMemberIds.size > 0 
+                ? `${unusedMemberIds.length}件を削除しました。\n（お申し込みと紐づいている${usedMemberIds.size}件は安全のためスキップしました）` 
+                : '削除しました'
+        });
     } catch (e) {
         console.error('Error deleting member:', e);
         return NextResponse.json({ error: 'Failed to delete member' }, { status: 500 });
