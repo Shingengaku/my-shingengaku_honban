@@ -834,11 +834,17 @@ export default function MembersPage() {
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50 p-4">
                     <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-4xl">
                         <h3 className="text-lg font-bold mb-4">受講生データの統合</h3>
-                        <p className="text-sm text-gray-600 mb-6">
-                            選択された2つのデータを統合します。<br />
-                            「残す」を選択したデータに、全てのお申し込み履歴が引き継がれます。<br />
-                            <span className="text-red-600 font-bold">※「消す」側として指定されたデータは物理削除されます。</span>
-                        </p>
+                        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 text-sm text-yellow-800">
+                            <p className="font-bold mb-2 text-yellow-900 flex items-center gap-2">
+                                <span className="text-lg">⚠️</span> 統合に関する運用上のご注意
+                            </p>
+                            <ul className="list-disc pl-5 space-y-1.5">
+                                <li>「残す（正本）」を選択したデータに、全てのお申し込み履歴（過去の購入や受講履歴）が自動で引き継がれます。履歴が消えることはありません。</li>
+                                <li><strong>「残す」側の個人情報（氏名、メールアドレスなど）は上書きされず、現在の内容がそのまま維持されます。</strong></li>
+                                <li><span className="text-red-600 font-bold">「消す」側にのみ登録されている情報（新しいメールアドレスやフリガナなど）は、「残す」側にはコピーされず、データごと物理削除されます。</span></li>
+                                <li>もし「消す」側に最新の情報がある場合は、統合前にあらかじめ「残す」側を最新の情報に編集（更新）しておいてください。</li>
+                            </ul>
+                        </div>
                         
                         <div className="grid grid-cols-2 gap-4">
                             {Array.from(selectedIds).map(id => {
