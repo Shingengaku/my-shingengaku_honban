@@ -2254,7 +2254,7 @@ export default function AdminDashboard() {
         // Status Filter
         if (filter !== 'all') {
             const isAlert = app.remarks?.includes('商品マスタ') && !app.tags?.includes('confirmed_product_alert');
-            const isNotRequired = app.total_amount === 0 && !isAlert;
+            const isNotRequired = app.total_amount === 0 && !isAlert && app.payment_status !== 'cancelled';
 
             if (filter === 'not_required') {
                 if (!isNotRequired) return false;
@@ -2500,7 +2500,12 @@ export default function AdminDashboard() {
                             <div className="w-px bg-gray-300 h-8 mx-1"></div>
                             <div className="flex flex-col items-center">
                                 <span className='text-gray-500 text-xs'>未決済</span>
-                                <span className="font-bold text-red-600">{apps.filter(a => a.payment_status === 'unpaid').length}</span>
+                                <span className="font-bold text-red-600">{apps.filter(a => a.payment_status === 'unpaid' && !(a.total_amount === 0 && !(a.remarks?.includes('商品マスタ') && !a.tags?.includes('confirmed_product_alert')))).length}</span>
+                            </div>
+                            <div className="w-px bg-gray-300 h-8 mx-1"></div>
+                            <div className="flex flex-col items-center">
+                                <span className='text-gray-500 text-xs'>決済不要</span>
+                                <span className="font-bold text-blue-600">{apps.filter(a => a.total_amount === 0 && !(a.remarks?.includes('商品マスタ') && !a.tags?.includes('confirmed_product_alert')) && a.payment_status !== 'cancelled').length}</span>
                             </div>
                             <div className="w-px bg-gray-300 h-8 mx-1"></div>
                             <div className="flex flex-col items-center">
