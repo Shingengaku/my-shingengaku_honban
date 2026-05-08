@@ -21,6 +21,7 @@ interface Member {
     rank_id: number;
     term_id: number;
     is_tokushin?: boolean; // 特進フラグ
+    exclude_from_count?: boolean; // 集計除外フラグ
     ranks?: Rank;
     terms?: Term;
 }
@@ -162,7 +163,8 @@ export default function MembersPage() {
         email: '',
         rank_id: '',
         term_id: '', // generation -> term_id
-        is_tokushin: false
+        is_tokushin: false,
+        exclude_from_count: false
     });
 
     const [importMode, setImportMode] = useState<'overwrite' | 'skip'>('overwrite');
@@ -174,6 +176,7 @@ export default function MembersPage() {
     const [filterRank, setFilterRank] = useState<Set<string>>(new Set());
     const [filterTerm, setFilterTerm] = useState<Set<string>>(new Set());
     const [filterTokushin, setFilterTokushin] = useState<'all' | 'tokushin' | 'normal'>('all');
+    const [filterExclude, setFilterExclude] = useState<'all' | 'normal' | 'excluded'>('all');
 
     // フィルターされたメンバー
     const filteredMembers = members.filter(member => {
@@ -208,6 +211,12 @@ export default function MembersPage() {
         if (filterTokushin !== 'all') {
             if (filterTokushin === 'tokushin' && !member.is_tokushin) return false;
             if (filterTokushin === 'normal' && member.is_tokushin) return false;
+        }
+
+        // Exclude Filter
+        if (filterExclude !== 'all') {
+            if (filterExclude === 'excluded' && !member.exclude_from_count) return false;
+            if (filterExclude === 'normal' && member.exclude_from_count) return false;
         }
 
         return true;
@@ -248,7 +257,8 @@ export default function MembersPage() {
                 email: member.email,
                 rank_id: String(member.rank_id),
                 term_id: String(member.term_id),
-                is_tokushin: member.is_tokushin || false
+                is_tokushin: member.is_tokushin || false,
+                exclude_from_count: member.exclude_from_count || false
             });
         } else {
             setEditingMember(null);
@@ -258,7 +268,8 @@ export default function MembersPage() {
                 email: '',
                 rank_id: ranks.length > 0 ? String(ranks[0].id) : '',
                 term_id: terms.length > 0 ? String(terms[0].id) : '',
-                is_tokushin: false
+                is_tokushin: false,
+                exclude_from_count: false
             });
         }
         setShowModal(true);
@@ -490,12 +501,12 @@ export default function MembersPage() {
                     <div className="flex justify-between items-center mb-4">
                         <div className="flex items-center space-x-4">
                             <h1 className="text-2xl font-bold text-gray-800">受講生マスタ管理</h1>
-                            <div className="flex gap-2">
-                                <span className="bg-blue-100 text-blue-800 text-sm font-bold px-3 py-1 rounded-full shadow-sm border border-blue-200">
-                                    全 {members.length} 名
+                            <div className="flex gap-2 items-center">
+                                <span className="bg-blue-100 text-blue-800 text-sm font-bold px-3 py-1.5 rounded-full shadow-sm border border-blue-200">
+                                    全 {members.filter(m => !m.exclude_from_count).length} 名 <span className="text-xs font-normal text-blue-600 ml-1">(除外分含む総レコード: {members.length}件)</span>
                                 </span>
                                 {filteredMembers.length !== members.length && (
-                                    <span className="bg-gray-200 text-gray-700 text-sm font-bold px-3 py-1 rounded-full shadow-sm border border-gray-300">
+                                    <span className="bg-gray-200 text-gray-700 text-sm font-bold px-3 py-1.5 rounded-full shadow-sm border border-gray-300">
                                         絞り込み後: {filteredMembers.length} 名
                                     </span>
                                 )}
@@ -582,6 +593,15 @@ export default function MembersPage() {
                                 <option value="all">特進: すべて</option>
                                 <option value="tokushin">特進のみ</option>
                                 <option value="normal">特進以外</option>
+                            </select>
+                            <select
+                                className="border border-gray-300 rounded px-3 py-2 text-sm w-44 bg-white outline-none cursor-pointer hover:border-gray-400"
+                                value={filterExclude}
+                                onChange={(e) => setFilterExclude(e.target.value as 'all' | 'normal' | 'excluded')}
+                            >
+                                <option value="all">除外ラベル: すべて</option>
+                                <option value="normal">集計対象のみ</option>
+                                <option value="excluded">除外のみ</option>
                             </select>
                         </div>
                     </div>
@@ -698,7 +718,14 @@ export default function MembersPage() {
                                     />
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="text-sm font-medium text-gray-900">{member.name}</div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="text-sm font-medium text-gray-900">{member.name}</div>
+                                        {member.exclude_from_count && (
+                                            <span className="px-1.5 py-0.5 inline-flex text-[10px] leading-tight font-bold rounded-sm bg-gray-500 text-white">
+                                                集計除外
+                                            </span>
+                                        )}
+                                    </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{member.furigana}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{member.email}</td>
@@ -817,6 +844,18 @@ export default function MembersPage() {
                                     />
                                     <label htmlFor="is_tokushin" className="ml-2 block text-sm font-medium text-gray-700">
                                         特進
+                                    </label>
+                                </div>
+                                <div className="flex items-center pt-2 border-t border-gray-100 mt-2">
+                                    <input
+                                        id="exclude_from_count"
+                                        type="checkbox"
+                                        className="h-4 w-4 text-gray-600 focus:ring-gray-500 border-gray-300 rounded"
+                                        checked={formData.exclude_from_count}
+                                        onChange={e => setFormData({ ...formData, exclude_from_count: e.target.checked })}
+                                    />
+                                    <label htmlFor="exclude_from_count" className="ml-2 block text-sm font-medium text-gray-700">
+                                        集計から除外する（テスト・旧字体用等）
                                     </label>
                                 </div>
                             </div>

@@ -34,7 +34,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { name, furigana, email, rank_id, term_id, is_tokushin } = body;
+        const { name, furigana, email, rank_id, term_id, is_tokushin, exclude_from_count } = body;
 
         // バリデーション
         if (!name || !furigana || !email || !rank_id || !term_id) {
@@ -49,7 +49,8 @@ export async function POST(request: Request) {
                 email,
                 rank_id,
                 term_id,
-                is_tokushin: is_tokushin || false
+                is_tokushin: is_tokushin || false,
+                exclude_from_count: exclude_from_count || false
             })
             .select()
             .single();
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
     try {
         const body = await request.json();
-        const { id, name, furigana, email, rank_id, term_id, is_tokushin } = body;
+        const { id, name, furigana, email, rank_id, term_id, is_tokushin, exclude_from_count } = body;
 
         if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 });
 
@@ -78,7 +79,8 @@ export async function PUT(request: Request) {
                 email,
                 rank_id,
                 term_id,
-                is_tokushin
+                is_tokushin,
+                exclude_from_count
             })
             .eq('id', id)
             .select()
