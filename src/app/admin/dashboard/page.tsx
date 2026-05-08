@@ -578,6 +578,35 @@ export default function AdminDashboard() {
         }
     };
 
+    const downloadUnappliedCSV = () => {
+        if (unappliedMembers.length === 0) return;
+
+        const headers = ['期', '氏名', 'フリガナ', 'メールアドレス', '属性'];
+        const rows = unappliedMembers.map(member => [
+            member.terms?.name || '',
+            member.name || '',
+            member.furigana || '',
+            member.email || '',
+            member.ranks?.name || ''
+        ]);
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        ].join('\n');
+
+        // Excelで文字化けしないようにBOM(Byte Order Mark)を付与
+        const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+        const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `未申込者一覧_${new Date().toISOString().slice(0, 10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const fetchRanks = async () => {
         try {
             const res = await fetch('/api/admin/ranks');
@@ -4157,8 +4186,18 @@ export default function AdminDashboard() {
                                         <p className="text-sm text-gray-600">
                                             現在の受講生マスターから、お申し込みデータ（キャンセルを除く）に存在しない方を表示しています。
                                         </p>
-                                        <div className="font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full text-sm">
-                                            未申込: {unappliedMembers.length} 名
+                                        <div className="flex gap-4 items-center">
+                                            <div className="font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full text-sm">
+                                                未申込: {unappliedMembers.length} 名
+                                            </div>
+                                            <button 
+                                                onClick={downloadUnappliedCSV}
+                                                className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded flex items-center"
+                                                disabled={unappliedMembers.length === 0}
+                                            >
+                                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                                CSV出力
+                                            </button>
                                         </div>
                                     </div>
                                     
