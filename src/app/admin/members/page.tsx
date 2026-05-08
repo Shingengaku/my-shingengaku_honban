@@ -436,6 +436,15 @@ export default function MembersPage() {
                             ← ダッシュボードへ
                         </Link>
 
+                        <button onClick={() => setShowDuplicatesModal(true)} className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm flex items-center font-bold relative group">
+                            ✨ 重複を自動検出
+                            {duplicateGroups.length > 0 && (
+                                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-md animate-bounce">
+                                    {duplicateGroups.length}
+                                </span>
+                            )}
+                        </button>
+
                         <button onClick={handleExport} className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 text-sm flex items-center">
                             CSVエクスポート
                         </button>
@@ -787,6 +796,67 @@ export default function MembersPage() {
                             </button>
                             <button onClick={handleMerge} className="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 disabled:bg-blue-400" disabled={merging}>
                                 {merging ? '統合処理中...' : '統合を実行する'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Duplicates Modal */}
+            {showDuplicatesModal && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50 p-4">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold">重複候補の自動検出結果</h3>
+                            <button onClick={() => setShowDuplicatesModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl font-bold">&times;</button>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-4">
+                            メールアドレスの一致、または氏名（スペース抜）と期の一致により、重複している可能性が高い受講生データを自動でグループ化しています。
+                        </p>
+
+                        <div className="flex-1 overflow-y-auto pr-2 space-y-6">
+                            {duplicateGroups.length === 0 ? (
+                                <div className="text-center py-12 text-gray-500 bg-gray-50 rounded">
+                                    重複の可能性があるデータは見つかりませんでした。
+                                </div>
+                            ) : (
+                                duplicateGroups.map((group, index) => (
+                                    <div key={index} className="border border-purple-200 bg-purple-50 rounded-lg p-4 shadow-sm">
+                                        <div className="flex justify-between items-center mb-3 pb-2 border-b border-purple-100">
+                                            <h4 className="font-bold text-purple-800">候補グループ {index + 1} ({group.length}件)</h4>
+                                            <button 
+                                                onClick={() => {
+                                                    setShowDuplicatesModal(false);
+                                                    const ids = new Set(group.map(g => g.id).slice(0, 2)); // 上位2件を選択
+                                                    setSelectedIds(ids);
+                                                    setMergePrimaryId(group[0].id);
+                                                    setShowMergeModal(true);
+                                                }}
+                                                className="px-4 py-1.5 bg-blue-600 text-white text-sm font-bold rounded hover:bg-blue-700 shadow-sm flex items-center gap-1"
+                                            >
+                                                <span>🔄</span>
+                                                この中から2件を統合する
+                                            </button>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                            {group.map(m => (
+                                                <div key={m.id} className="bg-white p-3 rounded border border-gray-200 text-sm shadow-sm relative">
+                                                    <div><span className="text-gray-400 text-xs">氏名:</span> <span className="font-bold">{m.name}</span></div>
+                                                    <div><span className="text-gray-400 text-xs">カナ:</span> {m.furigana || '-'}</div>
+                                                    <div><span className="text-gray-400 text-xs">Email:</span> {m.email}</div>
+                                                    <div><span className="text-gray-400 text-xs">属性:</span> {m.ranks?.name || '-'}</div>
+                                                    <div><span className="text-gray-400 text-xs">期:</span> {m.terms?.name || '-'}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        <div className="mt-6 flex justify-end">
+                            <button onClick={() => setShowDuplicatesModal(false)} className="px-6 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">
+                                閉じる
                             </button>
                         </div>
                     </div>
