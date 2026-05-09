@@ -823,7 +823,35 @@ export default function Home() {
               )}
             </div>
 
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+            {error && (
+              error === 'すでにお申し込みがあります' ? (
+                <div className="rounded-lg border-2 border-red-500 bg-red-50 p-4 shadow-md">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 shrink-0 text-red-500">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-bold text-red-700 text-base">すでにお申し込みがあります</p>
+                      <p className="mt-2 text-sm text-red-600 leading-relaxed">
+                        ご入力いただいた名前・メールアドレスでは、すでにお申し込みが受理されております。<br />
+                        お心当たりがない場合や、内容の変更等については、事務局までお問い合わせください。
+                      </p>
+                      <p className="mt-2 text-sm font-semibold text-red-700">
+                        お問い合わせの際は、事務局までお願い致します。<br />
+                        <a href="mailto:info@shingengaku.com" className="underline hover:text-red-900">
+                          info@shingengaku.com
+                        </a>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-red-500 text-sm">{error}</p>
+              )
+            )}
+
 
             <button
               type="submit"
