@@ -1637,32 +1637,41 @@ export default function AdminDashboard() {
             const allValidApps = apps.filter(a => (a.payment_status || '').toLowerCase() !== 'cancelled');
 
             // 同一リスト内での重複除外ヘルパー
-            // 同名・同メールアドレスで同一会場リストに複数出現するレコードを除外し、
-            // 除外されたレコードを warnings に収集する
+            // 同名・同メールアドレスで同一会場リストに複数出現するユーザーを全件除外し、
+            // 除外されたユーザー情報を warnings に収集する（1件目も含めて全除外）
             interface DupWarning { name: string; venue: string; count: number; }
             const dedupList = (appList: Application[], venueLabel: string): { deduped: Application[]; warnings: DupWarning[] } => {
-                const seen = new Map<string, number>(); // key -> count
+                // 1パス目: 各キーの出現回数をカウント
+                const countMap = new Map<string, number>();
+                const nameMap = new Map<string, string>(); // key -> input_name
+                appList.forEach(app => {
+                    const nameKey = `${(app.input_name || '').replace(/[\s\u3000]+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
+                    countMap.set(nameKey, (countMap.get(nameKey) || 0) + 1);
+                    if (!nameMap.has(nameKey)) nameMap.set(nameKey, app.input_name);
+                });
+
+                // 2パス目: 2件以上のキーを全除外、警告に収集
                 const deduped: Application[] = [];
                 const warnings: DupWarning[] = [];
+                const warned = new Set<string>();
 
                 appList.forEach(app => {
                     const nameKey = `${(app.input_name || '').replace(/[\s\u3000]+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
-                    const cnt = seen.get(nameKey) || 0;
-                    if (cnt === 0) {
-                        deduped.push(app);
-                    } else if (cnt === 1) {
-                        // 2件目発見 → 警告に追加（初回のみ）
-                        warnings.push({ name: app.input_name, venue: venueLabel, count: 2 });
+                    const cnt = countMap.get(nameKey) || 1;
+                    if (cnt >= 2) {
+                        // 重複ユーザー → 全件除外、初回のみ警告追加
+                        if (!warned.has(nameKey)) {
+                            warnings.push({ name: nameMap.get(nameKey) || app.input_name, venue: venueLabel, count: cnt });
+                            warned.add(nameKey);
+                        }
                     } else {
-                        // 3件目以降はカウントを更新するのみ（警告はcountで表現）
-                        const existing = warnings.find(w => w.name === app.input_name && w.venue === venueLabel);
-                        if (existing) existing.count++;
+                        deduped.push(app);
                     }
-                    seen.set(nameKey, cnt + 1);
                 });
 
                 return { deduped, warnings };
             };
+
 
             // Filter Lists based on Unified Status
             const allDupWarnings: DupWarning[] = [];
@@ -2032,12 +2041,12 @@ export default function AdminDashboard() {
                 maxRow = remarksRow + 1;
             }
 
-            // 重複警告ブロック（同名・同メールが同一リストに複数出現）
+            // 重複警告ブロック（同名・同メールが同一リストに複数出現 → 全件除外）
             if (allDupWarnings.length > 0) {
                 const warnStartRow = maxRow + 2;
                 ws.mergeCells(`A${warnStartRow}:N${warnStartRow}`);
                 const warnTitleCell = ws.getCell(`A${warnStartRow}`);
-                warnTitleCell.value = '⚠️【注意】同一リスト内に重複するお申し込みが見つかりました。重複分はリストから除外済みです。ダッシュボードで内容をご確認ください。';
+                warnTitleCell.value = '⚠️【注意】同一リスト内に同じ名前・メールアドレスで複数のお申し込みが見つかりました。該当の方はリストから全件除外しています。ダッシュボードでご確認の上、内容を整理してください。';
                 warnTitleCell.font = { bold: true, color: { argb: 'FFCC0000' }, size: 11 };
                 warnTitleCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
                 warnTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
@@ -2047,13 +2056,13 @@ export default function AdminDashboard() {
                     bottom: { style: 'thin', color: { argb: 'FFCC0000' } },
                     right: { style: 'medium', color: { argb: 'FFCC0000' } }
                 };
-                ws.getRow(warnStartRow).height = 28;
+                ws.getRow(warnStartRow).height = 30;
 
                 allDupWarnings.forEach((w, idx) => {
                     const wRow = warnStartRow + 1 + idx;
                     ws.mergeCells(`A${wRow}:N${wRow}`);
                     const cell = ws.getCell(`A${wRow}`);
-                    cell.value = `　・ ${w.venue}：「${w.name}」さま（同リスト内に${w.count}件）`;
+                    cell.value = `　・ ${w.venue}：「${w.name}」さま（${w.count}件のお申し込みが重複 → リストから全件除外済み）`;
                     cell.font = { color: { argb: 'FF993300' }, size: 10 };
                     cell.alignment = { vertical: 'middle', horizontal: 'left' };
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
