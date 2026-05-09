@@ -29,7 +29,8 @@ async function checkRLS() {
         'venues',
         'ranks',
         'terms',
-        'online_options'
+        'online_options',
+        'password_resets'
     ];
 
     // Let's also look for any other tables by trying to query information_schema if possible
@@ -64,7 +65,8 @@ async function testWithAnonKey() {
         'venues',
         'ranks',
         'terms',
-        'online_options'
+        'online_options',
+        'password_resets'
     ];
 
     console.log("\nTesting access with ANON key:");

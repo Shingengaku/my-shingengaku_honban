@@ -59,6 +59,23 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: '必須項目が不足しています' }, { status: 400 });
         }
 
+        // 重複申し込みチェック
+        const { data: existingData, error: duplicateError } = await supabaseAdmin
+            .from('applications')
+            .select('id')
+            .eq('input_name', name)
+            .eq('input_email', email)
+            .limit(1);
+
+        if (duplicateError) {
+            console.error('Duplicate check error:', duplicateError);
+            return NextResponse.json({ error: 'システムエラーが発生しました' }, { status: 500 });
+        }
+
+        if (existingData && existingData.length > 0) {
+            return NextResponse.json({ error: 'すでにお申し込みがあります' }, { status: 400 });
+        }
+
         let rankName = '一般';
         let memberId = null;
         let rankId = null;
