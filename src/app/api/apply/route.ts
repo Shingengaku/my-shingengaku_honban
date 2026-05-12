@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { resend } from '@/lib/resend';
 import { processEmailTemplate, DEFAULT_EMAIL_TEMPLATE, DEFAULT_EMAIL_TEMPLATE_GENERAL, DEFAULT_EMAIL_TEMPLATE_NO_PARTICIPATION, DEFAULT_EMAIL_TEMPLATE_MULTIPLE } from '@/lib/emailTemplate';
 import { normalizeVenue, getVenueDisplayName, matchProduct } from '@/lib/venueUtils';
+import { normalizeName } from '@/lib/kanjiNormalize';
 
 // 型定義
 interface ApplyRequest {
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
         social_venue = normalizeVenue(social_venue);
 
         if (name) {
-            name = name.replace(/\s+/g, '');
+            name = normalizeName(name); // スペース除去 + 旧字体→新字体 正規化
         }
         if (email) {
             email = email.trim().toLowerCase();
@@ -92,9 +93,9 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: 'システムエラーが発生しました' }, { status: 500 });
             }
 
-            const normalizedInputName = name.replace(/\s+/g, '');
+            const normalizedInputName = normalizeName(name);
             const member = allMembers?.find(m =>
-                m.name.replace(/\s+/g, '') === normalizedInputName
+                normalizeName(m.name) === normalizedInputName
             ) || null;
 
             if (member) {

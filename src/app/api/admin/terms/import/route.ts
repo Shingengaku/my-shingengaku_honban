@@ -11,6 +11,8 @@ function parseCSV(text: string) {
     const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
     const mappedHeaders = headers.map(h => {
         if (h === '期名' || h === '名前' || h === 'Name') return 'name';
+        if (h === '表示中(is_active)' || h === 'is_active' || h === '表示中') return 'is_active';
+        if (h === '並び順' || h === 'sort_order') return 'sort_order';
         return h;
     });
 
@@ -48,19 +50,23 @@ export async function POST(request: Request) {
         const upsertData = [];
         const errors = [];
 
-        // 既存フェッチロジック？ いいえ、単に名前でupsertするか、挿入を試みます。
-        // 実際には、名前は一意であるべきです。
-        // 提供されていない場合、sort_orderを決定するために既存のものを取得する必要がありますか？
-        // または、DBのデフォルトに任せます（ただし、DBはコンテンツに基づいて自動的にsort_orderをインクリメントしない可能性があります）。
-        // ここでは、欠落している場合はsort_orderを999にデフォルト設定しましょう。
-
         for (const row of records) {
             if (!row.name) {
                 errors.push('名前がない行をスキップしました');
                 continue;
             }
+
+            // is_active: "1", "true" -> true。未指定時はtrue（表示中）をデフォルトに
+            let isActive = true;
+            if (row.is_active !== undefined && row.is_active !== '') {
+                isActive = row.is_active === '1' ||
+                    String(row.is_active).toLowerCase() === 'true' ||
+                    row.is_active === 'あり';
+            }
+
             upsertData.push({
                 name: row.name,
+                is_active: isActive,
                 sort_order: row.sort_order ? Number(row.sort_order) : 999
             });
         }

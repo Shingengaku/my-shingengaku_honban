@@ -268,8 +268,12 @@ export default function VenueMasterPage() {
     };
 
     const handleExport = () => {
-        const headers = ['ID', '会場名', 'タイプ(lecture/social)', 'エリア', '並び順'];
-        const rows = venues.map(v => [v.id, v.name, v.type, v.area, v.sort_order]);
+        const headers = ['ID', '会場名', 'タイプ(lecture/social)', 'エリア', '募集終了', '並び順'];
+        const rows = venues.map(v => [
+            v.id, v.name, v.type, v.area,
+            v.is_recruitment_ended ? '1' : '0',
+            v.sort_order
+        ]);
         const csvContent = [
             headers.join(','),
             ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))

@@ -201,8 +201,12 @@ export default function TermMasterPage() {
     };
 
     const handleExport = () => {
-        const headers = ['ID', '期名', '並び順'];
-        const rows = terms.map(t => [t.id, t.name, t.sort_order]);
+        const headers = ['ID', '期名', '表示中(is_active)', '並び順'];
+        const rows = terms.map(t => [
+            t.id, t.name,
+            t.is_active ? '1' : '0',
+            t.sort_order
+        ]);
         const csvContent = [
             headers.join(','),
             ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))

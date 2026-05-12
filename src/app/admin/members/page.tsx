@@ -2,6 +2,7 @@
 'use client';
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
+import { normalizeName } from '@/lib/kanjiNormalize';
 
 interface Rank {
     id: number;
@@ -115,30 +116,11 @@ export default function MembersPage() {
 
     const duplicateGroups = useMemo(() => {
         const groups: Member[][] = [];
-        const processedIds = new Set<string>();
 
-        // 1. メールアドレスでグループ化
-        const byEmail = new Map<string, Member[]>();
-        members.forEach(m => {
-            const email = (m.email || '').trim().toLowerCase();
-            if (email) {
-                if (!byEmail.has(email)) byEmail.set(email, []);
-                byEmail.get(email)!.push(m);
-            }
-        });
-
-        byEmail.forEach(group => {
-            if (group.length > 1) {
-                groups.push(group);
-                group.forEach(m => processedIds.add(m.id));
-            }
-        });
-
-        // 2. 氏名（スペース抜）＋期 でグループ化
+        // 氏名（スペース除去＋旧字体→新字体正規化）＋期 でグループ化
         const byNameTerm = new Map<string, Member[]>();
         members.forEach(m => {
-            if (processedIds.has(m.id)) return;
-            const nameKey = (m.name || '').replace(/\s+/g, '');
+            const nameKey = normalizeName(m.name || '');
             const termKey = String(m.term_id || '');
             if (nameKey) {
                 const key = `${nameKey}_${termKey}`;
@@ -468,14 +450,15 @@ export default function MembersPage() {
 
 
     const handleExport = () => {
-        const headers = ['氏名', 'フリガナ', 'メールアドレス', '属性', '期', '特進'];
+        const headers = ['氏名', 'フリガナ', 'メールアドレス', '属性', '期', '特進', '集計除外'];
         const rows = members.map(m => [
             m.name,
             m.furigana || '',
             m.email,
             m.ranks?.name || '',
             m.terms?.name || '',
-            m.is_tokushin ? '特進' : ''
+            m.is_tokushin ? '特進' : '',
+            m.exclude_from_count ? '集計除外' : ''
         ]);
 
         const csvContent = [
@@ -661,6 +644,7 @@ export default function MembersPage() {
                                         <li><strong>属性/ランク</strong> (任意)</li>
                                         <li><strong>期</strong> (任意)</li>
                                         <li><strong>特進</strong> (任意)</li>
+                                        <li><strong>集計除外</strong> (任意)</li>
                                     </ul>
                                 </div>
                             </div>
@@ -669,6 +653,7 @@ export default function MembersPage() {
                                 <ul className="list-disc pl-5 text-xs space-y-2">
                                     <li><strong>氏名・期での重複判定</strong>: 同じ氏名かつ同じ期のデータが既に存在する場合、インポートモードの設定（上書き/スキップ）に従って処理されます。</li>
                                     <li><strong>特進フラグ</strong>: 列の内容が「<strong>特進</strong>」「<strong>あり</strong>」「<strong>1</strong>」「<strong>true</strong>」のいずれかであれば、特進受講生として登録されます。</li>
+                                    <li><strong>集計除外フラグ</strong>: 列の内容が「<strong>集計除外</strong>」「<strong>あり</strong>」「<strong>1</strong>」「<strong>true</strong>」のいずれかであれば、集計除外対象として登録されます。エクスポート時は「集計除外」と輸出されます。</li>
                                     <li><strong>属性・期</strong>: システムに登録されている名称と一致させるのが理想ですが、「1期」を「1」と書くなどの数値抽出による自動判別もサポートしています。</li>
                                 </ul>
                             </div>
@@ -931,7 +916,7 @@ export default function MembersPage() {
                             <button onClick={() => setShowDuplicatesModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl font-bold">&times;</button>
                         </div>
                         <p className="text-sm text-gray-600 mb-4">
-                            メールアドレスの一致、または氏名（スペース抜）と期の一致により、重複している可能性が高い受講生データを自動でグループ化しています。
+                            氏名（スペース除去）と期が一致するデータを自動でグループ化しています。同じ期に同じ名前が複数登録されている場合に検出されます。
                         </p>
 
                         <div className="flex-1 overflow-y-auto pr-2 space-y-6">

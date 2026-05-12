@@ -11,7 +11,10 @@ function parseCSV(text: string) {
     const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
     const mappedHeaders = headers.map(h => {
         if (h === '会場名' || h === '名前' || h === 'Name') return 'name';
-        if (h === 'タイプ' || h === 'type') return 'type'; // 講義(lecture) または 懇親会(social)
+        if (h === 'タイプ(lecture/social)' || h === 'タイプ' || h === 'type') return 'type';
+        if (h === 'エリア' || h === 'area') return 'area';
+        if (h === '募集終了' || h === 'is_recruitment_ended') return 'is_recruitment_ended';
+        if (h === '並び順' || h === 'sort_order') return 'sort_order';
         return h;
     });
 
@@ -57,9 +60,20 @@ export async function POST(request: Request) {
                 row.type = 'lecture'; // デフォルト
             }
 
+            // エリアのバリデーション
+            const validAreas = ['tokyo', 'fukuoka', 'online'];
+            const area = validAreas.includes(row.area) ? row.area : 'tokyo';
+
+            // 募集終了フラグ: "1", "true", "あり" -> true
+            const isRecruitmentEnded = row.is_recruitment_ended === '1' ||
+                String(row.is_recruitment_ended).toLowerCase() === 'true' ||
+                row.is_recruitment_ended === 'あり';
+
             upsertData.push({
                 name: row.name,
                 type: row.type,
+                area,
+                is_recruitment_ended: isRecruitmentEnded,
                 sort_order: row.sort_order ? Number(row.sort_order) : 999
             });
         }

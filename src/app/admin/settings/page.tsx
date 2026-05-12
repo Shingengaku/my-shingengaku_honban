@@ -18,6 +18,7 @@ export default function GlobalSettingsPage() {
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [kanjiMapping, setKanjiMapping] = useState<Record<string, string>>({});
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -47,6 +48,12 @@ export default function GlobalSettingsPage() {
                         sender_name: data.sender_name || '神言学事務局',
                         sender_email: data.sender_email || ''
                     });
+                }
+
+                // マッピングデータ取得
+                const kanjiRes = await fetch('/api/admin/settings/kanji-mapping');
+                if (kanjiRes.ok) {
+                    setKanjiMapping(await kanjiRes.json());
                 }
             } catch (e) {
                 console.error(e);
@@ -269,6 +276,27 @@ export default function GlobalSettingsPage() {
                             value={settings.application_text}
                             onChange={(e) => setSettings({ ...settings, application_text: e.target.value })}
                         />
+                    </div>
+
+                    {/* 漢字正規化マッピング表示（読み取り専用） */}
+                    <div className="border-t pt-6">
+                        <h2 className="text-lg font-bold text-gray-900 mb-2">氏名正規化マッピング（旧字体・異体字対応）</h2>
+                        <p className="text-sm text-gray-600 mb-4">
+                            受講生マスタの重複検出や申込時の照合において、以下の文字は同一として扱われます。<br />
+                            ※システムで固定されているマッピングです。
+                        </p>
+                        <div className="bg-gray-50 border rounded p-4">
+                            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                                {Object.entries(kanjiMapping).map(([old, next]) => (
+                                    <div key={old} className="bg-white border rounded px-2 py-1 text-sm flex justify-between items-center shadow-sm">
+                                        <span className="font-bold text-red-600">{old}</span>
+                                        <span className="text-gray-400">→</span>
+                                        <span className="font-bold text-blue-600">{next}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            {Object.keys(kanjiMapping).length === 0 && <p className="text-xs text-gray-400">マッピングを読み込み中...</p>}
+                        </div>
                     </div>
 
                     <div className="border-t pt-6 flex gap-4">

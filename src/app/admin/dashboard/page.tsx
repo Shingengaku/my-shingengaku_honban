@@ -1639,15 +1639,21 @@ export default function AdminDashboard() {
             // 同一リスト内での重複除外ヘルパー
             // 同名・同メールアドレスで同一会場リストに複数出現するユーザーを全件除外し、
             // 除外されたユーザー情報を warnings に収集する（1件目も含めて全除外）
-            interface DupWarning { name: string; venue: string; count: number; }
+            interface DupWarning { name: string; email: string; venue: string; count: number; excludedApps: Application[]; }
             const dedupList = (appList: Application[], venueLabel: string): { deduped: Application[]; warnings: DupWarning[] } => {
-                // 1パス目: 各キーの出現回数をカウント
+                // 1パス目: 各キーの出現回数・app一覧をカウント
                 const countMap = new Map<string, number>();
-                const nameMap = new Map<string, string>(); // key -> input_name
+                const nameMap = new Map<string, string>();
+                const emailMap = new Map<string, string>();
+                const appsMap = new Map<string, Application[]>();
                 appList.forEach(app => {
                     const nameKey = `${(app.input_name || '').replace(/[\s\u3000]+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
                     countMap.set(nameKey, (countMap.get(nameKey) || 0) + 1);
                     if (!nameMap.has(nameKey)) nameMap.set(nameKey, app.input_name);
+                    if (!emailMap.has(nameKey)) emailMap.set(nameKey, app.input_email || '');
+                    const arr = appsMap.get(nameKey) || [];
+                    arr.push(app);
+                    appsMap.set(nameKey, arr);
                 });
 
                 // 2パス目: 2件以上のキーを全除外、警告に収集
@@ -1659,9 +1665,14 @@ export default function AdminDashboard() {
                     const nameKey = `${(app.input_name || '').replace(/[\s\u3000]+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
                     const cnt = countMap.get(nameKey) || 1;
                     if (cnt >= 2) {
-                        // 重複ユーザー → 全件除外、初回のみ警告追加
                         if (!warned.has(nameKey)) {
-                            warnings.push({ name: nameMap.get(nameKey) || app.input_name, venue: venueLabel, count: cnt });
+                            warnings.push({
+                                name: nameMap.get(nameKey) || app.input_name,
+                                email: emailMap.get(nameKey) || '',
+                                venue: venueLabel,
+                                count: cnt,
+                                excludedApps: appsMap.get(nameKey) || []
+                            });
                             warned.add(nameKey);
                         }
                     } else {
@@ -1682,7 +1693,6 @@ export default function AdminDashboard() {
             });
             const { deduped: dedupedTokyo, warnings: warnsTokyo } = dedupList(tokyoApps, '東京会場');
             allDupWarnings.push(...warnsTokyo);
-            const rawTokyo = dedupedTokyo.map(getMemberInfo);
 
             const fukuokaApps = allValidApps.filter(a => {
                 const status = getParticipationStatus(a, venueList);
@@ -1690,7 +1700,6 @@ export default function AdminDashboard() {
             });
             const { deduped: dedupedFukuoka, warnings: warnsFukuoka } = dedupList(fukuokaApps, '福岡会場');
             allDupWarnings.push(...warnsFukuoka);
-            const rawFukuoka = dedupedFukuoka.map(getMemberInfo);
 
             const onlineTokyoApps = allValidApps.filter(a => {
                 const status = getParticipationStatus(a, venueList);
@@ -1698,7 +1707,6 @@ export default function AdminDashboard() {
             });
             const { deduped: dedupedOnlineTokyo, warnings: warnsOnlineTokyo } = dedupList(onlineTokyoApps, 'オンライン（東京）');
             allDupWarnings.push(...warnsOnlineTokyo);
-            const rawOnlineTokyo = dedupedOnlineTokyo.map(getMemberInfo);
 
             const onlineFukuokaApps = allValidApps.filter(a => {
                 const status = getParticipationStatus(a, venueList);
@@ -1706,7 +1714,6 @@ export default function AdminDashboard() {
             });
             const { deduped: dedupedOnlineFukuoka, warnings: warnsOnlineFukuoka } = dedupList(onlineFukuokaApps, 'オンライン（福岡）');
             allDupWarnings.push(...warnsOnlineFukuoka);
-            const rawOnlineFukuoka = dedupedOnlineFukuoka.map(getMemberInfo);
 
             const rawOthers = allValidApps.filter(a => {
                 const status = getParticipationStatus(a, venueList);
@@ -1721,34 +1728,56 @@ export default function AdminDashboard() {
             // 会場＋同エリアオンライン重複チェック
             // 同じ人が「東京リアル会場」かつ「オンライン東京配信」、
             // または「福岡リアル会場」かつ「オンライン福岡配信」に同時に存在する場合は
-            // 同日のため物理的に不可能 → 注意書きに追加
-            interface VenueOnlineConflict { name: string; area: string; }
+            // 同日のため物理的に不可能 → 両リストから除外し注意書きに追加
+            interface VenueOnlineConflict { name: string; email: string; area: string; venueApp: Application; onlineApp: Application; }
             const venueOnlineConflicts: VenueOnlineConflict[] = [];
 
-            // 東京リアル に含まれる人のキーセット
+            // 各エリアのリアル会場キーセット（dedupList済み）
             const tokyoVenueKeys = new Set(
                 dedupedTokyo.map(a => `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}`)
             );
-            // 福岡リアル に含まれる人のキーセット
             const fukuokaVenueKeys = new Set(
                 dedupedFukuoka.map(a => `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}`)
             );
+            // 各エリアのオンラインキーセット（dedupList済み）
+            const onlineTokyoKeys = new Set(
+                dedupedOnlineTokyo.map(a => `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}`)
+            );
+            const onlineFukuokaKeys = new Set(
+                dedupedOnlineFukuoka.map(a => `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}`)
+            );
 
-            // オンライン東京 と 東京リアル の重複確認
-            dedupedOnlineTokyo.forEach(a => {
-                const key = `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}`;
-                if (tokyoVenueKeys.has(key)) {
-                    venueOnlineConflicts.push({ name: a.input_name, area: '東京' });
-                }
+            // 東京：リアル会場 ∩ オンライン東京 → 重複キーを収集
+            const conflictTokyoKeys = new Set<string>();
+            tokyoVenueKeys.forEach(key => {
+                if (onlineTokyoKeys.has(key)) conflictTokyoKeys.add(key);
             });
 
-            // オンライン福岡 と 福岡リアル の重複確認
-            dedupedOnlineFukuoka.forEach(a => {
-                const key = `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}`;
-                if (fukuokaVenueKeys.has(key)) {
-                    venueOnlineConflicts.push({ name: a.input_name, area: '福岡' });
-                }
+            // 福岡：リアル会場 ∩ オンライン福岡 → 重複キーを収集
+            const conflictFukuokaKeys = new Set<string>();
+            fukuokaVenueKeys.forEach(key => {
+                if (onlineFukuokaKeys.has(key)) conflictFukuokaKeys.add(key);
             });
+
+            // 重複警告リストに追加（人名・app詳細を取得）
+            conflictTokyoKeys.forEach(key => {
+                const vApp = dedupedTokyo.find(a => `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}` === key);
+                const oApp = dedupedOnlineTokyo.find(a => `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}` === key);
+                if (vApp && oApp) venueOnlineConflicts.push({ name: vApp.input_name, email: vApp.input_email || '', area: '東京', venueApp: vApp, onlineApp: oApp });
+            });
+            conflictFukuokaKeys.forEach(key => {
+                const vApp = dedupedFukuoka.find(a => `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}` === key);
+                const oApp = dedupedOnlineFukuoka.find(a => `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}` === key);
+                if (vApp && oApp) venueOnlineConflicts.push({ name: vApp.input_name, email: vApp.input_email || '', area: '福岡', venueApp: vApp, onlineApp: oApp });
+            });
+
+            // conflict除外済みリスト生成
+            // 会場＋同エリアオンライン重複者を両リストから除外する
+            const getKey = (a: Application) => `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}`;
+            const rawTokyo = dedupedTokyo.filter(a => !conflictTokyoKeys.has(getKey(a))).map(getMemberInfo);
+            const rawFukuoka = dedupedFukuoka.filter(a => !conflictFukuokaKeys.has(getKey(a))).map(getMemberInfo);
+            const rawOnlineTokyo = dedupedOnlineTokyo.filter(a => !conflictTokyoKeys.has(getKey(a))).map(getMemberInfo);
+            const rawOnlineFukuoka = dedupedOnlineFukuoka.filter(a => !conflictFukuokaKeys.has(getKey(a))).map(getMemberInfo);
 
             // Grouping Helper
             const groupList = (list: any[]) => {
@@ -2041,74 +2070,102 @@ export default function AdminDashboard() {
                 maxRow = remarksRow + 1;
             }
 
-            // 重複警告ブロック（同名・同メールが同一リストに複数出現 → 全件除外）
-            if (allDupWarnings.length > 0) {
-                const warnStartRow = maxRow + 2;
-                ws.mergeCells(`A${warnStartRow}:N${warnStartRow}`);
-                const warnTitleCell = ws.getCell(`A${warnStartRow}`);
-                warnTitleCell.value = '⚠️【注意】同一リスト内に同じ名前・メールアドレスで複数のお申し込みが見つかりました。該当の方はリストから全件除外しています。ダッシュボードでご確認の上、内容を整理してください。';
-                warnTitleCell.font = { bold: true, color: { argb: 'FFCC0000' }, size: 11 };
-                warnTitleCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
-                warnTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
-                warnTitleCell.border = {
-                    top: { style: 'medium', color: { argb: 'FFCC0000' } },
-                    left: { style: 'medium', color: { argb: 'FFCC0000' } },
-                    bottom: { style: 'thin', color: { argb: 'FFCC0000' } },
-                    right: { style: 'medium', color: { argb: 'FFCC0000' } }
+            // ============================================================
+            // 欄外：除外者一覧テーブル
+            // ============================================================
+            const hasAnyExclusion = allDupWarnings.length > 0 || venueOnlineConflicts.length > 0;
+            if (hasAnyExclusion) {
+                // セクションタイトル
+                const secRow = maxRow + 2;
+                ws.mergeCells(`A${secRow}:N${secRow}`);
+                const secCell = ws.getCell(`A${secRow}`);
+                secCell.value = '【欄外】リストから除外されたお申し込み一覧　※ダッシュボードで内容をご確認・整理の上、再度エクスポートしてください';
+                secCell.font = { bold: true, size: 12, color: { argb: 'FF7B0000' } };
+                secCell.alignment = { horizontal: 'left', vertical: 'middle' };
+                secCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE0E0' } };
+                secCell.border = {
+                    top: { style: 'thick', color: { argb: 'FFCC0000' } },
+                    bottom: { style: 'medium', color: { argb: 'FFCC0000' } },
+                    left: { style: 'thick', color: { argb: 'FFCC0000' } },
+                    right: { style: 'thick', color: { argb: 'FFCC0000' } }
                 };
-                ws.getRow(warnStartRow).height = 30;
+                ws.getRow(secRow).height = 22;
 
-                allDupWarnings.forEach((w, idx) => {
-                    const wRow = warnStartRow + 1 + idx;
-                    ws.mergeCells(`A${wRow}:N${wRow}`);
-                    const cell = ws.getCell(`A${wRow}`);
-                    cell.value = `　・ ${w.venue}：「${w.name}」さま（${w.count}件のお申し込みが重複 → リストから全件除外済み）`;
-                    cell.font = { color: { argb: 'FF993300' }, size: 10 };
-                    cell.alignment = { vertical: 'middle', horizontal: 'left' };
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
-                    const isLast = idx === allDupWarnings.length - 1;
-                    cell.border = {
-                        left: { style: 'medium', color: { argb: 'FFCC0000' } },
-                        right: { style: 'medium', color: { argb: 'FFCC0000' } },
-                        bottom: isLast ? { style: 'medium', color: { argb: 'FFCC0000' } } : { style: 'hair', color: { argb: 'FFCC0000' } }
-                    };
+                // テーブルヘッダー
+                const tblHeaderRow = secRow + 1;
+                const tblHeaders = ['除外理由', '氏名', 'メールアドレス', '申込①内容', '申込②内容', '件数'];
+                const tblColWidths = [3, 2, 3, 3, 3, 1]; // span widths (合計14)
+                const tblHeaderFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFCC0000' } };
+                let colStart = 1;
+                tblHeaders.forEach((h, i) => {
+                    const span = tblColWidths[i];
+                    ws.mergeCells(tblHeaderRow, colStart, tblHeaderRow, colStart + span - 1);
+                    const c = ws.getCell(tblHeaderRow, colStart);
+                    c.value = h;
+                    c.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+                    c.alignment = { horizontal: 'center', vertical: 'middle' };
+                    c.fill = tblHeaderFill;
+                    c.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+                    colStart += span;
                 });
-                maxRow = warnStartRow + allDupWarnings.length + 1;
-            }
+                ws.getRow(tblHeaderRow).height = 18;
 
-            // 会場＋同エリアオンライン重複警告ブロック
-            // 同じ人がリアル会場とオンライン（同エリア）の両方に申し込んでいる場合
-            if (venueOnlineConflicts.length > 0) {
-                const cStartRow = maxRow + 2;
-                ws.mergeCells(`A${cStartRow}:N${cStartRow}`);
-                const cTitleCell = ws.getCell(`A${cStartRow}`);
-                cTitleCell.value = '⚠️【注意】会場参加とオンライン視聴（同エリア）に重複するお申し込みが見つかりました。同日のため同時参加は不可能です。ダッシュボードで内容をご確認ください。';
-                cTitleCell.font = { bold: true, color: { argb: 'FF7B2D00' }, size: 11 };
-                cTitleCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
-                cTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFCE4D6' } };
-                cTitleCell.border = {
-                    top: { style: 'medium', color: { argb: 'FFCC4400' } },
-                    left: { style: 'medium', color: { argb: 'FFCC4400' } },
-                    bottom: { style: 'thin', color: { argb: 'FFCC4400' } },
-                    right: { style: 'medium', color: { argb: 'FFCC4400' } }
+                // データ行ヘルパー
+                let dataRow = tblHeaderRow + 1;
+                const fillYellow = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFFFF8E1' } };
+                const fillOrange = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFFFF3E0' } };
+                const thinBorder = { style: 'thin' as const };
+                const cellBorder = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+
+                const writeDataRow = (cols: string[], fill: typeof fillYellow) => {
+                    let cs = 1;
+                    tblColWidths.forEach((span, i) => {
+                        ws.mergeCells(dataRow, cs, dataRow, cs + span - 1);
+                        const c = ws.getCell(dataRow, cs);
+                        c.value = cols[i] || '';
+                        c.font = { size: 9 };
+                        c.alignment = { horizontal: i === 5 ? 'center' : 'left', vertical: 'middle', wrapText: true };
+                        c.fill = fill;
+                        c.border = cellBorder;
+                        cs += span;
+                    });
+                    ws.getRow(dataRow).height = 28;
+                    dataRow++;
                 };
-                ws.getRow(cStartRow).height = 28;
 
-                venueOnlineConflicts.forEach((c, idx) => {
-                    const cRow = cStartRow + 1 + idx;
-                    ws.mergeCells(`A${cRow}:N${cRow}`);
-                    const cell = ws.getCell(`A${cRow}`);
-                    cell.value = `　・ 「${c.name}」さま（${c.area}会場（リアル）と${c.area}オンライン配信の両方に申し込みあり）`;
-                    cell.font = { color: { argb: 'FF7B2D00' }, size: 10 };
-                    cell.alignment = { vertical: 'middle', horizontal: 'left' };
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFCE4D6' } };
-                    const isLast = idx === venueOnlineConflicts.length - 1;
-                    cell.border = {
-                        left: { style: 'medium', color: { argb: 'FFCC4400' } },
-                        right: { style: 'medium', color: { argb: 'FFCC4400' } },
-                        bottom: isLast ? { style: 'medium', color: { argb: 'FFCC4400' } } : { style: 'hair', color: { argb: 'FFCC4400' } }
-                    };
+                // ① 同一リスト重複（黄色）
+                allDupWarnings.forEach(w => {
+                    // 除外されたappsの申込内容を整形（最大2件まで表形式で）
+                    const apps1 = w.excludedApps[0];
+                    const apps2 = w.excludedApps[1];
+                    const fmt = (a?: Application) => a
+                        ? `${a.venue || ''}${a.participation_type === 'online' ? '（オンライン）' : '（会場）'} / ${a.applied_rank_name || ''} / ${a.payment_status === 'paid' ? '決済済' : a.payment_status === 'cancelled' ? 'ｷｬﾝｾﾙ' : '未決済'}`
+                        : '';
+                    writeDataRow([
+                        `同一${w.venue}に重複申込`,
+                        `${w.name}さま`,
+                        w.email,
+                        fmt(apps1),
+                        fmt(apps2),
+                        `${w.count}件`
+                    ], fillYellow);
                 });
+
+                // ② 会場＋同エリアオンライン重複（オレンジ）
+                venueOnlineConflicts.forEach(c => {
+                    const fmtV = `${c.venueApp.venue || c.area + '会場'}（リアル） / ${c.venueApp.applied_rank_name || ''} / ${c.venueApp.payment_status === 'paid' ? '決済済' : '未決済'}`;
+                    const fmtO = `${c.onlineApp.venue || c.area + 'オンライン'}（配信） / ${c.onlineApp.applied_rank_name || ''} / ${c.onlineApp.payment_status === 'paid' ? '決済済' : '未決済'}`;
+                    writeDataRow([
+                        `${c.area}：会場＋オンライン同時申込`,
+                        `${c.name}さま`,
+                        c.email,
+                        fmtV,
+                        fmtO,
+                        '2件'
+                    ], fillOrange);
+                });
+
+                maxRow = dataRow;
             }
 
             const buf = await wb.xlsx.writeBuffer();

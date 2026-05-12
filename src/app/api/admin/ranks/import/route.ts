@@ -12,6 +12,8 @@ function parseCSV(text: string) {
     const mappedHeaders = headers.map(h => {
         if (h === '属性名' || h === '名前' || h === 'Name') return 'name';
         if (h === '会費' || h === 'base_fee') return 'base_fee';
+        if (h === 'グループ' || h === 'group') return 'group';
+        if (h === '並び順' || h === 'sort_order') return 'sort_order';
         return h;
     });
 
@@ -48,14 +50,21 @@ export async function POST(request: Request) {
         const upsertData = [];
         const errors = [];
 
+        const validGroups = ['tokushin', 'terms', 'general', 'executive', 'referral'];
+
         for (const row of records) {
             if (!row.name) {
                 errors.push('Skipped row with missing name');
                 continue;
             }
+
+            // groupのバリデーション: 有効値でない場合は 'terms' をデフォルトに
+            const group = validGroups.includes(row.group) ? row.group : 'terms';
+
             upsertData.push({
                 name: row.name,
                 base_fee: row.base_fee ? Number(row.base_fee) : 0,
+                group,
                 sort_order: row.sort_order ? Number(row.sort_order) : 999
             });
         }

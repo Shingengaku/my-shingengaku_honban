@@ -594,20 +594,14 @@ export default function ProductMasterPage() {
     const handleExport = () => {
         const headers = [
             '商品名', '商品コード', 'URL', '属性ID',
-            '講義会場', '懇親会会場', '受講料', '懇親会費'
-            // インポートの観点からは冗長な生成されたキー/URLを除外しますが、エクスポートには役立ちます
+            '講義会場', '懇親会会場', '受講料', '懇親会費', 'グループ区分'
         ];
-        // 注: 内部のランクIDをエクスポートすると、ユーザーが編集するのが難しいかもしれません
-        // ランク名をエクスポートした方が良いでしょうか？その方が良いですが、インポートのためにマップし直す必要があります。
-        // 参考のためにランク名もエクスポートしましょうか？
-        // それともシンプルに: IDをエクスポートします。
-        // ユーザーのリクエストは「エクスポート/インポート」です。
-        // 生の値をエクスポートしましょう。
 
         const rows = paymentLinks.map(p => [
             p.name, p.product_code || '', p.url, p.rank_id || '',
             p.venue_lecture || '', p.venue_social || '',
-            p.lecture_fee, p.social_fee
+            p.lecture_fee, p.social_fee,
+            p.group || ''
         ]);
 
         const csvContent = [
@@ -671,7 +665,8 @@ export default function ProductMasterPage() {
                 '講義会場': 'venue_lecture', '会場': 'venue_lecture', '講義': 'venue_lecture',
                 '懇親会会場': 'venue_social', '懇親会': 'venue_social', '宴会': 'venue_social',
                 '受講料': 'lecture_fee', '金額': 'lecture_fee', '講義費': 'lecture_fee',
-                '懇親会費': 'social_fee', '宴会費': 'social_fee'
+                '懇親会費': 'social_fee', '宴会費': 'social_fee',
+                'グループ区分': 'group', 'グループ': 'group', '区分': 'group'
             };
 
             const newItems: PaymentLinkItem[] = (jsonData as any[]).map(row => {
@@ -693,7 +688,8 @@ export default function ProductMasterPage() {
                     venue_lecture: obj.venue_lecture ? String(obj.venue_lecture).trim() : '',
                     venue_social: obj.venue_social ? String(obj.venue_social).trim() : '',
                     lecture_fee: String(obj.lecture_fee || '0'),
-                    social_fee: String(obj.social_fee || '0')
+                    social_fee: String(obj.social_fee || '0'),
+                    group: obj.group ? String(obj.group).trim() as PaymentLinkItem['group'] : undefined
                 };
 
                 // インポート時に一意なキーを生成
@@ -772,6 +768,7 @@ export default function ProductMasterPage() {
                                         <li><strong>講義会場</strong> (任意)</li>
                                         <li><strong>懇親会会場</strong> (任意)</li>
                                         <li><strong>属性ID</strong> (任意)</li>
+                                        <li><strong>グループ区分</strong> (任意)</li>
                                     </ul>
                                 </div>
                                 <div>
@@ -781,6 +778,7 @@ export default function ProductMasterPage() {
                                         <li><strong>会場の複数指定</strong>: 複数の会場を許可する場合、「<strong>東京・福岡</strong>」のように「<strong>・</strong>（中黒）」で繋いでください。</li>
                                         <li><strong>会場名の特殊指定</strong>: 「<strong>参加しない</strong>」または「<strong>ー</strong>（全角ダッシュ）」が使用可能です。オンラインのみの場合は、講義会場に「<strong>オンライン</strong>」、懇親会会場に「<strong>ー</strong>」を指定するのが一般的です。</li>
                                         <li><strong>属性ID</strong>: 属性管理画面で設定されている数値（1, 2...）を直接指定します。空欄の場合は「一般（属性なし）」扱いとなります。</li>
+                                        <li><strong>グループ区分</strong>: 以下の値を使用できます。空欄の場合は「自動 (属性準拠)」となります。<br/><code>tokushin</code>=特進　<code>terms</code>=通常(期)　<code>general</code>=一般(未受講)　<code>executive</code>=経営幹部　<code>referral</code>=紹介(リファラル)</li>
                                     </ul>
                                 </div>
                                 <div className="bg-amber-50 p-2 rounded border border-amber-100 text-[11px]">

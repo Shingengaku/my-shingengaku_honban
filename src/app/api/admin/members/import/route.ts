@@ -48,7 +48,8 @@ function parseFile(buffer: ArrayBuffer, fileName: string) {
         '属性': 'rank_name',
         '期': 'generation',
         '期生': 'generation',
-        '特進': 'is_tokushin'
+        '特進': 'is_tokushin',
+        '集計除外': 'exclude_from_count'
     };
 
     const mappedHeaders = rawHeaders.map(h => keyMap[h.trim()] || h.trim());
@@ -134,7 +135,7 @@ export async function POST(request: Request) {
                 continue;
             }
 
-            const { name, furigana, email, rank_name, generation, is_tokushin } = row;
+            const { name, furigana, email, rank_name, generation, is_tokushin, exclude_from_count } = row;
 
             if (!name) {
                 errors.push(`スキップ: 氏名が空欄です (行データ: ${JSON.stringify(row)})`);
@@ -201,13 +202,28 @@ export async function POST(request: Request) {
                 isTokushinBool = tVal;
             }
 
+            // 集計除外フラグの解析: "集計除外" "あり" "1" "true" -> true、その他 -> false
+            let excludeFromCountBool = false;
+            const eVal = exclude_from_count;
+            if (typeof eVal === 'string') {
+                const s = eVal.trim();
+                if (s === '集計除外' || s.toLowerCase() === 'true' || s === '1' || s === 'あり') {
+                    excludeFromCountBool = true;
+                }
+            } else if (typeof eVal === 'number') {
+                if (eVal === 1) excludeFromCountBool = true;
+            } else if (typeof eVal === 'boolean') {
+                excludeFromCountBool = eVal;
+            }
+
             upsertData.push({
                 name,
                 furigana: furigana || name,
                 email,
                 rank_id: rankId,
                 term_id: termId,
-                is_tokushin: isTokushinBool
+                is_tokushin: isTokushinBool,
+                exclude_from_count: excludeFromCountBool
             });
         }
 
