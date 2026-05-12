@@ -94,9 +94,9 @@ export async function POST(request: Request) {
             }
 
             const normalizedInputName = normalizeName(name);
-            const member = allMembers?.find(m =>
-                normalizeName(m.name) === normalizedInputName
-            ) || null;
+            // 同名・同期が複数いる場合、特進（is_tokushin=true）を優先して照合する
+            const matchedMembers = allMembers?.filter(m => normalizeName(m.name) === normalizedInputName) || [];
+            const member = matchedMembers.find(m => m.is_tokushin) || matchedMembers[0] || null;
 
             if (member) {
                 rankId = member.ranks?.id ? String(member.ranks.id) : null;

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import DrumTimePicker from '@/components/admin/DrumTimePicker';
 import { matchProduct, getVenueDisplayName, isOnlineVenue, getSocialOptionsForLecture, normalizeVenue } from '@/lib/venueUtils';
+import { normalizeName } from '@/lib/kanjiNormalize';
 
 // 型定義
 interface Application {
@@ -1407,7 +1408,16 @@ export default function AdminDashboard() {
         return sourceApps;
     };
 
-    const exportCSV = (useFilter: boolean = true) => {
+    const exportCSV = async (useFilter: boolean = true) => {
+        // 1. 特進生の全リストを取得して、名前ベースで特進判定を補完する
+        const membersRes = await fetch('/api/admin/members');
+        const allMembersData = await membersRes.json();
+        const tokushinNameSet = new Set(
+            allMembersData
+                .filter((m: any) => m.is_tokushin)
+                .map((m: any) => normalizeName(m.name || ''))
+        );
+
         // 全レコードを出力（名寄せしない：合計金額不整合回避のため）
         let targetApps = useFilter ? [...filteredApps] : [...apps];
 
@@ -1447,7 +1457,9 @@ export default function AdminDashboard() {
         const rows = targetApps.map(app => {
             const rank = app.applied_rank_name || app.members?.ranks?.name || '一般';
             const gen = app.members?.generation ? `${app.members.generation}期` : '-';
-            const tokushin = app.members?.is_tokushin ? '特進' : '';
+            // マスタ重複救済ロジック適用
+            const isTokushin = app.members?.is_tokushin || tokushinNameSet.has(normalizeName(app.input_name));
+            const tokushin = isTokushin ? '特進' : '';
             const social = app.social_venue ? app.social_venue : (app.attend_social ? '参加' : '参加しない');
             // @ts-ignore
             const env = app.environment === 'production' ? '本番' : 'テスト';
@@ -1537,13 +1549,23 @@ export default function AdminDashboard() {
                     fitToHeight: 0 // auto
                 }
             });
+            
+            // 全受講生マスタから特進生の氏名リスト（正規化済）を作成し、
+            // 重複などで紐付けが漏れている場合でも名前が一致すれば特進として救済する
+            const membersRes = await fetch('/api/admin/members');
+            const allMembersData = await membersRes.json();
+            const tokushinNameSet = new Set(
+                allMembersData
+                    .filter((m: any) => m.is_tokushin)
+                    .map((m: any) => normalizeName(m.name || ''))
+            );
 
             // Helper: Find Master-defined group priority (1:Tokushin, 2:Terms, 3:Executive, 4:Referral)
             const getPriorityByMaster = (app: Application) => {
                 const rankName = app.applied_rank_name || app.members?.ranks?.name || '';
                 
                 // 1. Tokushin check (Highest Priority)
-                if (rankName.includes('特進') || (app.members?.is_tokushin)) return 1;
+                if (rankName.includes('特進') || (app.members?.is_tokushin) || tokushinNameSet.has(normalizeName(app.input_name))) return 1;
 
                 // 2. Referral check for General (一般) or explicit referral keywords
                 const vL = (app.venue || '').toLowerCase();
