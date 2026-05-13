@@ -8,6 +8,8 @@ export async function middleware(request: NextRequest) {
         // ログインページと認証APIへのアクセスを許可
         if (
             request.nextUrl.pathname === '/admin/login' ||
+            request.nextUrl.pathname === '/admin/forgot-password' ||
+            request.nextUrl.pathname === '/admin/reset-password' ||
             request.nextUrl.pathname.startsWith('/api/admin/login') ||
             request.nextUrl.pathname.startsWith('/api/admin/forgot-password') ||
             request.nextUrl.pathname.startsWith('/api/admin/reset-password')
