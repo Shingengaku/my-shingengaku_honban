@@ -242,27 +242,45 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                         </div>
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">領収日</label>
-                                <input 
-                                    type="date" 
-                                    value={issueDate} 
-                                    onChange={e => setIssueDate(e.target.value)} 
-                                    disabled={!data.isAdmin}
-                                    className={`w-full border-gray-300 rounded-md shadow-sm text-sm p-2 border ${!data.isAdmin ? 'bg-gray-100' : ''}`} 
-                                />
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    領収日 {!data.isAdmin && <span className="text-[10px] text-gray-400 font-normal ml-1">(事務局設定済み)</span>}
+                                </label>
+                                <div className="relative">
+                                    <input 
+                                        type="date" 
+                                        value={issueDate} 
+                                        onChange={e => setIssueDate(e.target.value)} 
+                                        disabled={!data.isAdmin}
+                                        className={`w-full rounded-md shadow-sm text-sm p-2 border ${!data.isAdmin ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed select-none' : 'bg-white border-gray-300'}`} 
+                                    />
+                                    {!data.isAdmin && (
+                                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                            <span className="text-xs text-gray-400">🔒</span>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">お支払い方法</label>
-                                <select 
-                                    value={paymentMethod} 
-                                    onChange={e => setPaymentMethod(e.target.value)} 
-                                    disabled={!data.isAdmin}
-                                    className={`w-full border-gray-300 rounded-md shadow-sm text-sm p-2 border bg-white ${!data.isAdmin ? 'bg-gray-100' : ''}`}
-                                >
-                                    <option value="銀行振込">銀行振込</option>
-                                    <option value="クレジットカード">クレジットカード</option>
-                                    <option value="現金">現金</option>
-                                </select>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    お支払い方法 {!data.isAdmin && <span className="text-[10px] text-gray-400 font-normal ml-1">(事務局設定済み)</span>}
+                                </label>
+                                <div className="relative">
+                                    <select 
+                                        value={paymentMethod} 
+                                        onChange={e => setPaymentMethod(e.target.value)} 
+                                        disabled={!data.isAdmin}
+                                        className={`w-full rounded-md shadow-sm text-sm p-2 border ${!data.isAdmin ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed select-none appearance-none' : 'bg-white border-gray-300'}`}
+                                    >
+                                        <option value="銀行振込">銀行振込</option>
+                                        <option value="クレジットカード">クレジットカード</option>
+                                        <option value="現金">現金</option>
+                                    </select>
+                                    {!data.isAdmin && (
+                                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                            <span className="text-xs text-gray-400">🔒</span>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
