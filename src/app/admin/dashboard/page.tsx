@@ -1426,6 +1426,34 @@ export default function AdminDashboard() {
         }
     };
 
+    const resetIssuanceStatus = async () => {
+        if (!editingApp || !confirm('この申込の発行状況をリセットして、再発行（ロック解除）を許可しますか？')) return;
+        try {
+            const newTags = (editingApp.tags || []).filter(t => !t.startsWith('receipted') && !t.startsWith('invoiced'));
+            const res = await fetch('/api/admin/applications/edit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    id: editingApp.id, 
+                    type: 'update',
+                    tags: newTags,
+                    updated_at: editingApp.updated_at 
+                }),
+            });
+            if (res.ok) {
+                alert('発行状況をリセットしました。');
+                // Update local state to reflect change in modal
+                setEditingApp({ ...editingApp, tags: newTags });
+                fetchApplications();
+            } else {
+                alert('リセットに失敗しました。');
+            }
+        } catch (e) {
+            alert('エラーが発生しました');
+            console.error(e);
+        }
+    };
+
     // 重複排除ロジック
     // 同一人物と思われるレコード（氏名、Email、商品、会場が一致）を名寄せする
     // 優先順位: 決済済 > 最新の更新
@@ -3620,6 +3648,21 @@ export default function AdminDashboard() {
                                         </select>
                                     </div>
                                 </div>
+
+                                {editingApp && (editingApp.tags || []).some(t => t.startsWith('receipted') || t.startsWith('invoiced')) && (
+                                    <div className="bg-amber-50 p-3 rounded border border-amber-200 flex justify-between items-center">
+                                        <div>
+                                            <p className="text-xs font-bold text-amber-800">書類発行済み（ユーザー側はロック中）</p>
+                                            <p className="text-[10px] text-amber-600">再発行を許可するには右のボタンでリセットしてください。</p>
+                                        </div>
+                                        <button 
+                                            onClick={resetIssuanceStatus}
+                                            className="bg-amber-600 text-white text-[10px] px-3 py-1.5 rounded font-bold hover:bg-amber-700 transition-colors shadow-sm"
+                                        >
+                                            発行状況リセット
+                                        </button>
+                                    </div>
+                                )}
 
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700">備考</label>
