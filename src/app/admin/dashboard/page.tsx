@@ -319,6 +319,66 @@ export default function AdminDashboard() {
             return new Map<string, { isBoth: boolean, isHybrid: boolean, debug: string }>();
         }
     }, [apps, venueList]);
+
+    // 申込統計の計算（受講生マスタ内・外の内訳）
+    const dashboardStats = useMemo(() => {
+        if (allMembers.length === 0 && apps.length === 0) return null;
+
+        // 申込済みのメンバー特定用
+        const appliedMemberIds = new Set<string>();
+        const appliedEmails = new Set<string>();
+        const uniqueApplicantKeys = new Set<string>();
+
+        apps.forEach(app => {
+            if (app.payment_status === 'cancelled') return;
+            
+            const name = (app.input_name || '').replace(/[\s\u3000]+/g, '');
+            const email = (app.input_email || '').toLowerCase().trim();
+            const key = (name || email) ? `${name}|${email}` : null;
+            if (key) uniqueApplicantKeys.add(key);
+
+            if (app.matched_member_id) appliedMemberIds.add(String(app.matched_member_id));
+            if (app.input_email) appliedEmails.add(app.input_email.toLowerCase().trim());
+        });
+
+        // マスタ内の集計
+        let masterAppliedCount = 0;
+        const registeredApplicantKeys = new Set<string>();
+
+        allMembers.forEach(m => {
+            const mId = String(m.id);
+            const mEmail = m.email ? m.email.toLowerCase().trim() : '';
+            const mName = (m.name || '').replace(/[\s\u3000]+/g, '');
+            
+            const hasApplied = appliedMemberIds.has(mId) || (mEmail && appliedEmails.has(mEmail));
+            
+            if (hasApplied) {
+                masterAppliedCount++;
+                const key = (mName || mEmail) ? `${mName}|${mEmail}` : null;
+                if (key) registeredApplicantKeys.add(key);
+            }
+        });
+
+        const masterUnappliedCount = allMembers.length - masterAppliedCount;
+
+        // マスタ外の集計
+        // uniqueApplicantKeys のうち、registeredApplicantKeys に含まれないものをカウント
+        let outsideCount = 0;
+        uniqueApplicantKeys.forEach(key => {
+            if (!registeredApplicantKeys.has(key)) {
+                outsideCount++;
+            }
+        });
+
+        return {
+            masterTotal: allMembers.length,
+            masterApplied: masterAppliedCount,
+            masterUnapplied: masterUnappliedCount,
+            outsideApplied: outsideCount,
+            totalUnique: uniqueApplicantKeys.size,
+            validAppsCount: apps.filter(a => a.payment_status !== 'cancelled').length
+        };
+    }, [apps, allMembers]);
     const [exportTermLabel, setExportTermLabel] = useState('リピート＆本講座');
     const [exportCampaignLabel, setExportCampaignLabel] = useState('水無月のご縁ｷｬﾝﾍﾟｰﾝ ご紹介');
     const [exportRemarks, setExportRemarks] = useState('');
@@ -2824,69 +2884,40 @@ export default function AdminDashboard() {
                             <div className="w-px bg-gray-300 h-8 mx-2"></div>
                             <button onClick={() => setShowCreateModal(true)} className="px-4 py-2 rounded-md bg-green-600 text-white font-bold hover:bg-green-700">新規登録</button>
                             <button onClick={fetchUnappliedMembers} className="px-4 py-2 rounded-md bg-yellow-500 text-white font-bold hover:bg-yellow-600 ml-2">未申込者を確認</button>
-                            <span className="ml-4 text-[10px] font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-200">System Logic v2.1</span>
+                            <span className="ml-4 text-[10px] font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-200">System Logic v2.2</span>
                         </div>
                         {/* 統計表示 */}
                         <div className="flex gap-4 items-stretch bg-white border border-gray-200 rounded-lg p-1.5 shadow-sm">
+                            {/* マスタ内状況 */}
                             <div className="flex items-center gap-3 px-3 py-1 border-r border-gray-100 last:border-0">
                                 <div className="p-2 bg-indigo-50 rounded-lg">
-                                    <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                    <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">有効申込数</span>
-                                    <span className="text-lg font-black text-gray-900 leading-none">
-                                        {apps.filter(a => a.payment_status !== 'cancelled').length}
-                                        <span className="text-[10px] font-normal text-gray-400 ml-1">件</span>
-                                    </span>
+                                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">受講生マスタ ({dashboardStats?.masterTotal || 0}名)</span>
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="text-lg font-black text-gray-900 leading-none">{dashboardStats?.masterApplied || 0}</span>
+                                        <span className="text-[10px] font-bold text-gray-400">申込済</span>
+                                        <span className="text-lg font-black text-red-600 leading-none ml-2">{dashboardStats?.masterUnapplied || 0}</span>
+                                        <span className="text-[10px] font-bold text-red-400">未申込</span>
+                                    </div>
                                 </div>
                             </div>
 
+                            {/* 実申込者数内訳 */}
                             <div className="flex items-center gap-3 px-3 py-1 border-r border-gray-100 last:border-0">
                                 <div className="p-2 bg-purple-50 rounded-lg">
-                                    <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                                    <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">お申込者数</span>
-                                    <span className="text-lg font-black text-gray-900 leading-none">
-                                        {useMemo(() => {
-                                            const uniqueKeys = new Set();
-                                            apps.filter(a => a.payment_status !== 'cancelled').forEach(app => {
-                                                const name = (app.input_name || '').replace(/[\s\u3000]+/g, '');
-                                                const email = (app.input_email || '').toLowerCase().trim();
-                                                const key = (name || email) ? `${name}|${email}` : null;
-                                                if (key) uniqueKeys.add(key);
-                                            });
-                                            return uniqueKeys.size;
-                                        }, [apps])}
-                                        <span className="text-[10px] font-normal text-gray-400 ml-1">名</span>
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-3 px-3 py-1 border-r border-gray-100 last:border-0">
-                                <div className="p-2 bg-amber-50 rounded-lg">
-                                    <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">未申込者数</span>
-                                    <span className="text-lg font-black text-gray-900 leading-none">
-                                        {useMemo(() => {
-                                            if (allMembers.length === 0) return '-';
-                                            const appliedMemberIds = new Set<string>();
-                                            const appliedEmails = new Set<string>();
-                                            apps.forEach(app => {
-                                                if (app.payment_status === 'cancelled') return;
-                                                if (app.matched_member_id) appliedMemberIds.add(String(app.matched_member_id));
-                                                if (app.input_email) appliedEmails.add(app.input_email.toLowerCase().trim());
-                                            });
-                                            return allMembers.filter(m => {
-                                                const mId = String(m.id);
-                                                const mEmail = m.email ? m.email.toLowerCase().trim() : '';
-                                                return !appliedMemberIds.has(mId) && (!mEmail || !appliedEmails.has(mEmail));
-                                            }).length;
-                                        }, [apps, allMembers])}
-                                        <span className="text-[10px] font-normal text-gray-400 ml-1">名</span>
-                                    </span>
+                                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">総お申込者数 (名寄せ実数)</span>
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="text-xl font-black text-indigo-600 leading-none">{dashboardStats?.totalUnique || 0}</span>
+                                        <span className="text-[10px] font-bold text-indigo-400">名</span>
+                                        <span className="text-[10px] text-gray-500 ml-2 font-medium">
+                                            内訳: マスタ内 <span className="font-bold text-gray-800">{dashboardStats?.masterApplied || 0}</span> / マスタ外 <span className="font-bold text-gray-800">{dashboardStats?.outsideApplied || 0}</span>
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
