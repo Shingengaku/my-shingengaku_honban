@@ -42,6 +42,8 @@ interface Application {
     };
     payment_key?: string; // バックエンドで生成または派生
     is_duplicate_confirmed?: boolean;
+    receipt_date?: string; // 領収日 (タグ用仮想フィールド)
+    payment_method?: string; // お支払い方法 (タグ用仮想フィールド)
     updated_at: string;
 }
 
@@ -1190,7 +1192,9 @@ export default function AdminDashboard() {
             cc_email: app.cc_email || adminEmail || '',
             bcc_email: app.bcc_email || adminBccEmail || '',
             participation_type: app.participation_type,
-            payment_status: app.payment_status
+            payment_status: app.payment_status,
+            receipt_date: app.tags?.find(t => t.startsWith('rd:'))?.split(':')[1] || '',
+            payment_method: app.tags?.find(t => t.startsWith('pm:'))?.split(':')[1] || ''
         });
         setShowModal(true);
     };
@@ -1388,7 +1392,13 @@ export default function AdminDashboard() {
                 bcc_email: editForm.bcc_email,
                 participation_type: editForm.participation_type,
                 online_venues: editForm.online_venues,
-                payment_status: editForm.payment_status
+                payment_status: editForm.payment_status,
+                // タグの構築
+                tags: [
+                    ...(editingApp.tags || []).filter(t => !t.startsWith('rd:') && !t.startsWith('pm:')),
+                    ...(editForm.receipt_date ? [`rd:${editForm.receipt_date}`] : []),
+                    ...(editForm.payment_method ? [`pm:${editForm.payment_method}`] : [])
+                ]
             };
 
             const res = await fetch('/api/admin/applications/edit', {
@@ -3583,6 +3593,31 @@ export default function AdminDashboard() {
                                             value={editForm.total_amount || 0}
                                             readOnly
                                         />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700">領収日 (書類発行用)</label>
+                                        <input
+                                            type="date"
+                                            className="border w-full p-2 rounded"
+                                            value={editForm.receipt_date || ''}
+                                            onChange={e => setEditForm({ ...editForm, receipt_date: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700">お支払い方法</label>
+                                        <select
+                                            className="border w-full p-2 rounded bg-white"
+                                            value={editForm.payment_method || ''}
+                                            onChange={e => setEditForm({ ...editForm, payment_method: e.target.value })}
+                                        >
+                                            <option value="">(未選択)</option>
+                                            <option value="銀行振込">銀行振込</option>
+                                            <option value="クレジットカード">クレジットカード</option>
+                                            <option value="現金">現金</option>
+                                        </select>
                                     </div>
                                 </div>
 
