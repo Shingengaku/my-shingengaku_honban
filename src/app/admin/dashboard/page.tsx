@@ -343,9 +343,13 @@ export default function AdminDashboard() {
 
         // マスタ内の集計
         let masterAppliedCount = 0;
+        let masterActiveTotal = 0;
         const registeredApplicantKeys = new Set<string>();
 
         allMembers.forEach(m => {
+            if (m.exclude_from_count) return; // 除外ラベル付きは統計に含めない
+            
+            masterActiveTotal++;
             const mId = String(m.id);
             const mEmail = m.email ? m.email.toLowerCase().trim() : '';
             const mName = (m.name || '').replace(/[\s\u3000]+/g, '');
@@ -359,7 +363,7 @@ export default function AdminDashboard() {
             }
         });
 
-        const masterUnappliedCount = allMembers.length - masterAppliedCount;
+        const masterUnappliedCount = masterActiveTotal - masterAppliedCount;
 
         // マスタ外の集計
         // uniqueApplicantKeys のうち、registeredApplicantKeys に含まれないものをカウント
@@ -371,7 +375,7 @@ export default function AdminDashboard() {
         });
 
         return {
-            masterTotal: allMembers.length,
+            masterTotal: masterActiveTotal,
             masterApplied: masterAppliedCount,
             masterUnapplied: masterUnappliedCount,
             outsideApplied: outsideCount,
@@ -657,6 +661,8 @@ export default function AdminDashboard() {
 
             // 受講生マスターから、申し込みデータに存在しない人だけを抽出
             const unapplied = membersData.filter((member: any) => {
+                if (member.exclude_from_count) return false; // 除外ラベル付きはリストに含めない
+
                 const mId = String(member.id);
                 const mEmail = member.email ? member.email.toLowerCase().trim() : '';
                 
@@ -2884,7 +2890,7 @@ export default function AdminDashboard() {
                             <div className="w-px bg-gray-300 h-8 mx-2"></div>
                             <button onClick={() => setShowCreateModal(true)} className="px-4 py-2 rounded-md bg-green-600 text-white font-bold hover:bg-green-700">新規登録</button>
                             <button onClick={fetchUnappliedMembers} className="px-4 py-2 rounded-md bg-yellow-500 text-white font-bold hover:bg-yellow-600 ml-2">未申込者を確認</button>
-                            <span className="ml-4 text-[10px] font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-200">System Logic v2.2</span>
+                            <span className="ml-4 text-[10px] font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-200">System Logic v2.3</span>
                         </div>
                         {/* 統計表示 */}
                         <div className="flex gap-4 items-stretch bg-white border border-gray-200 rounded-lg p-1.5 shadow-sm">
