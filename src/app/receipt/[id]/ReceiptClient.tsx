@@ -307,6 +307,20 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                 </div>
             </div>
 
+            {/* ===== プレビューセクションのヘッダー ===== */}
+            <div className="max-w-[296.93mm] mx-auto px-4 print:hidden mb-4">
+                <div className="bg-indigo-600 text-white p-3 rounded-t-lg flex items-center justify-between shadow-md">
+                    <h2 className="font-bold flex items-center gap-2">
+                        <span className="text-xl">👁️</span> 書類プレビュー
+                    </h2>
+                    <span className="text-xs opacity-80">※以下の内容がそのままPDFになります</span>
+                </div>
+            </div>
+
+            {/* ===== 帳票本体の表示エリア（ブラウザでは少し縮小して見やすくする） ===== */}
+            <div className="print:m-0 print:p-0 pb-20 flex flex-col items-center">
+                <div className="print:m-0 print:p-0 transform scale-[0.3] sm:scale-[0.4] md:scale-[0.55] lg:scale-[0.75] xl:scale-100 origin-top">
+
             {/* ===== 印刷用スタイル ===== */}
             <style>{`
                 @media print {
@@ -328,7 +342,7 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                 全体の構造をフラットに保ち、精密なマージン等でレイアウトする。
             */}
             <div
-                className="mx-auto bg-white sm:shadow-lg sm:border sm:border-gray-200 print:shadow-none print:border-none print:m-0 box-border relative"
+                className="bg-white shadow-2xl print:shadow-none border border-gray-100 print:border-none box-border relative overflow-hidden"
                 style={{ 
                     width: '296.93mm', 
                     height: '209.97mm', 
@@ -503,13 +517,15 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                     />
                 </div>
 
-                {/* お支払い方法（受講費の場合、参考画像にはないが表示しておくか判断が要るが、邪魔にならない場所に小さく） */}
-                {paymentMethod !== '銀行振込' && (
-                    <div style={{ position: 'absolute', bottom: '15mm', right: '35mm', fontSize: '9px', color: '#666' }}>
-                        ※お支払方法: {paymentMethod}
-                    </div>
-                )}
+                        {/* お支払い方法（受講費の場合、参考画像にはないが表示しておくか判断が要るが、邪魔にならない場所に小さく） */}
+                        {paymentMethod !== '銀行振込' && (
+                            <div style={{ position: 'absolute', bottom: '15mm', right: '35mm', fontSize: '9px', color: '#666' }}>
+                                ※お支払方法: {paymentMethod}
+                            </div>
+                        )}
 
+                    </div>
+                </div>
             </div>
         </div>
     );
