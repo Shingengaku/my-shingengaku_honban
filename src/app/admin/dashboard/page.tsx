@@ -286,51 +286,51 @@ export default function AdminDashboard() {
 
             apps.forEach(app => {
                 if (!app) return;
-            if ((app.payment_status || '').toLowerCase() === 'cancelled') return;
-            
-            const name = (app.input_name || '').replace(/[\s\u3000]+/g, '');
-            const email = (app.input_email || '').toLowerCase().trim();
-            const key = (name || email) ? `${name}|${email}` : null;
-            if (!key) return;
+                if ((app.payment_status || '').toLowerCase() === 'cancelled') return;
 
-            // 集計除外ラベルの人は重複判定から除外
-            if (excludedMemberKeys.has(key)) return;
+                const name = (app.input_name || '').replace(/[\s\u3000]+/g, '');
+                const email = (app.input_email || '').toLowerCase().trim();
+                const key = (name || email) ? `${name}|${email}` : null;
+                if (!key) return;
 
-            if (!map.has(key)) map.set(key, { venueArea: new Set(), onlineArea: new Set() });
-            const status = getParticipationStatus(app, venueList);
-            const entry = map.get(key)!;
-            
-            if (status.venueArea === 'both') { 
-                entry.venueArea.add('tokyo'); 
-                entry.venueArea.add('fukuoka'); 
-            } else if (status.venueArea) {
-                entry.venueArea.add(status.venueArea);
-            }
+                // 集計除外ラベルの人は重複判定から除外
+                if (excludedMemberKeys.has(key)) return;
 
-            if (status.onlineArea === 'both') { 
-                entry.onlineArea.add('tokyo'); 
-                entry.onlineArea.add('fukuoka'); 
-            } else if (status.onlineArea) {
-                entry.onlineArea.add(status.onlineArea);
-            }
-        });
+                if (!map.has(key)) map.set(key, { venueArea: new Set(), onlineArea: new Set() });
+                const status = getParticipationStatus(app, venueList);
+                const entry = map.get(key)!;
 
-        const result = new Map<string, { isBoth: boolean, isHybrid: boolean, debug: string }>();
-        map.forEach((areas, key) => {
-            const hasTokyo = areas.venueArea.has('tokyo');
-            const hasFukuoka = areas.venueArea.has('fukuoka');
-            // 実会場が東京・福岡の両方にある場合は「重複（赤）」
-            const isBoth = hasTokyo && hasFukuoka;
-            
-            const hasAnyVenue = areas.venueArea.size > 0;
-            const hasAnyOnline = areas.onlineArea.size > 0;
-            // 実会場とオンラインの混在（実会場重複がない場合のみ「ハイブリッド（緑）」）
-            const isHybrid = !isBoth && hasAnyVenue && hasAnyOnline;
-            
-            const debug = `V:[${Array.from(areas.venueArea).join(',')}] O:[${Array.from(areas.onlineArea).join(',')}]`;
-            result.set(key, { isBoth, isHybrid, debug });
-        });
-        return result;
+                if (status.venueArea === 'both') {
+                    entry.venueArea.add('tokyo');
+                    entry.venueArea.add('fukuoka');
+                } else if (status.venueArea) {
+                    entry.venueArea.add(status.venueArea);
+                }
+
+                if (status.onlineArea === 'both') {
+                    entry.onlineArea.add('tokyo');
+                    entry.onlineArea.add('fukuoka');
+                } else if (status.onlineArea) {
+                    entry.onlineArea.add(status.onlineArea);
+                }
+            });
+
+            const result = new Map<string, { isBoth: boolean, isHybrid: boolean, debug: string }>();
+            map.forEach((areas, key) => {
+                const hasTokyo = areas.venueArea.has('tokyo');
+                const hasFukuoka = areas.venueArea.has('fukuoka');
+                // 実会場が東京・福岡の両方にある場合は「重複（赤）」
+                const isBoth = hasTokyo && hasFukuoka;
+
+                const hasAnyVenue = areas.venueArea.size > 0;
+                const hasAnyOnline = areas.onlineArea.size > 0;
+                // 実会場とオンラインの混在（実会場重複がない場合のみ「ハイブリッド（緑）」）
+                const isHybrid = !isBoth && hasAnyVenue && hasAnyOnline;
+
+                const debug = `V:[${Array.from(areas.venueArea).join(',')}] O:[${Array.from(areas.onlineArea).join(',')}]`;
+                result.set(key, { isBoth, isHybrid, debug });
+            });
+            return result;
         } catch (e) {
             console.error('Error in personStatusMap calculation:', e);
             return new Map<string, { isBoth: boolean, isHybrid: boolean, debug: string }>();
@@ -348,7 +348,7 @@ export default function AdminDashboard() {
 
         apps.forEach(app => {
             if (app.payment_status === 'cancelled') return;
-            
+
             const name = (app.input_name || '').replace(/[\s\u3000]+/g, '');
             const email = (app.input_email || '').toLowerCase().trim();
             const key = (name || email) ? `${name}|${email}` : null;
@@ -365,14 +365,14 @@ export default function AdminDashboard() {
 
         allMembers.forEach(m => {
             if (m.exclude_from_count) return; // 除外ラベル付きは統計に含めない
-            
+
             masterActiveTotal++;
             const mId = String(m.id);
             const mEmail = m.email ? m.email.toLowerCase().trim() : '';
             const mName = (m.name || '').replace(/[\s\u3000]+/g, '');
-            
+
             const hasApplied = appliedMemberIds.has(mId) || (mEmail && appliedEmails.has(mEmail));
-            
+
             if (hasApplied) {
                 masterAppliedCount++;
                 const key = (mName || mEmail) ? `${mName}|${mEmail}` : null;
@@ -414,7 +414,7 @@ export default function AdminDashboard() {
 
         const savedTermLabel = localStorage.getItem('shingengaku_export_term_label_v2');
         if (savedTermLabel) setExportTermLabel(savedTermLabel);
-        
+
         const savedCampaignLabel = localStorage.getItem('shingengaku_export_campaign_label');
         if (savedCampaignLabel) setExportCampaignLabel(savedCampaignLabel);
 
@@ -650,22 +650,16 @@ export default function AdminDashboard() {
         setLoadingUnapplied(true);
         setShowUnappliedModal(true);
         try {
-            // 既に allMembers がある場合はそれを利用し、なければ取得する
-            let membersData = allMembers;
-            if (membersData.length === 0) {
-                const res = await fetch('/api/admin/members', { cache: 'no-store' });
-                if (res.ok) {
-                    membersData = await res.json();
-                    setAllMembers(membersData);
-                } else {
-                    throw new Error('受講生マスターの取得に失敗しました');
-                }
-            }
-            
+            // 常に最新の受講生マスターを取得して最新の除外設定等を反映する
+            const res = await fetch('/api/admin/members', { cache: 'no-store' });
+            if (!res.ok) throw new Error('受講生マスターの取得に失敗しました');
+            const membersData = await res.json();
+            setAllMembers(membersData);
+
             // 申し込み済みのメンバーIDとメールアドレスのセットを作成（キャンセルを除く）
             const appliedMemberIds = new Set<string>();
             const appliedEmails = new Set<string>();
-            
+
             apps.forEach(app => {
                 if (app.payment_status === 'cancelled') return;
                 if (app.matched_member_id) {
@@ -678,16 +672,19 @@ export default function AdminDashboard() {
 
             // 受講生マスターから、申し込みデータに存在しない人だけを抽出
             const unapplied = membersData.filter((member: any) => {
-                if (member.exclude_from_count) return false; // 除外ラベル付きはリストに含めない
+                // 除外ラベル（exclude_from_count）が付いている場合はリストから完全に除去
+                if (member.exclude_from_count || member.exclude_from_count === 1 || member.exclude_from_count === '1' || member.exclude_from_count === 'true') {
+                    return false;
+                }
 
                 const mId = String(member.id);
                 const mEmail = member.email ? member.email.toLowerCase().trim() : '';
-                
+
                 if (appliedMemberIds.has(mId)) return false;
                 if (mEmail && appliedEmails.has(mEmail)) return false;
                 return true;
             });
-            
+
             setUnappliedMembers(unapplied);
         } catch (e) {
             console.error('Error fetching unapplied members:', e);
@@ -819,31 +816,31 @@ export default function AdminDashboard() {
                     setTestEmail(data.test_email || '');
                     setApplicationActive(data.application_active !== false); // デフォルトtrue
 
-                // リマインド関連
-                const ensureTemplate = (t: any, def: any) => {
-                    try {
-                        return (t && typeof t === 'object' && t !== null && 'subject' in t && 'body' in t) ? t : def;
-                    } catch (e) { return def; }
-                };
-                setEmailTemplateReminderVenuePaid(ensureTemplate(data.email_template_reminder_venue_paid, DEFAULT_TEMPLATE_REMINDER_VENUE_PAID));
-                setEmailTemplateReminderVenueUnpaid(ensureTemplate(data.email_template_reminder_venue_unpaid, DEFAULT_TEMPLATE_REMINDER_VENUE_UNPAID));
-                setEmailTemplateReminderOnlinePaid(ensureTemplate(data.email_template_reminder_online_paid, DEFAULT_TEMPLATE_REMINDER_ONLINE_PAID));
-                setEmailTemplateReminderOnlineUnpaid(ensureTemplate(data.email_template_reminder_online_unpaid, DEFAULT_TEMPLATE_REMINDER_ONLINE_UNPAID));
-                
-                const ensureObj = (o: any) => {
-                    try {
-                        return (o && typeof o === 'object' && o !== null && !Array.isArray(o)) ? o : {};
-                    } catch (e) { return {}; }
-                };
-                setOnlineViewingLinks(ensureObj(data.online_viewing_links));
-                setZoomIds(ensureObj(data.zoom_ids));
-                setZoomPasses(ensureObj(data.zoom_passes));
-                setLectureDates(ensureObj(data.lecture_dates));
-                setLectureEndDates(ensureObj(data.lecture_end_dates));
+                    // リマインド関連
+                    const ensureTemplate = (t: any, def: any) => {
+                        try {
+                            return (t && typeof t === 'object' && t !== null && 'subject' in t && 'body' in t) ? t : def;
+                        } catch (e) { return def; }
+                    };
+                    setEmailTemplateReminderVenuePaid(ensureTemplate(data.email_template_reminder_venue_paid, DEFAULT_TEMPLATE_REMINDER_VENUE_PAID));
+                    setEmailTemplateReminderVenueUnpaid(ensureTemplate(data.email_template_reminder_venue_unpaid, DEFAULT_TEMPLATE_REMINDER_VENUE_UNPAID));
+                    setEmailTemplateReminderOnlinePaid(ensureTemplate(data.email_template_reminder_online_paid, DEFAULT_TEMPLATE_REMINDER_ONLINE_PAID));
+                    setEmailTemplateReminderOnlineUnpaid(ensureTemplate(data.email_template_reminder_online_unpaid, DEFAULT_TEMPLATE_REMINDER_ONLINE_UNPAID));
 
-                if (openModal) {
-                    setShowSettingsModal(true);
-                }
+                    const ensureObj = (o: any) => {
+                        try {
+                            return (o && typeof o === 'object' && o !== null && !Array.isArray(o)) ? o : {};
+                        } catch (e) { return {}; }
+                    };
+                    setOnlineViewingLinks(ensureObj(data.online_viewing_links));
+                    setZoomIds(ensureObj(data.zoom_ids));
+                    setZoomPasses(ensureObj(data.zoom_passes));
+                    setLectureDates(ensureObj(data.lecture_dates));
+                    setLectureEndDates(ensureObj(data.lecture_end_dates));
+
+                    if (openModal) {
+                        setShowSettingsModal(true);
+                    }
                 } catch (err) {
                     console.error('Error parsing settings inner:', err);
                 }
@@ -1012,7 +1009,7 @@ export default function AdminDashboard() {
             const name = (app.input_name || '').replace(/[\s\u3000]+/g, '');
             const email = (app.input_email || '').toLowerCase().trim();
             const key = (name || email) ? `${name}|${email}` : null;
-            
+
             // 集計除外ラベルの人は重複判定から除外
             if (key && excludedMemberKeys.has(key)) return;
 
@@ -1051,7 +1048,7 @@ export default function AdminDashboard() {
 
         try {
             const newTags = currentTags.filter(t => t !== tagToRemove);
-            
+
             // mark APIを再利用して上書き
             const res = await fetch('/api/receipt/mark', {
                 method: 'POST',
@@ -1326,13 +1323,13 @@ export default function AdminDashboard() {
     const handleFieldChange = (field: string, value: any) => {
         setEditForm(prev => {
             const next = { ...prev, [field]: value };
-            
+
             // 属性・会場が変更された場合は金額と商品キーを再計算
             if (field === 'applied_rank_name' || field === 'venue' || field === 'social_venue' || field === 'participation_type' || field === 'online_venues') {
                 const rankName = next.applied_rank_name || '一般';
                 const venue = next.venue || '';
                 const social = next.social_venue || 'none';
-                
+
                 const appRankId = ranks.find(r => r.name === rankName)?.id;
                 const matchData = {
                     venue: venue,
@@ -1342,7 +1339,7 @@ export default function AdminDashboard() {
                     rank_id: appRankId ? String(appRankId) : null
                 };
                 const matchedProduct = matchProduct(paymentLinksData, matchData);
-                
+
                 if (matchedProduct) {
                     next.payment_key = matchedProduct.name;
                     // 商品マスタから金額を取得
@@ -1356,8 +1353,8 @@ export default function AdminDashboard() {
 
                 // オンライン判定の自動更新（会場名にキーワードが含まれる場合）
                 if (field === 'venue') {
-                    const isOnline = venue.includes('LIVE') || venue.includes('ライブ') || 
-                                    venue.includes('オンライン') || venue.includes('アーカイブ');
+                    const isOnline = venue.includes('LIVE') || venue.includes('ライブ') ||
+                        venue.includes('オンライン') || venue.includes('アーカイブ');
                     if (isOnline) {
                         next.participation_type = 'online';
                     } else if (venue && venue !== '参加しない') {
@@ -1372,7 +1369,7 @@ export default function AdminDashboard() {
                     } else if (value === 'venue' && (next.venue?.includes('LIVE') || next.venue?.includes('オンライン') || next.venue?.includes('アーカイブ'))) {
                         next.venue = '';
                     }
-                    
+
                     // 金額の再計算のため、再マッチングを試みる
                     const updatedMatchData = {
                         ...matchData,
@@ -1401,7 +1398,7 @@ export default function AdminDashboard() {
                 const rankName = next.applied_rank_name || '一般';
                 const venue = next.venue || '';
                 const social = next.social_venue || 'none';
-                
+
                 const appRankId = ranks.find(r => r.name === rankName)?.id;
                 const matchData = {
                     venue: venue,
@@ -1411,7 +1408,7 @@ export default function AdminDashboard() {
                     rank_id: appRankId ? String(appRankId) : null
                 };
                 const matchedProduct = matchProduct(paymentLinksData, matchData);
-                
+
                 if (matchedProduct) {
                     // 金額を自動適用
                     const lectureFee = Number(matchedProduct.lecture_fee) || 0;
@@ -1423,8 +1420,8 @@ export default function AdminDashboard() {
 
                 // オンライン判定の自動連動
                 if (field === 'venue') {
-                    const isOnline = venue.includes('LIVE') || venue.includes('ライブ') || 
-                                    venue.includes('オンライン') || venue.includes('アーカイブ');
+                    const isOnline = venue.includes('LIVE') || venue.includes('ライブ') ||
+                        venue.includes('オンライン') || venue.includes('アーカイブ');
                     if (isOnline) {
                         next.participation_type = 'online';
                     } else if (venue && venue !== '参加しない') {
@@ -1439,7 +1436,7 @@ export default function AdminDashboard() {
                     } else if (value === 'venue' && (next.venue?.includes('LIVE') || next.venue?.includes('オンライン') || next.venue?.includes('アーカイブ'))) {
                         next.venue = '';
                     }
-                    
+
                     const updatedMatchData = {
                         ...matchData,
                         participation_type: value,
@@ -1460,11 +1457,11 @@ export default function AdminDashboard() {
     const handleKeyChange = (key: string) => {
         // 商品マスタから直接検索 (名称一致)
         const product = paymentLinksData.find(p => p.name === key || p.key === key);
-        
+
         if (product) {
             const rankName = ranks.find(r => String(r.id) === String(product.rank_id))?.name || '';
             const amount = (Number(product.lecture_fee) || 0) + (Number(product.social_fee) || 0);
-            
+
             setEditForm(prev => ({
                 ...prev,
                 payment_key: key,
@@ -1541,11 +1538,11 @@ export default function AdminDashboard() {
             const res = await fetch('/api/admin/applications/edit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    id: editingApp.id, 
+                body: JSON.stringify({
+                    id: editingApp.id,
                     type: 'update',
                     tags: newTags,
-                    updated_at: editingApp.updated_at 
+                    updated_at: editingApp.updated_at
                 }),
             });
             if (res.ok) {
@@ -1724,7 +1721,7 @@ export default function AdminDashboard() {
                     fitToHeight: 0 // auto
                 }
             });
-            
+
             // 1. 特進生の全リストを取得して、名前ベースで特進判定を補完する
             const [membersRes, kanjiRes] = await Promise.all([
                 fetch('/api/admin/members'),
@@ -1742,7 +1739,7 @@ export default function AdminDashboard() {
             // Helper: Find Master-defined group priority (1:Tokushin, 2:Terms, 3:Executive, 4:Referral)
             const getPriorityByMaster = (app: Application) => {
                 const rankName = app.applied_rank_name || app.members?.ranks?.name || '';
-                
+
                 // 1. Tokushin check (Highest Priority)
                 if (rankName.includes('特進') || (app.members?.is_tokushin) || tokushinNameSet.has(normalizeName(app.input_name, currentKanjiMap))) return 1;
 
@@ -1791,11 +1788,11 @@ export default function AdminDashboard() {
             const getMemberInfo = (app: Application) => {
                 const nameKey = `${(app.input_name || '').replace(/[\s\u3000]+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
                 const personStatus = personStatusMap.get(nameKey);
-                
+
                 let name = app.input_name + 'さま';
                 let introText = '';
                 let hasIntroducer = false;
-                
+
                 // 紹介者の抽出 (備考から)
                 const remarks = app.remarks || '';
                 const introMatch = remarks.match(/紹介者:\s*([^\n]+)/);
@@ -1803,7 +1800,7 @@ export default function AdminDashboard() {
                     let introName = introMatch[1].trim();
                     // 末尾の「様」「さま」「さん」を一旦削除して、一貫して「さま」を付与する
                     introName = introName.replace(/[様さまさん\s]+$/, '');
-                    
+
                     if (introName === '神言学アカデミー事務局' || introName === '事務局') {
                         introText = `(事務局紹介)`;
                     } else {
@@ -1817,9 +1814,9 @@ export default function AdminDashboard() {
                 const gen = (rawGen !== undefined && rawGen !== null) ? Number(rawGen) : 99;
                 const term = gen === 99 ? '' : `${gen}期`;
                 const furigana = app.members?.furigana || app.input_furigana || '';
-                
+
                 // 集約ステータスを使用
-            // 集約ステータスを使用
+                // 集約ステータスを使用
                 const isBoth = personStatus?.isBoth || false;
                 const isHybrid = personStatus?.isHybrid || false;
 
@@ -1861,7 +1858,7 @@ export default function AdminDashboard() {
 
             // 1. 全申込みの正規化キーと出現場所を把握する
             const getDedupeKey = (a: Application) => `${normalizeName(a.input_name, currentKanjiMap)}|${(a.input_email || '').toLowerCase().trim()}`;
-            
+
             // 各会場カテゴリへの振り分け (生リスト)
             const listApps = {
                 tokyo: [] as Application[],
@@ -1922,7 +1919,7 @@ export default function AdminDashboard() {
             const checkConflict = (vApps: Application[], oApps: Application[], area: string) => {
                 const vKeys = new Map(vApps.map(a => [getDedupeKey(a), a]));
                 const oKeys = new Map(oApps.map(a => [getDedupeKey(a), a]));
-                
+
                 vKeys.forEach((vApp, key) => {
                     if (oKeys.has(key)) {
                         globalExcludedKeys.add(key);
@@ -1946,7 +1943,7 @@ export default function AdminDashboard() {
             checkConflict(listApps.fukuoka, listApps.onlineFukuoka, '福岡');
 
             // 3. 最終的なリスト生成 (グローバル除外を適用して整形)
-            const filterAndMap = (list: Application[]) => 
+            const filterAndMap = (list: Application[]) =>
                 list.filter(a => !globalExcludedKeys.has(getDedupeKey(a))).map(getMemberInfo);
 
             const rawTokyo = filterAndMap(listApps.tokyo);
@@ -1981,25 +1978,25 @@ export default function AdminDashboard() {
             const dayF = parseDay(dateF);
             const isFukuokaFirst = dayF < dayT;
 
-            const venueOrder = isFukuokaFirst 
+            const venueOrder = isFukuokaFirst
                 ? [
                     { id: 'fukuoka', title: '福岡会場', date: labelF, groups: fukuokaGroups, count: rawFukuoka.length, colOffset: 0 },
                     { id: 'tokyo', title: '東京会場', date: labelT, groups: tokyoGroups, count: rawTokyo.length, colOffset: 5 }
-                  ]
+                ]
                 : [
                     { id: 'tokyo', title: '東京会場', date: labelT, groups: tokyoGroups, count: rawTokyo.length, colOffset: 0 },
                     { id: 'fukuoka', title: '福岡会場', date: labelF, groups: fukuokaGroups, count: rawFukuoka.length, colOffset: 5 }
-                  ];
+                ];
 
             const onlineOrder = isFukuokaFirst
                 ? [
                     { id: 'fukuoka', title: 'オンライン（福岡配信分）', groups: onlineFukuokaGroups, list: rawOnlineFukuoka },
                     { id: 'tokyo', title: 'オンライン（東京配信分）', groups: onlineTokyoGroups, list: rawOnlineTokyo }
-                  ]
+                ]
                 : [
                     { id: 'tokyo', title: 'オンライン（東京配信分）', groups: onlineTokyoGroups, list: rawOnlineTokyo },
                     { id: 'fukuoka', title: 'オンライン（福岡配信分）', groups: onlineFukuokaGroups, list: rawOnlineFukuoka }
-                  ];
+                ];
 
 
 
@@ -2007,7 +2004,7 @@ export default function AdminDashboard() {
             const colWidths = exportPaymentStatus ? [4, 20, 5, 8] : [4, 20, 6];
             const colsPerVenue = colWidths.length;
             const spacerWidth = 2;
-            
+
             const columnsConfig = [];
             for (let i = 0; i < 3; i++) {
                 colWidths.forEach(w => columnsConfig.push({ width: w }));
@@ -2034,8 +2031,8 @@ export default function AdminDashboard() {
             titleCell.border = { bottom: { style: 'thick' } };
 
             // Counts Row
-            ws.getRow(2).height = 40; 
-            
+            ws.getRow(2).height = 40;
+
             // Render Headers for Venues (Ordered)
             venueOrder.forEach((v, idx) => {
                 const startCol = idx * (colsPerVenue + 1) + 1;
@@ -2061,11 +2058,11 @@ export default function AdminDashboard() {
                 let currentRow = startRow;
 
                 const getBorder = (type: 'all' | 'top-half' | 'bottom-half' = 'all') => {
-                    const borderStyle = { 
-                        style: 'thin' as const, 
+                    const borderStyle = {
+                        style: 'thin' as const,
                         color: { argb: 'FF000000' }
                     };
-                    
+
                     if (type === 'top-half') {
                         return { top: borderStyle, left: borderStyle, right: borderStyle };
                     }
@@ -2074,20 +2071,20 @@ export default function AdminDashboard() {
                     }
                     return { top: borderStyle, left: borderStyle, bottom: borderStyle, right: borderStyle };
                 };
-                
+
                 // Group Title
                 const titleCellRef = ws.getRow(currentRow).getCell(colOffset + 1);
                 ws.mergeCells(currentRow, colOffset + 1, currentRow, colOffset + colsPerVenue);
                 titleCellRef.value = title;
                 titleCellRef.alignment = { vertical: 'middle', horizontal: 'center' };
-                
+
                 const currentTitleColor = themeColor || (title.includes('配信分') ? 'FFD9EAD3' : 'FFD3D3D3');
                 const finalHeaderColor = (!themeColor && title.includes('東京配信分')) ? 'FFCFE2F3' : currentTitleColor;
 
                 titleCellRef.fill = {
                     type: 'pattern',
                     pattern: 'solid',
-                    fgColor: { argb: finalHeaderColor } 
+                    fgColor: { argb: finalHeaderColor }
                 };
                 titleCellRef.font = { bold: true };
                 titleCellRef.border = getBorder();
@@ -2140,13 +2137,13 @@ export default function AdminDashboard() {
 
                             c1.value = currentSeq++;
                             c1.alignment = { horizontal: 'center', vertical: 'middle' };
-                            
+
                             c2_1.value = d.name;
                             c2_1.alignment = { vertical: 'bottom', wrapText: false };
-                            
+
                             c2_2.value = d.introText;
                             c2_2.alignment = { vertical: 'top', wrapText: true };
-                            
+
                             c3.value = d.term;
                             c3.alignment = { horizontal: 'center', vertical: 'middle' };
                             if (c4) {
@@ -2197,7 +2194,7 @@ export default function AdminDashboard() {
                             c2.alignment = { wrapText: false, vertical: 'middle' };
                             c3.value = d.term;
                             c3.alignment = { horizontal: 'center', vertical: 'middle' };
-                            
+
                             const borderCells = [c1, c2, c3];
 
                             if (exportPaymentStatus) {
@@ -2256,13 +2253,13 @@ export default function AdminDashboard() {
             const onlineColOffset = 2 * (colsPerVenue + 1);
 
             onlineOrder.forEach((o, idx) => {
-                const theme = o.title.includes('東京配信分') ? 'FFCFE2F3' : 
-                              o.title.includes('福岡配信分') ? 'FFD9EAD3' : undefined;
+                const theme = o.title.includes('東京配信分') ? 'FFCFE2F3' :
+                    o.title.includes('福岡配信分') ? 'FFD9EAD3' : undefined;
 
                 // Header for sub-section
                 let resO = renderBlock(rO, onlineColOffset, o.title, [], 0, true, theme);
                 rO = resO.nextRow;
-                
+
                 if (o.list.length > 0) {
                     resO = renderBlock(rO, onlineColOffset, '特進', o.groups.tokushin, seqO, false, theme);
                     rO = resO.nextRow + 1; seqO = resO.nextSeq;
@@ -2305,7 +2302,7 @@ export default function AdminDashboard() {
                     bottom: { style: 'medium' },
                     right: { style: 'medium' }
                 };
-                
+
                 const newlineCount = (exportRemarks.match(/\n/g) || []).length;
                 ws.getRow(remarksRow).height = Math.max(60, (newlineCount + 1) * 15 + 10);
                 maxRow = remarksRow + 1;
@@ -2335,7 +2332,7 @@ export default function AdminDashboard() {
                 // テーブルヘッダー
                 const tblHeaderRow = secRow + 1;
                 const tblHeaders = ['除外理由', '氏名', '申込①内容', '申込②内容'];
-                
+
                 // 配分を totalCols (11 or 14) に合わせる
                 let tblColWidths: number[];
                 if (totalCols === 14) {
@@ -2373,10 +2370,10 @@ export default function AdminDashboard() {
                         const c = ws.getCell(dataRow, cs);
                         c.value = cols[i] || '';
                         c.font = { size: 9 };
-                        c.alignment = { 
-                            horizontal: i === 0 || i === 1 ? 'center' : 'left', 
-                            vertical: 'middle', 
-                            wrapText: true 
+                        c.alignment = {
+                            horizontal: i === 0 || i === 1 ? 'center' : 'left',
+                            vertical: 'middle',
+                            wrapText: true
                         };
                         c.fill = fill;
                         c.border = cellBorder;
@@ -2537,7 +2534,7 @@ export default function AdminDashboard() {
         }
 
         if (!confirm('【最重要・危険】全ての申込データを削除しますか？\n（復元できません。本当に実行する場合のみOKを押してください）')) return;
-        
+
         setLoading(true);
         try {
             const res = await fetch('/api/admin/applications/truncate', { method: 'POST' });
@@ -2614,7 +2611,7 @@ export default function AdminDashboard() {
 
     const submitReminders = async () => {
         if (!confirm('選択した参加者にリマインドメールを一括送信しますか？')) return;
-        
+
         // 送信対象を絞り込む（キャンセル済みを除外）
         const targetIds = Array.from(selectedIds).filter(id => {
             const app = apps.find(a => a.id === id);
@@ -2675,7 +2672,7 @@ export default function AdminDashboard() {
             const isOnline = app.participation_type === 'online' || isOnlineVenue(app.venue || '') || isOnlineVenue(app.online_venues || '');
             const isAlert = app.remarks?.includes('商品マスタ') && !app.tags?.includes('confirmed_product_alert');
             const isPaidOrFree = app.payment_status === 'paid' || (app.total_amount === 0 && app.payment_status !== 'cancelled' && !isAlert);
-            
+
             if (isPaidOrFree) summary.paid++; else summary.unpaid++;
 
             let area: 'tokyo' | 'fukuoka' | 'both' = 'tokyo';
@@ -2949,7 +2946,7 @@ export default function AdminDashboard() {
                             <div className="w-px bg-gray-300 h-8 mx-2"></div>
                             <button onClick={() => setShowCreateModal(true)} className="px-4 py-2 rounded-md bg-green-600 text-white font-bold hover:bg-green-700">新規登録</button>
                             <button onClick={fetchUnappliedMembers} className="px-4 py-2 rounded-md bg-yellow-500 text-white font-bold hover:bg-yellow-600 ml-2">未申込者を確認</button>
-                            <span className="ml-4 text-[10px] font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-200">System Logic v2.4</span>
+                            <span className="ml-4 text-[10px] font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-200">System Logic v2.5</span>
                         </div>
                         {/* 統計表示 */}
                         <div className="flex gap-4 items-stretch bg-white border border-gray-200 rounded-lg p-1.5 shadow-sm">
@@ -3101,12 +3098,12 @@ export default function AdminDashboard() {
                                             value={(lectureDates['tokyo'] || '').split('T')[0]}
                                             onChange={(e) => {
                                                 const time = (lectureDates['tokyo'] || '').split('T')[1] || '00:00';
-                                                setLectureDates({...lectureDates, tokyo: `${e.target.value}T${time}`});
+                                                setLectureDates({ ...lectureDates, tokyo: `${e.target.value}T${time}` });
                                             }}
                                         />
-                                        <DrumTimePicker 
+                                        <DrumTimePicker
                                             value={lectureDates['tokyo'] || ''}
-                                            onChange={(val) => setLectureDates({...lectureDates, tokyo: val})}
+                                            onChange={(val) => setLectureDates({ ...lectureDates, tokyo: val })}
                                         />
                                     </div>
                                     <span className="text-[10px] text-gray-400">〜</span>
@@ -3117,12 +3114,12 @@ export default function AdminDashboard() {
                                             value={(lectureEndDates['tokyo'] || '').split('T')[0]}
                                             onChange={(e) => {
                                                 const time = (lectureEndDates['tokyo'] || '').split('T')[1] || '00:00';
-                                                setLectureEndDates({...lectureEndDates, tokyo: `${e.target.value}T${time}`});
+                                                setLectureEndDates({ ...lectureEndDates, tokyo: `${e.target.value}T${time}` });
                                             }}
                                         />
-                                        <DrumTimePicker 
+                                        <DrumTimePicker
                                             value={lectureEndDates['tokyo'] || ''}
-                                            onChange={(val) => setLectureEndDates({...lectureEndDates, tokyo: val})}
+                                            onChange={(val) => setLectureEndDates({ ...lectureEndDates, tokyo: val })}
                                         />
                                     </div>
                                 </div>
@@ -3135,12 +3132,12 @@ export default function AdminDashboard() {
                                             value={(lectureDates['fukuoka'] || '').split('T')[0]}
                                             onChange={(e) => {
                                                 const time = (lectureDates['fukuoka'] || '').split('T')[1] || '00:00';
-                                                setLectureDates({...lectureDates, fukuoka: `${e.target.value}T${time}`});
+                                                setLectureDates({ ...lectureDates, fukuoka: `${e.target.value}T${time}` });
                                             }}
                                         />
-                                        <DrumTimePicker 
+                                        <DrumTimePicker
                                             value={lectureDates['fukuoka'] || ''}
-                                            onChange={(val) => setLectureDates({...lectureDates, fukuoka: val})}
+                                            onChange={(val) => setLectureDates({ ...lectureDates, fukuoka: val })}
                                         />
                                     </div>
                                     <span className="text-[10px] text-gray-400">〜</span>
@@ -3151,16 +3148,16 @@ export default function AdminDashboard() {
                                             value={(lectureEndDates['fukuoka'] || '').split('T')[0]}
                                             onChange={(e) => {
                                                 const time = (lectureEndDates['fukuoka'] || '').split('T')[1] || '00:00';
-                                                setLectureEndDates({...lectureEndDates, fukuoka: `${e.target.value}T${time}`});
+                                                setLectureEndDates({ ...lectureEndDates, fukuoka: `${e.target.value}T${time}` });
                                             }}
                                         />
-                                        <DrumTimePicker 
+                                        <DrumTimePicker
                                             value={lectureEndDates['fukuoka'] || ''}
-                                            onChange={(val) => setLectureEndDates({...lectureEndDates, fukuoka: val})}
+                                            onChange={(val) => setLectureEndDates({ ...lectureEndDates, fukuoka: val })}
                                         />
                                     </div>
                                 </div>
-                                <button 
+                                <button
                                     onClick={saveSettings}
                                     className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-200 hover:bg-indigo-100 mt-1 font-bold"
                                 >
@@ -3329,7 +3326,7 @@ export default function AdminDashboard() {
 
                                 // 商品名のマッチングロジック (venueUtilsの共通ロジックを使用)
                                 const appRankId = ranks.find(r => r.name === rankName)?.id;
-                                
+
                                 const matchData = {
                                     venue: app.venue || '',
                                     social_venue: app.social_venue || '',
@@ -3372,14 +3369,13 @@ export default function AdminDashboard() {
                                         </td>
                                         <td className="px-3 py-2 whitespace-nowrap align-top">
                                             <div className="flex flex-col gap-1 items-start">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                    app.payment_status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
-                                                    (app.payment_status === 'paid' || (app.total_amount === 0 && !isAlert)) ? 'bg-green-100 text-green-800' :
-                                                    'bg-red-100 text-red-800'
-                                                }`}>
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${app.payment_status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+                                                        (app.payment_status === 'paid' || (app.total_amount === 0 && !isAlert)) ? 'bg-green-100 text-green-800' :
+                                                            'bg-red-100 text-red-800'
+                                                    }`}>
                                                     {app.payment_status === 'cancelled' ? 'キャンセル' :
-                                                     (app.total_amount === 0 && !isAlert) ? '決済不要' :
-                                                     app.payment_status === 'paid' ? '決済済' : '未決済'}
+                                                        (app.total_amount === 0 && !isAlert) ? '決済不要' :
+                                                            app.payment_status === 'paid' ? '決済済' : '未決済'}
                                                 </span>
                                                 {/* @ts-ignore */}
                                                 {app.environment === 'production' ? (
@@ -3388,42 +3384,42 @@ export default function AdminDashboard() {
                                                     <span className="px-2 py-0.5 text-[10px] bg-gray-50 text-gray-500 border border-gray-200 rounded">テストデータ</span>
                                                 )}
                                                 {app.tags?.includes('receipted') && (
-                                                    <span 
+                                                    <span
                                                         onClick={() => handleRemoveTag(app.id, app.tags || [], 'receipted', '領収書(合)')}
                                                         className="px-2 py-0.5 mt-1 text-[10px] bg-blue-50 text-blue-600 border border-blue-200 rounded cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors block text-center"
                                                         title="クリックで発行済を解除"
                                                     >領収書(合) 済</span>
                                                 )}
                                                 {app.tags?.includes('receipted_lecture') && (
-                                                    <span 
+                                                    <span
                                                         onClick={() => handleRemoveTag(app.id, app.tags || [], 'receipted_lecture', '領収(講)')}
                                                         className="px-2 py-0.5 mt-1 text-[10px] bg-blue-50 text-blue-600 border border-blue-200 rounded cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors block text-center"
                                                         title="クリックで発行済を解除"
                                                     >領収(講) 済</span>
                                                 )}
                                                 {app.tags?.includes('receipted_social') && (
-                                                    <span 
+                                                    <span
                                                         onClick={() => handleRemoveTag(app.id, app.tags || [], 'receipted_social', '領収(懇)')}
                                                         className="px-2 py-0.5 mt-1 text-[10px] bg-blue-50 text-blue-600 border border-blue-200 rounded cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors block text-center"
                                                         title="クリックで発行済を解除"
                                                     >領収(懇) 済</span>
                                                 )}
                                                 {app.tags?.includes('invoiced') && (
-                                                    <span 
+                                                    <span
                                                         onClick={() => handleRemoveTag(app.id, app.tags || [], 'invoiced', '請求書(合)')}
                                                         className="px-2 py-0.5 mt-1 text-[10px] bg-sky-50 text-sky-600 border border-sky-200 rounded cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors block text-center"
                                                         title="クリックで発行済を解除"
                                                     >請求書(合) 済</span>
                                                 )}
                                                 {app.tags?.includes('invoiced_lecture') && (
-                                                    <span 
+                                                    <span
                                                         onClick={() => handleRemoveTag(app.id, app.tags || [], 'invoiced_lecture', '請求(講)')}
                                                         className="px-2 py-0.5 mt-1 text-[10px] bg-sky-50 text-sky-600 border border-sky-200 rounded cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors block text-center"
                                                         title="クリックで発行済を解除"
                                                     >請求(講) 済</span>
                                                 )}
                                                 {app.tags?.includes('invoiced_social') && (
-                                                    <span 
+                                                    <span
                                                         onClick={() => handleRemoveTag(app.id, app.tags || [], 'invoiced_social', '請求(懇)')}
                                                         className="px-2 py-0.5 mt-1 text-[10px] bg-sky-50 text-sky-600 border border-sky-200 rounded cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors block text-center"
                                                         title="クリックで発行済を解除"
@@ -3434,11 +3430,11 @@ export default function AdminDashboard() {
 
                                         <td className="px-3 py-2 whitespace-nowrap align-top">
                                             <div className="text-sm font-medium">
-                                                <span 
+                                                <span
                                                     className={(() => {
                                                         const nameKey = `${(app.input_name || '').replace(/[\s\u3000]+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
                                                         const personStatus = personStatusMap.get(nameKey);
-                                                        
+
                                                         if (personStatus?.isBoth) return 'text-red-600 font-bold underline decoration-red-300';
                                                         if (personStatus?.isHybrid) return 'text-green-600 font-bold';
                                                         return 'text-gray-900';
@@ -3536,7 +3532,7 @@ export default function AdminDashboard() {
                                                         rank_name: rankName,
                                                         payment_key: app.payment_key
                                                     });
-                                                    
+
                                                     if (matchedLink && (Number(matchedLink.lecture_fee) > 0 || Number(matchedLink.social_fee) > 0)) {
                                                         const expectedTotal = Number(matchedLink.lecture_fee || 0) + Number(matchedLink.social_fee || 0);
                                                         if (expectedTotal !== app.total_amount) isMismatched = true;
@@ -3549,12 +3545,12 @@ export default function AdminDashboard() {
                                                         } else if (normalizedSocial === '福岡') {
                                                             expectedSocial = baseSocialFeeFukuoka;
                                                         }
-                                                        
+
                                                         const lecture = app.total_amount - expectedSocial;
                                                         // 0円お申込み（無料・未マッチング）は除外
                                                         if (lecture < 0 && app.total_amount > 0) isMismatched = true;
                                                     }
-                                                    
+
                                                     if (isMismatched) {
                                                         return (
                                                             <div className="flex items-center gap-1 text-[10px] bg-red-100 text-red-700 border border-red-200 px-1.5 py-0.5 rounded shadow-sm" title="商品マスタや設定からの算出額と実際の決済額が一致していません。割引や例外的な決済の可能性があります。">
@@ -3723,7 +3719,7 @@ export default function AdminDashboard() {
                                             {(() => {
                                                 const lectureVenue = editForm.venue;
                                                 if (!lectureVenue) return null;
-                                                
+
                                                 const socialVenues = venueList.filter(v => v.type === 'social');
                                                 const available = getSocialOptionsForLecture(lectureVenue, socialVenues);
 
@@ -3814,7 +3810,7 @@ export default function AdminDashboard() {
                                             <p className="text-xs font-bold text-amber-800">書類発行済み（ユーザー側はロック中）</p>
                                             <p className="text-[10px] text-amber-600">再発行を許可するには右のボタンでリセットしてください。</p>
                                         </div>
-                                        <button 
+                                        <button
                                             onClick={resetIssuanceStatus}
                                             className="bg-amber-600 text-white text-[10px] px-3 py-1.5 rounded font-bold hover:bg-amber-700 transition-colors shadow-sm"
                                         >
@@ -3882,7 +3878,7 @@ export default function AdminDashboard() {
                         <h3 className="text-lg font-bold mb-4 text-indigo-700 flex items-center gap-2">
                             <span>✉️</span> 再送メールの編集
                         </h3>
-                        
+
                         <div className="bg-amber-50 border-l-4 border-amber-400 p-3 mb-4 rounded-r shadow-sm">
                             <p className="text-xs text-amber-800 leading-relaxed">
                                 <span className="font-bold">⚠️ 注意事項</span><br />
@@ -3890,7 +3886,7 @@ export default function AdminDashboard() {
                                 申込者データやオリジナルのテンプレートには保存・反映されませんので、安心して調整してください。
                             </p>
                         </div>
-                        
+
                         <p className="text-sm text-gray-600 mb-4">内容を編集して「送信」ボタンを押してください。</p>
 
                         <div className="mb-2">
@@ -4164,7 +4160,7 @@ export default function AdminDashboard() {
                                     <button onClick={() => setEmailTemplateForgotPass(DEFAULT_TEMPLATE_FORGOT_PASS)} className="text-xs text-blue-600 hover:underline mt-1">デフォルトに戻す</button>
                                 </>
                             )}
-                            
+
                             {selectedTemplateTab === 'multiple' && (
                                 <>
                                     <div className="mb-2">
@@ -4203,18 +4199,18 @@ export default function AdminDashboard() {
                                                     <div>
                                                         <label className="block text-[10px] text-gray-500 font-bold mb-1">開始日時 ({"{{lecture_date}}"}変数用)</label>
                                                         <div className="flex flex-col gap-1">
-                                                            <input 
+                                                            <input
                                                                 type="date"
-                                                                className="border w-full p-2 rounded text-sm bg-white hover:border-indigo-400 transition-colors" 
-                                                                value={(lectureDates[area] || '').split('T')[0]} 
+                                                                className="border w-full p-2 rounded text-sm bg-white hover:border-indigo-400 transition-colors"
+                                                                value={(lectureDates[area] || '').split('T')[0]}
                                                                 onChange={e => {
                                                                     const time = (lectureDates[area] || '').split('T')[1] || '00:00';
-                                                                    setLectureDates({...lectureDates, [area]: `${e.target.value}T${time}`});
-                                                                }} 
+                                                                    setLectureDates({ ...lectureDates, [area]: `${e.target.value}T${time}` });
+                                                                }}
                                                             />
-                                                            <DrumTimePicker 
+                                                            <DrumTimePicker
                                                                 value={lectureDates[area] || ''}
-                                                                onChange={val => setLectureDates({...lectureDates, [area]: val})}
+                                                                onChange={val => setLectureDates({ ...lectureDates, [area]: val })}
                                                                 className="w-full"
                                                             />
                                                         </div>
@@ -4222,18 +4218,18 @@ export default function AdminDashboard() {
                                                     <div>
                                                         <label className="block text-[10px] text-gray-500 font-bold mb-1">終了日時</label>
                                                         <div className="flex flex-col gap-1">
-                                                            <input 
+                                                            <input
                                                                 type="date"
-                                                                className="border w-full p-2 rounded text-sm bg-white hover:border-indigo-400 transition-colors" 
-                                                                value={(lectureEndDates[area] || '').split('T')[0]} 
+                                                                className="border w-full p-2 rounded text-sm bg-white hover:border-indigo-400 transition-colors"
+                                                                value={(lectureEndDates[area] || '').split('T')[0]}
                                                                 onChange={e => {
                                                                     const time = (lectureEndDates[area] || '').split('T')[1] || '00:00';
-                                                                    setLectureEndDates({...lectureEndDates, [area]: `${e.target.value}T${time}`});
-                                                                }} 
+                                                                    setLectureEndDates({ ...lectureEndDates, [area]: `${e.target.value}T${time}` });
+                                                                }}
                                                             />
-                                                            <DrumTimePicker 
+                                                            <DrumTimePicker
                                                                 value={lectureEndDates[area] || ''}
-                                                                onChange={val => setLectureEndDates({...lectureEndDates, [area]: val})}
+                                                                onChange={val => setLectureEndDates({ ...lectureEndDates, [area]: val })}
                                                                 className="w-full"
                                                             />
                                                         </div>
@@ -4241,25 +4237,25 @@ export default function AdminDashboard() {
                                                 </div>
                                                 <div>
                                                     <label className="block text-[10px] text-gray-500">視聴リンク ({"{{viewing_link}}"}変数用)</label>
-                                                    <input 
-                                                        className="border w-full p-2 rounded text-sm mb-2" 
-                                                        value={onlineViewingLinks[area] || ''} 
+                                                    <input
+                                                        className="border w-full p-2 rounded text-sm mb-2"
+                                                        value={onlineViewingLinks[area] || ''}
                                                         placeholder="https://zoom.us/..."
-                                                        onChange={e => setOnlineViewingLinks({...onlineViewingLinks, [area]: e.target.value})} 
+                                                        onChange={e => setOnlineViewingLinks({ ...onlineViewingLinks, [area]: e.target.value })}
                                                     />
                                                     <label className="block text-[10px] text-gray-500">ZOOM ID ({"{{zoom_id}}"}変数用)</label>
-                                                    <input 
-                                                        className="border w-full p-2 rounded text-sm mb-2" 
-                                                        value={zoomIds[area] || ''} 
+                                                    <input
+                                                        className="border w-full p-2 rounded text-sm mb-2"
+                                                        value={zoomIds[area] || ''}
                                                         placeholder="123 456 7890"
-                                                        onChange={e => setZoomIds({...zoomIds, [area]: e.target.value})} 
+                                                        onChange={e => setZoomIds({ ...zoomIds, [area]: e.target.value })}
                                                     />
                                                     <label className="block text-[10px] text-gray-500">パスワード ({"{{zoom_pass}}"}変数用)</label>
-                                                    <input 
-                                                        className="border w-full p-2 rounded text-sm" 
-                                                        value={zoomPasses[area] || ''} 
+                                                    <input
+                                                        className="border w-full p-2 rounded text-sm"
+                                                        value={zoomPasses[area] || ''}
                                                         placeholder="password123"
-                                                        onChange={e => setZoomPasses({...zoomPasses, [area]: e.target.value})} 
+                                                        onChange={e => setZoomPasses({ ...zoomPasses, [area]: e.target.value })}
                                                     />
                                                 </div>
                                             </div>
@@ -4272,29 +4268,29 @@ export default function AdminDashboard() {
                                             <>
                                                 <div>
                                                     <label className="block text-xs font-bold text-gray-600 mb-1">会場参加・決済済用</label>
-                                                    <input 
-                                                        className="border w-full p-1 rounded text-sm mb-1" 
-                                                        value={emailTemplateReminderVenuePaid?.subject || ''} 
-                                                        onChange={e => setEmailTemplateReminderVenuePaid(prev => ({...(prev || {subject: '', body: ''}), subject: e.target.value}))} 
+                                                    <input
+                                                        className="border w-full p-1 rounded text-sm mb-1"
+                                                        value={emailTemplateReminderVenuePaid?.subject || ''}
+                                                        onChange={e => setEmailTemplateReminderVenuePaid(prev => ({ ...(prev || { subject: '', body: '' }), subject: e.target.value }))}
                                                     />
-                                                    <textarea 
-                                                        className="border w-full p-2 rounded h-32 font-mono text-xs" 
-                                                        value={emailTemplateReminderVenuePaid?.body || ''} 
-                                                        onChange={e => setEmailTemplateReminderVenuePaid(prev => ({...(prev || {subject: '', body: ''}), body: e.target.value}))} 
+                                                    <textarea
+                                                        className="border w-full p-2 rounded h-32 font-mono text-xs"
+                                                        value={emailTemplateReminderVenuePaid?.body || ''}
+                                                        onChange={e => setEmailTemplateReminderVenuePaid(prev => ({ ...(prev || { subject: '', body: '' }), body: e.target.value }))}
                                                     />
                                                     <button onClick={() => setEmailTemplateReminderVenuePaid(DEFAULT_TEMPLATE_REMINDER_VENUE_PAID)} className="text-[10px] text-blue-600 hover:underline mt-1">デフォルトに戻す</button>
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs font-bold text-gray-600 mb-1">会場参加・未決済用</label>
-                                                    <input 
-                                                        className="border w-full p-1 rounded text-sm mb-1" 
-                                                        value={emailTemplateReminderVenueUnpaid?.subject || ''} 
-                                                        onChange={e => setEmailTemplateReminderVenueUnpaid(prev => ({...(prev || {subject: '', body: ''}), subject: e.target.value}))} 
+                                                    <input
+                                                        className="border w-full p-1 rounded text-sm mb-1"
+                                                        value={emailTemplateReminderVenueUnpaid?.subject || ''}
+                                                        onChange={e => setEmailTemplateReminderVenueUnpaid(prev => ({ ...(prev || { subject: '', body: '' }), subject: e.target.value }))}
                                                     />
-                                                    <textarea 
-                                                        className="border w-full p-2 rounded h-32 font-mono text-xs" 
-                                                        value={emailTemplateReminderVenueUnpaid?.body || ''} 
-                                                        onChange={e => setEmailTemplateReminderVenueUnpaid(prev => ({...(prev || {subject: '', body: ''}), body: e.target.value}))} 
+                                                    <textarea
+                                                        className="border w-full p-2 rounded h-32 font-mono text-xs"
+                                                        value={emailTemplateReminderVenueUnpaid?.body || ''}
+                                                        onChange={e => setEmailTemplateReminderVenueUnpaid(prev => ({ ...(prev || { subject: '', body: '' }), body: e.target.value }))}
                                                     />
                                                     <button onClick={() => setEmailTemplateReminderVenueUnpaid(DEFAULT_TEMPLATE_REMINDER_VENUE_UNPAID)} className="text-[10px] text-blue-600 hover:underline mt-1">デフォルトに戻す</button>
                                                 </div>
@@ -4303,29 +4299,29 @@ export default function AdminDashboard() {
                                             <>
                                                 <div>
                                                     <label className="block text-xs font-bold text-gray-600 mb-1">ライブ視聴・決済済用</label>
-                                                    <input 
-                                                        className="border w-full p-1 rounded text-sm mb-1" 
-                                                        value={emailTemplateReminderOnlinePaid?.subject || ''} 
-                                                        onChange={e => setEmailTemplateReminderOnlinePaid(prev => ({...(prev || {subject: '', body: ''}), subject: e.target.value}))} 
+                                                    <input
+                                                        className="border w-full p-1 rounded text-sm mb-1"
+                                                        value={emailTemplateReminderOnlinePaid?.subject || ''}
+                                                        onChange={e => setEmailTemplateReminderOnlinePaid(prev => ({ ...(prev || { subject: '', body: '' }), subject: e.target.value }))}
                                                     />
-                                                    <textarea 
-                                                        className="border w-full p-2 rounded h-32 font-mono text-xs" 
-                                                        value={emailTemplateReminderOnlinePaid?.body || ''} 
-                                                        onChange={e => setEmailTemplateReminderOnlinePaid(prev => ({...(prev || {subject: '', body: ''}), body: e.target.value}))} 
+                                                    <textarea
+                                                        className="border w-full p-2 rounded h-32 font-mono text-xs"
+                                                        value={emailTemplateReminderOnlinePaid?.body || ''}
+                                                        onChange={e => setEmailTemplateReminderOnlinePaid(prev => ({ ...(prev || { subject: '', body: '' }), body: e.target.value }))}
                                                     />
                                                     <button onClick={() => setEmailTemplateReminderOnlinePaid(DEFAULT_TEMPLATE_REMINDER_ONLINE_PAID)} className="text-[10px] text-blue-600 hover:underline mt-1">デフォルトに戻す</button>
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs font-bold text-gray-600 mb-1">ライブ視聴・未決済用</label>
-                                                    <input 
-                                                        className="border w-full p-1 rounded text-sm mb-1" 
-                                                        value={emailTemplateReminderOnlineUnpaid?.subject || ''} 
-                                                        onChange={e => setEmailTemplateReminderOnlineUnpaid(prev => ({...(prev || {subject: '', body: ''}), subject: e.target.value}))} 
+                                                    <input
+                                                        className="border w-full p-1 rounded text-sm mb-1"
+                                                        value={emailTemplateReminderOnlineUnpaid?.subject || ''}
+                                                        onChange={e => setEmailTemplateReminderOnlineUnpaid(prev => ({ ...(prev || { subject: '', body: '' }), subject: e.target.value }))}
                                                     />
-                                                    <textarea 
-                                                        className="border w-full p-2 rounded h-32 font-mono text-xs" 
-                                                        value={emailTemplateReminderOnlineUnpaid?.body || ''} 
-                                                        onChange={e => setEmailTemplateReminderOnlineUnpaid(prev => ({...(prev || {subject: '', body: ''}), body: e.target.value}))} 
+                                                    <textarea
+                                                        className="border w-full p-2 rounded h-32 font-mono text-xs"
+                                                        value={emailTemplateReminderOnlineUnpaid?.body || ''}
+                                                        onChange={e => setEmailTemplateReminderOnlineUnpaid(prev => ({ ...(prev || { subject: '', body: '' }), body: e.target.value }))}
                                                     />
                                                     <button onClick={() => setEmailTemplateReminderOnlineUnpaid(DEFAULT_TEMPLATE_REMINDER_ONLINE_UNPAID)} className="text-[10px] text-blue-600 hover:underline mt-1">デフォルトに戻す</button>
                                                 </div>
@@ -4382,7 +4378,7 @@ export default function AdminDashboard() {
                         <h3 className="text-xl font-bold mb-4 text-indigo-700 flex items-center gap-2">
                             <span>🚀</span> 一括リマインド送信の確認
                         </h3>
-                        
+
                         <div className="bg-indigo-50 p-4 rounded-md mb-6 border border-indigo-100">
                             <p className="text-sm text-gray-700 font-bold mb-3">送信対象の内訳:</p>
                             <div className="grid grid-cols-2 gap-4 text-xs">
@@ -4599,7 +4595,7 @@ export default function AdminDashboard() {
                                         const lectureVenue = createForm.venue;
                                         const socialVenues = venueList.filter(v => v.type === 'social');
                                         const available = getSocialOptionsForLecture(lectureVenue, socialVenues);
-                                        
+
                                         return (
                                             <>
                                                 {available.map(v => (
@@ -4727,7 +4723,7 @@ export default function AdminDashboard() {
                                 ✕ 閉じる
                             </button>
                         </div>
-                        
+
                         <div className="p-4 flex-grow overflow-auto bg-gray-50">
                             {loadingUnapplied ? (
                                 <div className="text-center py-10">
@@ -4743,7 +4739,7 @@ export default function AdminDashboard() {
                                             <div className="font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full text-sm">
                                                 未申込: {unappliedMembers.length} 名
                                             </div>
-                                            <button 
+                                            <button
                                                 onClick={downloadUnappliedCSV}
                                                 className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded flex items-center"
                                                 disabled={unappliedMembers.length === 0}
@@ -4753,7 +4749,7 @@ export default function AdminDashboard() {
                                             </button>
                                         </div>
                                     </div>
-                                    
+
                                     {unappliedMembers.length === 0 ? (
                                         <div className="text-center py-10 bg-white rounded shadow-sm">
                                             <p className="text-gray-500">全ての受講生のお申し込みが完了しています！</p>
@@ -4780,7 +4776,7 @@ export default function AdminDashboard() {
                                                                 <div className="flex items-center">
                                                                     <span className="truncate max-w-xs" title={member.email}>{member.email}</span>
                                                                     {member.email && (
-                                                                        <button 
+                                                                        <button
                                                                             onClick={() => {
                                                                                 navigator.clipboard.writeText(member.email);
                                                                                 alert('コピーしました: ' + member.email);
