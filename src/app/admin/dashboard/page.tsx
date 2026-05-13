@@ -260,6 +260,7 @@ export default function AdminDashboard() {
 
     // 未申込者確認機能の状態
     const [unappliedMembers, setUnappliedMembers] = useState<any[]>([]);
+    const [allMembers, setAllMembers] = useState<any[]>([]); // 全受講生マスター
     const [showUnappliedModal, setShowUnappliedModal] = useState(false);
     const [loadingUnapplied, setLoadingUnapplied] = useState(false);
 
@@ -523,6 +524,7 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         fetchApplications();
+        fetchAllMembers(); // 全受講生情報を取得（統計・未申込者確認用）
         fetchRanks(); // ランク惁E��を取得
         fetchOnlineOptions(); // オンラインマスタ取得
         fetchSettings(false); // 設定をロード（モーダルは開かなぁE��E
@@ -551,46 +553,62 @@ export default function AdminDashboard() {
         }
     };
 
-    const fetchUnappliedMembers = async () => {
-        setLoadingUnapplied(true);
-        setShowUnappliedModal(true);
+    const fetchAllMembers = async () => {
         try {
             const res = await fetch('/api/admin/members', { cache: 'no-store' });
             if (res.ok) {
                 const membersData = await res.json();
-                
-                // 申し込み済みのメンバーIDとメールアドレスのセットを作成（キャンセルを除く）
-                const appliedMemberIds = new Set<string>();
-                const appliedEmails = new Set<string>();
-                
-                apps.forEach(app => {
-                    if (app.payment_status === 'cancelled') return;
-                    if (app.matched_member_id) {
-                        appliedMemberIds.add(String(app.matched_member_id));
-                    }
-                    if (app.input_email) {
-                        appliedEmails.add(app.input_email.toLowerCase().trim());
-                    }
-                });
-
-                // 受講生マスターから、申し込みデータに存在しない人だけを抽出
-                const unapplied = membersData.filter((member: any) => {
-                    const mId = String(member.id);
-                    const mEmail = member.email ? member.email.toLowerCase().trim() : '';
-                    
-                    if (appliedMemberIds.has(mId)) return false;
-                    if (mEmail && appliedEmails.has(mEmail)) return false;
-                    return true;
-                });
-                
-                setUnappliedMembers(unapplied);
-            } else {
-                alert('受講生マスターの取得に失敗しました');
-                setShowUnappliedModal(false);
+                setAllMembers(membersData);
             }
         } catch (e) {
+            console.error('Error fetching members:', e);
+        }
+    };
+
+    const fetchUnappliedMembers = async () => {
+        setLoadingUnapplied(true);
+        setShowUnappliedModal(true);
+        try {
+            // 既に allMembers がある場合はそれを利用し、なければ取得する
+            let membersData = allMembers;
+            if (membersData.length === 0) {
+                const res = await fetch('/api/admin/members', { cache: 'no-store' });
+                if (res.ok) {
+                    membersData = await res.json();
+                    setAllMembers(membersData);
+                } else {
+                    throw new Error('受講生マスターの取得に失敗しました');
+                }
+            }
+            
+            // 申し込み済みのメンバーIDとメールアドレスのセットを作成（キャンセルを除く）
+            const appliedMemberIds = new Set<string>();
+            const appliedEmails = new Set<string>();
+            
+            apps.forEach(app => {
+                if (app.payment_status === 'cancelled') return;
+                if (app.matched_member_id) {
+                    appliedMemberIds.add(String(app.matched_member_id));
+                }
+                if (app.input_email) {
+                    appliedEmails.add(app.input_email.toLowerCase().trim());
+                }
+            });
+
+            // 受講生マスターから、申し込みデータに存在しない人だけを抽出
+            const unapplied = membersData.filter((member: any) => {
+                const mId = String(member.id);
+                const mEmail = member.email ? member.email.toLowerCase().trim() : '';
+                
+                if (appliedMemberIds.has(mId)) return false;
+                if (mEmail && appliedEmails.has(mEmail)) return false;
+                return true;
+            });
+            
+            setUnappliedMembers(unapplied);
+        } catch (e) {
             console.error('Error fetching unapplied members:', e);
-            alert('エラーが発生しました');
+            alert('受講生マスターの取得に失敗しました');
             setShowUnappliedModal(false);
         } finally {
             setLoadingUnapplied(false);
@@ -2809,40 +2827,84 @@ export default function AdminDashboard() {
                             <span className="ml-4 text-[10px] font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-200">System Logic v2.1</span>
                         </div>
                         {/* 統計表示 */}
-                        <div className="flex gap-4 text-sm bg-gray-50 px-4 py-2 rounded border border-gray-200">
-                            <div className="flex flex-col items-center">
-                                <span className="text-indigo-600 text-[10px] font-bold">有効申込数</span>
-                                <span className="font-bold text-gray-800 text-lg leading-tight">{apps.filter(a => a.payment_status !== 'cancelled').length}</span>
+                        <div className="flex gap-4 items-stretch bg-white border border-gray-200 rounded-lg p-1.5 shadow-sm">
+                            <div className="flex items-center gap-3 px-3 py-1 border-r border-gray-100 last:border-0">
+                                <div className="p-2 bg-indigo-50 rounded-lg">
+                                    <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">有効申込数</span>
+                                    <span className="text-lg font-black text-gray-900 leading-none">
+                                        {apps.filter(a => a.payment_status !== 'cancelled').length}
+                                        <span className="text-[10px] font-normal text-gray-400 ml-1">件</span>
+                                    </span>
+                                </div>
                             </div>
-                            <div className="w-px bg-gray-300 h-8 mx-1"></div>
-                            <div className="flex flex-col items-center">
-                                <span className='text-gray-500 text-xs'>未決済</span>
-                                <span className="font-bold text-red-600">{apps.filter(a => a.payment_status === 'unpaid' && !(a.total_amount === 0 && !(a.remarks?.includes('商品マスタ') && !a.tags?.includes('confirmed_product_alert')))).length}</span>
+
+                            <div className="flex items-center gap-3 px-3 py-1 border-r border-gray-100 last:border-0">
+                                <div className="p-2 bg-purple-50 rounded-lg">
+                                    <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">お申込者数</span>
+                                    <span className="text-lg font-black text-gray-900 leading-none">
+                                        {useMemo(() => {
+                                            const uniqueKeys = new Set();
+                                            apps.filter(a => a.payment_status !== 'cancelled').forEach(app => {
+                                                const name = (app.input_name || '').replace(/[\s\u3000]+/g, '');
+                                                const email = (app.input_email || '').toLowerCase().trim();
+                                                const key = (name || email) ? `${name}|${email}` : null;
+                                                if (key) uniqueKeys.add(key);
+                                            });
+                                            return uniqueKeys.size;
+                                        }, [apps])}
+                                        <span className="text-[10px] font-normal text-gray-400 ml-1">名</span>
+                                    </span>
+                                </div>
                             </div>
-                            <div className="w-px bg-gray-300 h-8 mx-1"></div>
-                            <div className="flex flex-col items-center">
-                                <span className='text-gray-500 text-xs'>決済不要</span>
-                                <span className="font-bold text-blue-600">{apps.filter(a => a.total_amount === 0 && !(a.remarks?.includes('商品マスタ') && !a.tags?.includes('confirmed_product_alert')) && a.payment_status !== 'cancelled').length}</span>
+
+                            <div className="flex items-center gap-3 px-3 py-1 border-r border-gray-100 last:border-0">
+                                <div className="p-2 bg-amber-50 rounded-lg">
+                                    <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">未申込者数</span>
+                                    <span className="text-lg font-black text-gray-900 leading-none">
+                                        {useMemo(() => {
+                                            if (allMembers.length === 0) return '-';
+                                            const appliedMemberIds = new Set<string>();
+                                            const appliedEmails = new Set<string>();
+                                            apps.forEach(app => {
+                                                if (app.payment_status === 'cancelled') return;
+                                                if (app.matched_member_id) appliedMemberIds.add(String(app.matched_member_id));
+                                                if (app.input_email) appliedEmails.add(app.input_email.toLowerCase().trim());
+                                            });
+                                            return allMembers.filter(m => {
+                                                const mId = String(m.id);
+                                                const mEmail = m.email ? m.email.toLowerCase().trim() : '';
+                                                return !appliedMemberIds.has(mId) && (!mEmail || !appliedEmails.has(mEmail));
+                                            }).length;
+                                        }, [apps, allMembers])}
+                                        <span className="text-[10px] font-normal text-gray-400 ml-1">名</span>
+                                    </span>
+                                </div>
                             </div>
-                            <div className="w-px bg-gray-300 h-8 mx-1"></div>
-                            <div className="flex flex-col items-center">
-                                <span className='text-gray-500 text-xs'>決済済</span>
-                                <span className="font-bold text-green-600">{apps.filter(a => a.payment_status === 'paid').length}</span>
-                            </div>
-                            <div className="w-px bg-gray-300 h-8 mx-2"></div>
-                            <div className="flex flex-col items-center">
-                                <span className="text-gray-500 text-xs">キャンセル</span>
-                                <span className="font-bold text-gray-600">{apps.filter(a => a.payment_status === 'cancelled').length}</span>
-                            </div>
-                            <div className="w-px bg-gray-300 h-8 mx-1"></div>
-                            <div className="flex flex-col items-center">
-                                <span className="text-gray-400 text-[10px]">全体件数</span>
-                                <span className="font-bold text-gray-500">{apps.length}</span>
-                            </div>
-                            <div className="w-px bg-gray-300 h-8 mx-1"></div>
-                            <div className="flex flex-col items-center">
-                                <span className='text-gray-500 text-xs'>表示中</span>
-                                <span className="font-bold text-indigo-600">{filteredApps.length}</span>
+
+                            <div className="flex items-center gap-4 px-4 py-1 bg-gray-50 rounded-md ml-1">
+                                <div className="flex flex-col items-center">
+                                    <span className='text-[9px] text-gray-400 font-bold uppercase'>未決済</span>
+                                    <span className="font-bold text-red-600 text-sm leading-tight">{apps.filter(a => a.payment_status === 'unpaid' && !(a.total_amount === 0 && !(a.remarks?.includes('商品マスタ') && !a.tags?.includes('confirmed_product_alert')))).length}</span>
+                                </div>
+                                <div className="w-px bg-gray-200 h-6"></div>
+                                <div className="flex flex-col items-center">
+                                    <span className='text-[9px] text-gray-400 font-bold uppercase'>決済済</span>
+                                    <span className="font-bold text-green-600 text-sm leading-tight">{apps.filter(a => a.payment_status === 'paid').length}</span>
+                                </div>
+                                <div className="w-px bg-gray-200 h-6"></div>
+                                <div className="flex flex-col items-center">
+                                    <span className="text-[9px] text-gray-400 font-bold uppercase">総数</span>
+                                    <span className="font-bold text-gray-500 text-sm leading-tight">{apps.length}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -3428,7 +3490,8 @@ export default function AdminDashboard() {
                                                     const url = `${window.location.origin}/receipt/${app.id}`;
                                                     navigator.clipboard.writeText(url).then(() => alert('お客様用 書類発行URLをコピーしました。\n' + url));
                                                 }} className="text-indigo-600 hover:text-indigo-900 text-xs text-left block w-full">📋 書類URLコピー</button>
-                                                <button onClick={() => window.open(`/receipt/${app.id}?admin=true`, '_blank')} className="text-teal-600 hover:text-teal-900 text-xs text-left block w-full">📄 (管理用)プレビュー・作成</button>
+                                                <button onClick={() => window.open(`/receipt/${app.id}?admin=true`, '_blank')} className="text-teal-600 hover:text-teal-900 text-xs text-left block w-full">📄 領収書 プレビュー</button>
+                                                <button onClick={() => window.open(`/receipt/${app.id}?admin=true&type=invoice`, '_blank')} className="text-sky-600 hover:text-sky-900 text-xs text-left block w-full">📄 請求書 プレビュー</button>
                                             </div>
                                             <div className="pt-1 border-t border-gray-100 mt-1">
                                                 <button onClick={() => handleDeleteApp(app.id)} className="text-red-500 hover:text-red-700 text-xs text-left font-bold flex items-center">

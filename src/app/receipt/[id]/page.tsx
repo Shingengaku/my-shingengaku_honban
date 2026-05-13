@@ -138,7 +138,8 @@ export default async function ReceiptPage({ params, searchParams }: { params: Pr
         tax_rate_social: taxRateSocial,
         total_amount_from_db,
         is_amount_mismatched,
-        isAdmin
+        isAdmin,
+        initialDocType: (awaitedSearchParams.type === 'invoice' ? 'invoice' : 'receipt') as 'receipt' | 'invoice'
     };
 
     return <ReceiptClient data={receiptData} />;
