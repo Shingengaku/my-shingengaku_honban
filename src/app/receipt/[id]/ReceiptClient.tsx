@@ -25,10 +25,15 @@ const HANKO_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAFUAAABVCAYAAAA49ahaAAAACXBIWXMAAAsTA
 
 export default function ReceiptClient({ data }: { data: ReceiptData }) {
     const docType = 'receipt';
-    const [splitType, setSplitType] = useState<SplitType>('combined');
+    
+    // 手数料の有無によって初期値を決定
+    const initialSplitType: SplitType = (data.lecture_fee > 0 && data.social_fee > 0) ? 'combined' : (data.lecture_fee > 0 ? 'lecture' : 'social');
+    const initialDescription = initialSplitType === 'combined' ? '受講費用、懇親会費用として' : (initialSplitType === 'lecture' ? '受講費用のみ' : '懇親会費用のみ');
+
+    const [splitType, setSplitType] = useState<SplitType>(initialSplitType);
     const [addressee, setAddressee] = useState(data.input_name);
     const [honorific, setHonorific] = useState('御中');
-    const [description, setDescription] = useState('受講費用、懇親会費用として');
+    const [description, setDescription] = useState(initialDescription);
 
     // タグから初期値を抽出
     const initialIssueDate = data.tags.find(t => t.startsWith('rd:'))?.split(':')[1] || '';
@@ -171,23 +176,23 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                                     </label>
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">発行対象</label>
-                                <div className="flex gap-4 flex-wrap">
-                                    <label className="flex items-center">
-                                        <input 
-                                            type="radio" 
-                                            name="splitType" 
-                                            className="w-4 h-4 text-indigo-600 mr-2" 
-                                            checked={splitType === 'combined'} 
-                                            onChange={() => {
-                                                setSplitType('combined');
-                                                setDescription('受講費用、懇親会費用として');
-                                            }} 
-                                        />
-                                        合算
-                                    </label>
-                                    {data.lecture_fee > 0 && (
+                            {(data.lecture_fee > 0 && data.social_fee > 0) && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">発行対象</label>
+                                    <div className="flex gap-4 flex-wrap">
+                                        <label className="flex items-center">
+                                            <input 
+                                                type="radio" 
+                                                name="splitType" 
+                                                className="w-4 h-4 text-indigo-600 mr-2" 
+                                                checked={splitType === 'combined'} 
+                                                onChange={() => {
+                                                    setSplitType('combined');
+                                                    setDescription('受講費用、懇親会費用として');
+                                                }} 
+                                            />
+                                            合算
+                                        </label>
                                         <label className="flex items-center">
                                             <input 
                                                 type="radio" 
@@ -201,8 +206,6 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                                             />
                                             受講費のみ
                                         </label>
-                                    )}
-                                    {data.social_fee > 0 && (
                                         <label className="flex items-center">
                                             <input 
                                                 type="radio" 
@@ -216,9 +219,9 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                                             />
                                             懇親会費のみ
                                         </label>
-                                    )}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                             <div className="flex gap-2 items-end">
                                 <div className="flex-1">
                                     <label className="block text-sm font-medium text-gray-700 mb-1">宛名</label>
