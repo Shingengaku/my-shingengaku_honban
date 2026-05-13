@@ -68,16 +68,23 @@ export default function GlobalSettingsPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const res = await fetch('/api/admin/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(settings)
-            });
+            const [res, kanjiRes] = await Promise.all([
+                fetch('/api/admin/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                }),
+                fetch('/api/admin/settings/kanji-mapping', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mapping: kanjiMapping })
+                })
+            ]);
 
-            if (res.ok) {
+            if (res.ok && kanjiRes.ok) {
                 alert('設定を保存しました');
             } else {
-                alert('保存に失敗しました');
+                alert('一部の設定の保存に失敗しました');
             }
         } catch (e) {
             console.error(e);
@@ -278,24 +285,113 @@ export default function GlobalSettingsPage() {
                         />
                     </div>
 
-                    {/* 漢字正規化マッピング表示（読み取り専用） */}
+                    {/* 漢字正規化マッピング編集 */}
                     <div className="border-t pt-6">
                         <h2 className="text-lg font-bold text-gray-900 mb-2">氏名正規化マッピング（旧字体・異体字対応）</h2>
                         <p className="text-sm text-gray-600 mb-4">
                             受講生マスタの重複検出や申込時の照合において、以下の文字は同一として扱われます。<br />
-                            ※システムで固定されているマッピングです。
+                            左側に旧字体（変換前）、右側に新字体（変換後）を入力して追加してください。
                         </p>
-                        <div className="bg-gray-50 border rounded p-4">
+                        
+                        <div className="bg-gray-50 border rounded p-4 space-y-4">
                             <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                                {Object.entries(kanjiMapping).map(([old, next]) => (
-                                    <div key={old} className="bg-white border rounded px-2 py-1 text-sm flex justify-between items-center shadow-sm">
-                                        <span className="font-bold text-red-600">{old}</span>
-                                        <span className="text-gray-400">→</span>
-                                        <span className="font-bold text-blue-600">{next}</span>
+                                {Object.entries(kanjiMapping).sort().map(([old, next]) => (
+                                    <div key={old} className="bg-white border rounded px-2 py-1 text-sm flex justify-between items-center shadow-sm group">
+                                        <div className="flex items-center gap-1">
+                                            <span className="font-bold text-red-600">{old}</span>
+                                            <span className="text-gray-400">→</span>
+                                            <span className="font-bold text-blue-600">{next}</span>
+                                        </div>
+                                        <button 
+                                            onClick={() => {
+                                                const nextMap = { ...kanjiMapping };
+                                                delete nextMap[old];
+                                                setKanjiMapping(nextMap);
+                                            }}
+                                            className="text-gray-300 hover:text-red-500 ml-1"
+                                            title="削除"
+                                        >
+                                            ×
+                                        </button>
                                     </div>
                                 ))}
                             </div>
-                            {Object.keys(kanjiMapping).length === 0 && <p className="text-xs text-gray-400">マッピングを読み込み中...</p>}
+
+                            <div className="flex items-end gap-2 bg-white p-3 border rounded shadow-sm max-w-md">
+                                <div className="flex-1">
+                                    <label className="block text-[10px] text-gray-500 mb-1">旧字体 (例: 邊)</label>
+                                    <input 
+                                        type="text" 
+                                        id="new-old-char"
+                                        className="w-full p-2 border rounded text-center font-bold" 
+                                        maxLength={1}
+                                        placeholder="舊"
+                                    />
+                                </div>
+                                <div className="pb-2 text-gray-400">→</div>
+                                <div className="flex-1">
+                                    <label className="block text-[10px] text-gray-500 mb-1">新字体 (例: 辺)</label>
+                                    <input 
+                                        type="text" 
+                                        id="new-next-char"
+                                        className="w-full p-2 border rounded text-center font-bold" 
+                                        maxLength={1}
+                                        placeholder="新"
+                                    />
+                                </div>
+                                <button 
+                                    onClick={() => {
+                                        const oldInput = document.getElementById('new-old-char') as HTMLInputElement;
+                                        const nextInput = document.getElementById('new-next-char') as HTMLInputElement;
+                                        const o = oldInput.value.trim();
+                                        const n = nextInput.value.trim();
+                                        if (o && n) {
+                                            setKanjiMapping(prev => ({ ...prev, [o]: n }));
+                                            oldInput.value = '';
+                                            nextInput.value = '';
+                                        }
+                                    }}
+                                    className="bg-indigo-600 text-white px-4 py-2 rounded font-bold hover:bg-indigo-700 h-[42px]"
+                                >
+                                    追加
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* テスター */}
+                        <div className="mt-4 bg-indigo-50 border border-indigo-100 rounded p-4">
+                            <h3 className="text-sm font-bold text-indigo-900 mb-2 flex items-center gap-2">
+                                <span>🔍</span> 正規化テスト（保存前のルールも反映されます）
+                            </h3>
+                            <div className="flex gap-4 items-center">
+                                <div className="flex-1">
+                                    <input 
+                                        type="text"
+                                        className="w-full p-2 border rounded text-sm"
+                                        placeholder="テストしたい氏名を入力 (例: 渡 邊 太郎)"
+                                        id="normalization-test-input"
+                                        onChange={(e) => {
+                                            const output = document.getElementById('normalization-test-output');
+                                            if (output) {
+                                                const val = e.target.value;
+                                                // クライアントサイドでの簡易正規化ロジック
+                                                let res = val.normalize('NFKC').replace(/[\s\u3000]+/g, '');
+                                                Object.entries(kanjiMapping).forEach(([o, n]) => {
+                                                    res = res.split(o).join(n);
+                                                });
+                                                output.innerText = res || '(結果がここに表示されます)';
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <div className="text-gray-400">→</div>
+                                <div className="flex-1 bg-white p-2 border rounded text-sm font-bold text-indigo-700 min-h-[38px] flex items-center" id="normalization-test-output">
+                                    (結果がここに表示されます)
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-gray-500 mt-2">
+                                ※スペース除去、Unicode正規化（全角英数→半角等）、旧字体変換が正しく行われるか確認できます。
+                            </p>
                         </div>
                     </div>
 

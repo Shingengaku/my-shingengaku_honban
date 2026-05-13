@@ -10,35 +10,61 @@ const supabaseAdmin = createClient(
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { primaryId, duplicateId } = body;
+        const { primaryId, duplicateId, duplicateIds: incomingDuplicateIds, mergedData } = body;
 
-        if (!primaryId || !duplicateId) {
+        // 後方互換性と新フォーマットの両方をサポート
+        const targetPrimaryId = primaryId;
+        const targetDuplicateIds = incomingDuplicateIds || (duplicateId ? [duplicateId] : []);
+
+        if (!targetPrimaryId || targetDuplicateIds.length === 0) {
             return NextResponse.json({ error: '統合元と統合先のIDが必要です' }, { status: 400 });
         }
 
-        if (primaryId === duplicateId) {
+        if (targetDuplicateIds.includes(targetPrimaryId)) {
             return NextResponse.json({ error: '同じデータ同士は統合できません' }, { status: 400 });
         }
 
-        // 1. お申し込みデータの紐付けを duplicateId から primaryId へ変更
+        // 1. お申し込みデータの紐付けを duplicateIds から primaryId へ一括変更
         const { error: updateErr } = await supabaseAdmin
             .from('applications')
-            .update({ matched_member_id: primaryId })
-            .eq('matched_member_id', duplicateId);
+            .update({ matched_member_id: targetPrimaryId })
+            .in('matched_member_id', targetDuplicateIds);
 
         if (updateErr) {
             console.error('Error migrating applications:', updateErr);
             throw updateErr;
         }
 
-        // 2. duplicateId の受講生レコードを削除
+        // 2. primaryId のレコードを mergedData で更新 (もしあれば)
+        if (mergedData && Object.keys(mergedData).length > 0) {
+            // 許可されたフィールドのみを抽出
+            const allowedFields = ['name', 'furigana', 'email', 'rank_id', 'term_id', 'is_tokushin', 'exclude_from_count'];
+            const updatePayload: any = {};
+            allowedFields.forEach(field => {
+                if (field in mergedData) {
+                    updatePayload[field] = mergedData[field];
+                }
+            });
+
+            const { error: updateMemberErr } = await supabaseAdmin
+                .from('members')
+                .update(updatePayload)
+                .eq('id', targetPrimaryId);
+
+            if (updateMemberErr) {
+                console.error('Error updating primary member:', updateMemberErr);
+                throw updateMemberErr;
+            }
+        }
+
+        // 3. duplicateIds の受講生レコードを一括削除
         const { error: deleteErr } = await supabaseAdmin
             .from('members')
             .delete()
-            .eq('id', duplicateId);
+            .in('id', targetDuplicateIds);
 
         if (deleteErr) {
-            console.error('Error deleting duplicate member:', deleteErr);
+            console.error('Error deleting duplicate members:', deleteErr);
             throw deleteErr;
         }
 

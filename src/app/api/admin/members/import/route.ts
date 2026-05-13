@@ -1,6 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { normalizeName } from '@/lib/kanjiNormalize';
 
 import * as XLSX from 'xlsx';
 
@@ -232,37 +233,51 @@ export async function POST(request: Request) {
 
         // 3. メンバーへの処理 (手動Upsert: 氏名 + 期 の複合キー判定)
         if (upsertData.length > 0) {
-            // バッチ内で氏名+期による重複排除 (CSV内の最新を優先)
-            const uniqueInput = Array.from(
-                new Map(upsertData.map(item => [`${item.name}_${item.term_id}`, item])).values()
-            );
+            // 漢字マッピングの取得
+            const { data: kanjiSetting } = await supabaseAdmin
+                .from('app_settings')
+                .select('value')
+                .eq('key', 'kanji_mapping')
+                .single();
+            const customKanjiMap = kanjiSetting?.value || undefined;
+
+            // バッチ内での重複排除 (正規化された氏名 + 期 で判定)
+            const uniqueInputMap = new Map<string, any>();
+            upsertData.forEach(item => {
+                const key = `${normalizeName(item.name, customKanjiMap)}_${item.term_id}`;
+                uniqueInputMap.set(key, item); // CSV内の後方のデータを優先
+            });
+            const uniqueInput = Array.from(uniqueInputMap.values());
 
             savedCount = uniqueInput.length;
             mergedCount = upsertData.length - uniqueInput.length;
 
-            const names = uniqueInput.map(u => u.name);
-
-            // Fetch existing members by name to check for term collisions
-            // Note: If names array is huge, we might need chunking. Assuming reasonable CSV size (<1000 rows).
+            // 既存レコードの取得 (対象となる期の全受講生を取得して照合)
+            const targetTermIds = Array.from(new Set(uniqueInput.map(u => u.term_id)));
             const { data: existingMembers, error: fetchError } = await supabaseAdmin
                 .from('members')
-                .select('id, name, term_id')
-                .in('name', names);
+                .select('id, name, email, term_id')
+                .in('term_id', targetTermIds);
 
             if (fetchError) throw fetchError;
 
-            // Map key: "name_termId"
+            // 既存マップの作成 (正規化氏名 + 期)
             const existingMap = new Map<string, string>();
             existingMembers?.forEach(m => {
-                existingMap.set(`${m.name}_${m.term_id}`, m.id);
+                const nameKey = `${normalizeName(m.name, customKanjiMap)}_${m.term_id}`;
+                existingMap.set(nameKey, m.id);
             });
 
             const toInsert: any[] = [];
             const toUpdate: any[] = [];
 
             for (const item of uniqueInput) {
-                const key = `${item.name}_${item.term_id}`;
-                if (existingMap.has(key)) {
+                const nameKey = `${normalizeName(item.name, customKanjiMap)}_${item.term_id}`;
+                
+                // 名前＋期が一致すれば重複とみなす
+                const existingId = existingMap.get(nameKey);
+                
+                if (existingId) {
                     if (mode === 'overwrite') {
                         // 更新対象: IDは既存のものを使用、データはCSVの内容
                         // メールアドレスがない場合、更新データから除外（既存のままにする）
@@ -277,7 +292,7 @@ export async function POST(request: Request) {
                         }
 
                         toUpdate.push({
-                            id: existingMap.get(key),
+                            id: existingId,
                             ...updateData
                         });
                     }

@@ -100,6 +100,7 @@ export default function MembersPage() {
     // 重複検出用状態
     const [showDuplicatesModal, setShowDuplicatesModal] = useState(false);
     const [duplicateSelectedIds, setDuplicateSelectedIds] = useState<Set<string>>(new Set());
+    const [kanjiMapping, setKanjiMapping] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (showDuplicatesModal) {
@@ -116,27 +117,42 @@ export default function MembersPage() {
 
     const duplicateGroups = useMemo(() => {
         const groups: Member[][] = [];
+        const processedIds = new Set<string>();
 
-        // 氏名（スペース除去＋旧字体→新字体正規化）＋期 でグループ化
+        // 1. 氏名（正規化）＋期 でグループ化
         const byNameTerm = new Map<string, Member[]>();
         members.forEach(m => {
-            const nameKey = normalizeName(m.name || '');
-            const termKey = String(m.term_id || '');
-            if (nameKey) {
-                const key = `${nameKey}_${termKey}`;
-                if (!byNameTerm.has(key)) byNameTerm.set(key, []);
-                byNameTerm.get(key)!.push(m);
-            }
+            const nameKey = `${normalizeName(m.name || '', kanjiMapping)}_${m.term_id}`;
+            if (!byNameTerm.has(nameKey)) byNameTerm.set(nameKey, []);
+            byNameTerm.get(nameKey)!.push(m);
         });
 
         byNameTerm.forEach(group => {
+            if (group.length > 1) {
+                groups.push(group);
+                group.forEach(m => processedIds.add(m.id));
+            }
+        });
+
+        // 2. Email ＋ 期 でグループ化 (まだ処理されていないもの)
+        const byEmailTerm = new Map<string, Member[]>();
+        members.forEach(m => {
+            if (processedIds.has(m.id)) return;
+            const emailKey = `${(m.email || '').toLowerCase().trim()}_${m.term_id}`;
+            if (m.email) {
+                if (!byEmailTerm.has(emailKey)) byEmailTerm.set(emailKey, []);
+                byEmailTerm.get(emailKey)!.push(m);
+            }
+        });
+
+        byEmailTerm.forEach(group => {
             if (group.length > 1) {
                 groups.push(group);
             }
         });
 
         return groups;
-    }, [members]);
+    }, [members, kanjiMapping]);
 
     // フォーム状態
     const [formData, setFormData] = useState({
@@ -222,6 +238,13 @@ export default function MembersPage() {
                 setRanks(await ranksRes.json());
                 setTerms(await termsRes.json());
             }
+
+            // マッピングデータ取得
+            const kanjiRes = await fetch('/api/admin/settings/kanji-mapping');
+            if (kanjiRes.ok) {
+                setKanjiMapping(await kanjiRes.json());
+            }
+
         } catch (e) {
             console.error(e);
             alert('データ取得エラー');
@@ -344,16 +367,27 @@ export default function MembersPage() {
     const handleMerge = async () => {
         if (!mergePrimaryId) return;
         const ids = Array.from(selectedIds);
-        const duplicateId = ids.find(id => id !== mergePrimaryId);
-        if (!duplicateId) return;
+        const duplicateIds = ids.filter(id => id !== mergePrimaryId);
+        if (duplicateIds.length === 0) return;
         
-        if (!confirm('統合を実行しますか？\n※「消す（重複）」として選択したデータは完全に削除されます。')) return;
+        if (!confirm(`統合を実行しますか？\n※「消す（重複）」として扱われる${duplicateIds.length}件のデータは完全に削除されます。`)) return;
         setMerging(true);
+
+        const mergedData = {
+            name: formData.name,
+            furigana: formData.furigana,
+            email: formData.email,
+            rank_id: Number(formData.rank_id),
+            term_id: Number(formData.term_id),
+            is_tokushin: formData.is_tokushin,
+            exclude_from_count: formData.exclude_from_count
+        };
+
         try {
             const res = await fetch('/api/admin/members/merge', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ primaryId: mergePrimaryId, duplicateId })
+                body: JSON.stringify({ primaryId: mergePrimaryId, duplicateIds, mergedData })
             });
             const data = await res.json();
             if (res.ok) {
@@ -597,17 +631,30 @@ export default function MembersPage() {
                             <span className="text-red-600 font-bold">{selectedIds.size}</span> 件選択中
                         </span>
                         <div className="flex gap-4">
-                            {selectedIds.size === 2 && (
+                            {selectedIds.size >= 2 && (
                                 <button
                                     onClick={() => {
                                         const ids = Array.from(selectedIds);
                                         setMergePrimaryId(ids[0]);
+                                        // 初期値をセット
+                                        const primary = members.find(m => m.id === ids[0]);
+                                        if (primary) {
+                                            setFormData({
+                                                name: primary.name,
+                                                furigana: primary.furigana,
+                                                email: primary.email,
+                                                rank_id: String(primary.rank_id),
+                                                term_id: String(primary.term_id),
+                                                is_tokushin: primary.is_tokushin || false,
+                                                exclude_from_count: primary.exclude_from_count || false
+                                            });
+                                        }
                                         setShowMergeModal(true);
                                     }}
                                     className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-bold shadow-sm flex items-center gap-2"
                                 >
                                     <span>🔄</span>
-                                    選択した2件を統合する
+                                    選択した{selectedIds.size}件を統合する
                                 </button>
                             )}
                             <button
@@ -854,54 +901,150 @@ export default function MembersPage() {
             }
 
             {/* Merge Modal */}
-            {showMergeModal && selectedIds.size === 2 && (
+            {showMergeModal && selectedIds.size >= 2 && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50 p-4">
-                    <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-4xl">
-                        <h3 className="text-lg font-bold mb-4">受講生データの統合</h3>
-                        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 text-sm text-yellow-800">
-                            <p className="font-bold mb-2 text-yellow-900 flex items-center gap-2">
-                                <span className="text-lg">⚠️</span> 統合に関する運用上のご注意
-                            </p>
-                            <ul className="list-disc pl-5 space-y-1.5">
-                                <li>「残す（正本）」を選択したデータに、全てのお申し込み履歴（過去の購入や受講履歴）が自動で引き継がれます。履歴が消えることはありません。</li>
-                                <li><strong>「残す」側の個人情報（氏名、メールアドレスなど）は上書きされず、現在の内容がそのまま維持されます。</strong></li>
-                                <li><span className="text-red-600 font-bold">「消す」側にのみ登録されている情報（新しいメールアドレスやフリガナなど）は、「残す」側にはコピーされず、データごと物理削除されます。</span></li>
-                                <li>もし「消す」側に最新の情報がある場合は、統合前にあらかじめ「残す」側を最新の情報に編集（更新）しておいてください。</li>
-                            </ul>
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold">受講生データの選択的統合</h3>
+                            <button onClick={() => setShowMergeModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl font-bold">&times;</button>
+                        </div>
+
+                        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 text-sm text-blue-800">
+                            <p className="font-bold mb-1 text-blue-900">💡 統合のヒント</p>
+                            <p>各項目について、採用したい値をクリックして選択してください。選択された値が「統合後のデータ」として保存されます。お申し込み履歴は自動的に全て統合されます。</p>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-4">
-                            {Array.from(selectedIds).map(id => {
-                                const m = members.find(m => m.id === id);
-                                if (!m) return null;
-                                const isPrimary = mergePrimaryId === id;
-                                return (
-                                    <div key={id} className={`border rounded p-4 cursor-pointer transition-colors ${isPrimary ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50'}`} onClick={() => setMergePrimaryId(id)}>
-                                        <div className="flex items-center gap-2 mb-3 border-b pb-2">
-                                            <input type="radio" checked={isPrimary} readOnly className="w-4 h-4 text-blue-600" />
-                                            <span className={`font-bold ${isPrimary ? 'text-blue-700' : 'text-gray-600'}`}>
-                                                {isPrimary ? '残す（正本）' : '消す（重複）'}
-                                            </span>
-                                        </div>
-                                        <div className="space-y-2 text-sm">
-                                            <div><span className="text-gray-500 text-xs block">氏名</span><span className="font-bold">{m.name}</span></div>
-                                            <div><span className="text-gray-500 text-xs block">フリガナ</span>{m.furigana || '-'}</div>
-                                            <div><span className="text-gray-500 text-xs block">メールアドレス</span>{m.email}</div>
-                                            <div><span className="text-gray-500 text-xs block">属性</span>{m.ranks?.name || '-'}</div>
-                                            <div><span className="text-gray-500 text-xs block">期</span>{m.terms?.name || '-'}</div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                        <div className="flex-1 overflow-auto">
+                            <table className="min-w-full border-collapse border border-gray-200">
+                                <thead className="bg-gray-50 sticky top-0">
+                                    <tr>
+                                        <th className="border p-3 text-left text-xs font-bold text-gray-600 w-32">項目</th>
+                                        <th className="border p-3 text-left text-xs font-bold text-blue-600 w-48 bg-blue-50">統合後の値 (プレビュー)</th>
+                                        {Array.from(selectedIds).map((id, idx) => {
+                                            const m = members.find(m => m.id === id);
+                                            return (
+                                                <th key={id} className={`border p-3 text-left text-xs font-bold min-w-[200px] ${mergePrimaryId === id ? 'bg-yellow-50 text-yellow-700' : 'text-gray-600'}`}>
+                                                    レコード {idx + 1} {mergePrimaryId === id && '(正本)'}
+                                                </th>
+                                            );
+                                        })}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {/* 氏名 */}
+                                    <tr>
+                                        <td className="border p-3 text-sm font-bold bg-gray-50">氏名</td>
+                                        <td className="border p-3 text-sm font-bold text-blue-700 bg-blue-50">{formData.name}</td>
+                                        {Array.from(selectedIds).map(id => {
+                                            const m = members.find(m => m.id === id);
+                                            const val = m?.name || '';
+                                            return (
+                                                <td key={id} className={`border p-3 text-sm cursor-pointer hover:bg-gray-100 ${formData.name === val ? 'bg-indigo-50 ring-2 ring-indigo-500 ring-inset' : ''}`} onClick={() => setFormData({ ...formData, name: val })}>
+                                                    {val}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                    {/* フリガナ */}
+                                    <tr>
+                                        <td className="border p-3 text-sm font-bold bg-gray-50">フリガナ</td>
+                                        <td className="border p-3 text-sm font-bold text-blue-700 bg-blue-50">{formData.furigana}</td>
+                                        {Array.from(selectedIds).map(id => {
+                                            const m = members.find(m => m.id === id);
+                                            const val = m?.furigana || '';
+                                            return (
+                                                <td key={id} className={`border p-3 text-sm cursor-pointer hover:bg-gray-100 ${formData.furigana === val ? 'bg-indigo-50 ring-2 ring-indigo-500 ring-inset' : ''}`} onClick={() => setFormData({ ...formData, furigana: val })}>
+                                                    {val}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                    {/* メールアドレス */}
+                                    <tr>
+                                        <td className="border p-3 text-sm font-bold bg-gray-50">メールアドレス</td>
+                                        <td className="border p-3 text-sm font-bold text-blue-700 bg-blue-50">{formData.email}</td>
+                                        {Array.from(selectedIds).map(id => {
+                                            const m = members.find(m => m.id === id);
+                                            const val = m?.email || '';
+                                            return (
+                                                <td key={id} className={`border p-3 text-sm cursor-pointer hover:bg-gray-100 ${formData.email === val ? 'bg-indigo-50 ring-2 ring-indigo-500 ring-inset' : ''}`} onClick={() => setFormData({ ...formData, email: val })}>
+                                                    {val}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                    {/* 属性 */}
+                                    <tr>
+                                        <td className="border p-3 text-sm font-bold bg-gray-50">属性</td>
+                                        <td className="border p-3 text-sm font-bold text-blue-700 bg-blue-50">{ranks.find(r => String(r.id) === formData.rank_id)?.name}</td>
+                                        {Array.from(selectedIds).map(id => {
+                                            const m = members.find(m => m.id === id);
+                                            const val = String(m?.rank_id || '');
+                                            return (
+                                                <td key={id} className={`border p-3 text-sm cursor-pointer hover:bg-gray-100 ${formData.rank_id === val ? 'bg-indigo-50 ring-2 ring-indigo-500 ring-inset' : ''}`} onClick={() => setFormData({ ...formData, rank_id: val })}>
+                                                    {m?.ranks?.name}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                    {/* 期 */}
+                                    <tr>
+                                        <td className="border p-3 text-sm font-bold bg-gray-50">期</td>
+                                        <td className="border p-3 text-sm font-bold text-blue-700 bg-blue-50">{terms.find(t => String(t.id) === formData.term_id)?.name}</td>
+                                        {Array.from(selectedIds).map(id => {
+                                            const m = members.find(m => m.id === id);
+                                            const val = String(m?.term_id || '');
+                                            return (
+                                                <td key={id} className={`border p-3 text-sm cursor-pointer hover:bg-gray-100 ${formData.term_id === val ? 'bg-indigo-50 ring-2 ring-indigo-500 ring-inset' : ''}`} onClick={() => setFormData({ ...formData, term_id: val })}>
+                                                    {m?.terms?.name}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                    {/* 特進 */}
+                                    <tr>
+                                        <td className="border p-3 text-sm font-bold bg-gray-50">特進</td>
+                                        <td className="border p-3 text-sm font-bold text-blue-700 bg-blue-50">{formData.is_tokushin ? '特進あり' : 'なし'}</td>
+                                        {Array.from(selectedIds).map(id => {
+                                            const m = members.find(m => m.id === id);
+                                            const val = !!m?.is_tokushin;
+                                            return (
+                                                <td key={id} className={`border p-3 text-sm cursor-pointer hover:bg-gray-100 ${formData.is_tokushin === val ? 'bg-indigo-50 ring-2 ring-indigo-500 ring-inset' : ''}`} onClick={() => setFormData({ ...formData, is_tokushin: val })}>
+                                                    {val ? '特進あり' : 'なし'}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                    {/* 除外 */}
+                                    <tr>
+                                        <td className="border p-3 text-sm font-bold bg-gray-50">集計除外</td>
+                                        <td className="border p-3 text-sm font-bold text-blue-700 bg-blue-50">{formData.exclude_from_count ? '除外する' : '含める'}</td>
+                                        {Array.from(selectedIds).map(id => {
+                                            const m = members.find(m => m.id === id);
+                                            const val = !!m?.exclude_from_count;
+                                            return (
+                                                <td key={id} className={`border p-3 text-sm cursor-pointer hover:bg-gray-100 ${formData.exclude_from_count === val ? 'bg-indigo-50 ring-2 ring-indigo-500 ring-inset' : ''}`} onClick={() => setFormData({ ...formData, exclude_from_count: val })}>
+                                                    {val ? '除外中' : '含める'}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
-                        
-                        <div className="mt-8 flex justify-end space-x-3">
-                            <button onClick={() => setShowMergeModal(false)} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400" disabled={merging}>
-                                キャンセル
-                            </button>
-                            <button onClick={handleMerge} className="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 disabled:bg-blue-400" disabled={merging}>
-                                {merging ? '統合処理中...' : '統合を実行する'}
-                            </button>
+
+                        <div className="mt-4 pt-4 border-t flex items-center justify-between">
+                            <div className="text-xs text-gray-500">
+                                ※ 統合後は「正本」として選んだレコード (ID: {mergePrimaryId.slice(0,8)}...) が更新・存続し、それ以外のレコードは削除されます。
+                            </div>
+                            <div className="flex space-x-3">
+                                <button onClick={() => setShowMergeModal(false)} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400" disabled={merging}>
+                                    キャンセル
+                                </button>
+                                <button onClick={handleMerge} className="px-8 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 shadow-lg disabled:bg-blue-400" disabled={merging}>
+                                    {merging ? '統合処理中...' : `${selectedIds.size}件を統合して保存`}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

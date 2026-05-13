@@ -43,37 +43,46 @@ export async function POST(request: Request) {
     const body: ApplyRequest = await request.json();
     let { name, furigana, email, venue, social_venue, term_id, introducer, no_introducer, participation_type, online_venues, remarks: userRemarks, is_multiple } = body;
 
+        // 漢字マッピングの取得
+        const { data: kanjiSetting } = await supabaseAdmin
+            .from('app_settings')
+            .select('value')
+            .eq('key', 'kanji_mapping')
+            .single();
+        const customKanjiMap = kanjiSetting?.value || undefined;
+
         // 0. データの正規化
         // 会場名を日本語名に正規化
         venue = normalizeVenue(venue);
         social_venue = normalizeVenue(social_venue);
 
-        if (name) {
-            name = normalizeName(name); // スペース除去 + 旧字体→新字体 正規化
-        }
+        const originalName = name ? name.trim() : ''; // 入力時の漢字を保持
+        const normalizedInputName = normalizeName(originalName, customKanjiMap); // 照合用の正規化名
+        
         if (email) {
             email = email.trim().toLowerCase();
         }
 
         // 基本バリデーション
-        if (!name || !furigana || !email || !venue) {
+        if (!originalName || !furigana || !email || !venue) {
             return NextResponse.json({ error: '必須項目が不足しています' }, { status: 400 });
         }
 
         // 重複申し込みチェック
+        // 同じメールアドレスの既存申込を取得
         const { data: existingData, error: duplicateError } = await supabaseAdmin
             .from('applications')
-            .select('id')
-            .eq('input_name', name)
-            .eq('input_email', email)
-            .limit(1);
+            .select('id, input_name')
+            .eq('input_email', email);
 
         if (duplicateError) {
             console.error('Duplicate check error:', duplicateError);
             return NextResponse.json({ error: 'システムエラーが発生しました' }, { status: 500 });
         }
 
-        if (existingData && existingData.length > 0) {
+        // 取得したレコードの氏名を正規化して比較（表記ゆれがあっても重複として検出）
+        const isDuplicate = existingData?.some(app => normalizeName(app.input_name, customKanjiMap) === normalizedInputName);
+        if (isDuplicate) {
             return NextResponse.json({ error: 'すでにお申し込みがあります' }, { status: 400 });
         }
 
@@ -93,9 +102,8 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: 'システムエラーが発生しました' }, { status: 500 });
             }
 
-            const normalizedInputName = normalizeName(name);
             // 同名・同期が複数いる場合、特進（is_tokushin=true）を優先して照合する
-            const matchedMembers = allMembers?.filter(m => normalizeName(m.name) === normalizedInputName) || [];
+            const matchedMembers = allMembers?.filter(m => normalizeName(m.name, customKanjiMap) === normalizedInputName) || [];
             const member = matchedMembers.find(m => m.is_tokushin) || matchedMembers[0] || null;
 
             if (member) {
@@ -217,7 +225,7 @@ export async function POST(request: Request) {
         const { error: insertError } = await supabaseAdmin
             .from('applications')
             .insert({
-                input_name: name,
+                input_name: originalName,
                 input_furigana: furigana,
                 input_email: email,
                 venue,
@@ -279,7 +287,7 @@ export async function POST(request: Request) {
         }
 
         const vars = {
-            name: name,
+            name: originalName,
             rank: rankName,
             venue: displayVenue,
             social_venue: displaySocialVenue,

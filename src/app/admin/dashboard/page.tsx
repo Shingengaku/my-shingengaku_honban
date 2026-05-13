@@ -320,6 +320,8 @@ export default function AdminDashboard() {
     const [exportCampaignLabel, setExportCampaignLabel] = useState('水無月のご縁ｷｬﾝﾍﾟｰﾝ ご紹介');
     const [exportRemarks, setExportRemarks] = useState('');
     const [exportMonth, setExportMonth] = useState('');
+    const [exportPaymentStatus, setExportPaymentStatus] = useState(true);
+    const [exportShowRemarks, setExportShowRemarks] = useState(true);
 
     // Persist Export Settings
     useEffect(() => {
@@ -334,6 +336,12 @@ export default function AdminDashboard() {
 
         const savedRemarks = localStorage.getItem('shingengaku_export_remarks');
         if (savedRemarks) setExportRemarks(savedRemarks);
+
+        const savedPaymentStatus = localStorage.getItem('shingengaku_export_payment_status');
+        if (savedPaymentStatus !== null) setExportPaymentStatus(savedPaymentStatus === 'true');
+
+        const savedShowRemarks = localStorage.getItem('shingengaku_export_show_remarks');
+        if (savedShowRemarks !== null) setExportShowRemarks(savedShowRemarks === 'true');
     }, []);
 
     useEffect(() => {
@@ -355,6 +363,14 @@ export default function AdminDashboard() {
     useEffect(() => {
         localStorage.setItem('shingengaku_export_remarks', exportRemarks);
     }, [exportRemarks]);
+
+    useEffect(() => {
+        localStorage.setItem('shingengaku_export_payment_status', exportPaymentStatus.toString());
+    }, [exportPaymentStatus]);
+
+    useEffect(() => {
+        localStorage.setItem('shingengaku_export_show_remarks', exportShowRemarks.toString());
+    }, [exportShowRemarks]);
 
     // 定数 (UIフォールバック、libをミラーリング)
     const DEFAULT_TEMPLATE = {
@@ -1410,12 +1426,17 @@ export default function AdminDashboard() {
 
     const exportCSV = async (useFilter: boolean = true) => {
         // 1. 特進生の全リストを取得して、名前ベースで特進判定を補完する
-        const membersRes = await fetch('/api/admin/members');
+        const [membersRes, kanjiRes] = await Promise.all([
+            fetch('/api/admin/members'),
+            fetch('/api/admin/settings/kanji-mapping')
+        ]);
         const allMembersData = await membersRes.json();
+        const currentKanjiMap = kanjiRes.ok ? await kanjiRes.json() : undefined;
+
         const tokushinNameSet = new Set(
             allMembersData
                 .filter((m: any) => m.is_tokushin)
-                .map((m: any) => normalizeName(m.name || ''))
+                .map((m: any) => normalizeName(m.name || '', currentKanjiMap))
         );
 
         // 全レコードを出力（名寄せしない：合計金額不整合回避のため）
@@ -1458,7 +1479,7 @@ export default function AdminDashboard() {
             const rank = app.applied_rank_name || app.members?.ranks?.name || '一般';
             const gen = app.members?.generation ? `${app.members.generation}期` : '-';
             // マスタ重複救済ロジック適用
-            const isTokushin = app.members?.is_tokushin || tokushinNameSet.has(normalizeName(app.input_name));
+            const isTokushin = app.members?.is_tokushin || tokushinNameSet.has(normalizeName(app.input_name, currentKanjiMap));
             const tokushin = isTokushin ? '特進' : '';
             const social = app.social_venue ? app.social_venue : (app.attend_social ? '参加' : '参加しない');
             // @ts-ignore
@@ -1508,20 +1529,11 @@ export default function AdminDashboard() {
             return isNaN(d.getTime()) ? null : (d.getMonth() + 1).toString();
         };
 
-        const formatDateForExcel = (startStr: string, endStr?: string) => {
+        const formatDateForExcel = (startStr: string) => {
             if (!startStr) return '';
             const start = new Date(startStr);
             if (isNaN(start.getTime())) return startStr;
-            const day = start.getDate();
-            const startHM = start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-            if (endStr) {
-                const end = new Date(endStr);
-                if (!isNaN(end.getTime())) {
-                    const endHM = end.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-                    return `${day}日 ${startHM}〜${endHM}`;
-                }
-            }
-            return `${day}日 ${startHM}〜`;
+            return `${start.getDate()}日`;
         };
 
         const dateT = lectureDates['tokyo'] || '';
@@ -1550,14 +1562,18 @@ export default function AdminDashboard() {
                 }
             });
             
-            // 全受講生マスタから特進生の氏名リスト（正規化済）を作成し、
-            // 重複などで紐付けが漏れている場合でも名前が一致すれば特進として救済する
-            const membersRes = await fetch('/api/admin/members');
+            // 1. 特進生の全リストを取得して、名前ベースで特進判定を補完する
+            const [membersRes, kanjiRes] = await Promise.all([
+                fetch('/api/admin/members'),
+                fetch('/api/admin/settings/kanji-mapping')
+            ]);
             const allMembersData = await membersRes.json();
+            const currentKanjiMap = kanjiRes.ok ? await kanjiRes.json() : undefined;
+
             const tokushinNameSet = new Set(
                 allMembersData
                     .filter((m: any) => m.is_tokushin)
-                    .map((m: any) => normalizeName(m.name || ''))
+                    .map((m: any) => normalizeName(m.name || '', currentKanjiMap))
             );
 
             // Helper: Find Master-defined group priority (1:Tokushin, 2:Terms, 3:Executive, 4:Referral)
@@ -1565,7 +1581,7 @@ export default function AdminDashboard() {
                 const rankName = app.applied_rank_name || app.members?.ranks?.name || '';
                 
                 // 1. Tokushin check (Highest Priority)
-                if (rankName.includes('特進') || (app.members?.is_tokushin) || tokushinNameSet.has(normalizeName(app.input_name))) return 1;
+                if (rankName.includes('特進') || (app.members?.is_tokushin) || tokushinNameSet.has(normalizeName(app.input_name, currentKanjiMap))) return 1;
 
                 // 2. Referral check for General (一般) or explicit referral keywords
                 const vL = (app.venue || '').toLowerCase();
@@ -1622,12 +1638,15 @@ export default function AdminDashboard() {
                 const introMatch = remarks.match(/紹介者:\s*([^\n]+)/);
                 if (introMatch && !introMatch[1].includes('なし') && !introMatch[1].includes('未入力')) {
                     let introName = introMatch[1].trim();
-                    if (!introName.includes('さま') && !introName.includes('様')) {
+                    // 末尾の「様」「さま」「さん」を一旦削除して、一貫して「さま」を付与する
+                    introName = introName.replace(/[様さまさん\s]+$/, '');
+                    
+                    if (introName === '神言学アカデミー事務局' || introName === '事務局') {
+                        introText = `(事務局紹介)`;
+                    } else {
                         introName += 'さま';
-                    } else if (introName.includes('様')) {
-                        introName = introName.replace('様', 'さま');
+                        introText = `(${introName}ご紹介)`;
                     }
-                    introText = `(${introName}ご紹介)`;
                     hasIntroducer = true;
                 }
 
@@ -1637,6 +1656,7 @@ export default function AdminDashboard() {
                 const furigana = app.members?.furigana || app.input_furigana || '';
                 
                 // 集約ステータスを使用
+            // 集約ステータスを使用
                 const isBoth = personStatus?.isBoth || false;
                 const isHybrid = personStatus?.isHybrid || false;
 
@@ -1658,148 +1678,101 @@ export default function AdminDashboard() {
             // 名寄せせず、全ての有効な申込みを走査（2カ所参加、ハイブリッド等を漏れなく抽出）
             const allValidApps = apps.filter(a => (a.payment_status || '').toLowerCase() !== 'cancelled');
 
-            // 同一リスト内での重複除外ヘルパー
-            // 同名・同メールアドレスで同一会場リストに複数出現するユーザーを全件除外し、
-            // 除外されたユーザー情報を warnings に収集する（1件目も含めて全除外）
-            interface DupWarning { name: string; email: string; venue: string; count: number; excludedApps: Application[]; }
-            const dedupList = (appList: Application[], venueLabel: string): { deduped: Application[]; warnings: DupWarning[] } => {
-                // 1パス目: 各キーの出現回数・app一覧をカウント
-                const countMap = new Map<string, number>();
-                const nameMap = new Map<string, string>();
-                const emailMap = new Map<string, string>();
-                const appsMap = new Map<string, Application[]>();
-                appList.forEach(app => {
-                    const nameKey = `${(app.input_name || '').replace(/[\s\u3000]+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
-                    countMap.set(nameKey, (countMap.get(nameKey) || 0) + 1);
-                    if (!nameMap.has(nameKey)) nameMap.set(nameKey, app.input_name);
-                    if (!emailMap.has(nameKey)) emailMap.set(nameKey, app.input_email || '');
-                    const arr = appsMap.get(nameKey) || [];
-                    arr.push(app);
-                    appsMap.set(nameKey, arr);
-                });
-
-                // 2パス目: 2件以上のキーを全除外、警告に収集
-                const deduped: Application[] = [];
-                const warnings: DupWarning[] = [];
-                const warned = new Set<string>();
-
-                appList.forEach(app => {
-                    const nameKey = `${(app.input_name || '').replace(/[\s\u3000]+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
-                    const cnt = countMap.get(nameKey) || 1;
-                    if (cnt >= 2) {
-                        if (!warned.has(nameKey)) {
-                            warnings.push({
-                                name: nameMap.get(nameKey) || app.input_name,
-                                email: emailMap.get(nameKey) || '',
-                                venue: venueLabel,
-                                count: cnt,
-                                excludedApps: appsMap.get(nameKey) || []
-                            });
-                            warned.add(nameKey);
-                        }
-                    } else {
-                        deduped.push(app);
-                    }
-                });
-
-                return { deduped, warnings };
+            // 1. 全申込みの正規化キーと出現場所を把握する
+            const getDedupeKey = (a: Application) => `${normalizeName(a.input_name, currentKanjiMap)}|${(a.input_email || '').toLowerCase().trim()}`;
+            
+            // 各会場カテゴリへの振り分け (生リスト)
+            const listApps = {
+                tokyo: [] as Application[],
+                fukuoka: [] as Application[],
+                onlineTokyo: [] as Application[],
+                onlineFukuoka: [] as Application[],
+                others: [] as Application[]
             };
 
-
-            // Filter Lists based on Unified Status
-            const allDupWarnings: DupWarning[] = [];
-
-            const tokyoApps = allValidApps.filter(a => {
-                const status = getParticipationStatus(a, venueList);
-                return status.venueArea === 'tokyo' || status.venueArea === 'both';
-            });
-            const { deduped: dedupedTokyo, warnings: warnsTokyo } = dedupList(tokyoApps, '東京会場');
-            allDupWarnings.push(...warnsTokyo);
-
-            const fukuokaApps = allValidApps.filter(a => {
-                const status = getParticipationStatus(a, venueList);
-                return status.venueArea === 'fukuoka' || status.venueArea === 'both';
-            });
-            const { deduped: dedupedFukuoka, warnings: warnsFukuoka } = dedupList(fukuokaApps, '福岡会場');
-            allDupWarnings.push(...warnsFukuoka);
-
-            const onlineTokyoApps = allValidApps.filter(a => {
-                const status = getParticipationStatus(a, venueList);
-                return status.onlineArea === 'tokyo' || status.onlineArea === 'both';
-            });
-            const { deduped: dedupedOnlineTokyo, warnings: warnsOnlineTokyo } = dedupList(onlineTokyoApps, 'オンライン（東京）');
-            allDupWarnings.push(...warnsOnlineTokyo);
-
-            const onlineFukuokaApps = allValidApps.filter(a => {
-                const status = getParticipationStatus(a, venueList);
-                return status.onlineArea === 'fukuoka' || status.onlineArea === 'both';
-            });
-            const { deduped: dedupedOnlineFukuoka, warnings: warnsOnlineFukuoka } = dedupList(onlineFukuokaApps, 'オンライン（福岡）');
-            allDupWarnings.push(...warnsOnlineFukuoka);
-
-            const rawOthers = allValidApps.filter(a => {
-                const status = getParticipationStatus(a, venueList);
+            allValidApps.forEach(app => {
+                const status = getParticipationStatus(app, venueList);
                 const isTokyo = status.venueArea === 'tokyo' || status.venueArea === 'both';
                 const isFukuoka = status.venueArea === 'fukuoka' || status.venueArea === 'both';
                 const isOnlineT = status.onlineArea === 'tokyo' || status.onlineArea === 'both';
                 const isOnlineF = status.onlineArea === 'fukuoka' || status.onlineArea === 'both';
-                // どのカテゴリ（東京・福岡・オンライン東京・オンライン福岡）にも該当しない場合
-                return !isTokyo && !isFukuoka && !isOnlineT && !isOnlineF;
-            }).map(getMemberInfo);
 
-            // 会場＋同エリアオンライン重複チェック
-            // 同じ人が「東京リアル会場」かつ「オンライン東京配信」、
-            // または「福岡リアル会場」かつ「オンライン福岡配信」に同時に存在する場合は
-            // 同日のため物理的に不可能 → 両リストから除外し注意書きに追加
-            interface VenueOnlineConflict { name: string; email: string; area: string; venueApp: Application; onlineApp: Application; }
-            const venueOnlineConflicts: VenueOnlineConflict[] = [];
-
-            // 各エリアのリアル会場キーセット（dedupList済み）
-            const tokyoVenueKeys = new Set(
-                dedupedTokyo.map(a => `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}`)
-            );
-            const fukuokaVenueKeys = new Set(
-                dedupedFukuoka.map(a => `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}`)
-            );
-            // 各エリアのオンラインキーセット（dedupList済み）
-            const onlineTokyoKeys = new Set(
-                dedupedOnlineTokyo.map(a => `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}`)
-            );
-            const onlineFukuokaKeys = new Set(
-                dedupedOnlineFukuoka.map(a => `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}`)
-            );
-
-            // 東京：リアル会場 ∩ オンライン東京 → 重複キーを収集
-            const conflictTokyoKeys = new Set<string>();
-            tokyoVenueKeys.forEach(key => {
-                if (onlineTokyoKeys.has(key)) conflictTokyoKeys.add(key);
+                if (isTokyo) listApps.tokyo.push(app);
+                if (isFukuoka) listApps.fukuoka.push(app);
+                if (isOnlineT) listApps.onlineTokyo.push(app);
+                if (isOnlineF) listApps.onlineFukuoka.push(app);
+                if (!isTokyo && !isFukuoka && !isOnlineT && !isOnlineF) listApps.others.push(app);
             });
 
-            // 福岡：リアル会場 ∩ オンライン福岡 → 重複キーを収集
-            const conflictFukuokaKeys = new Set<string>();
-            fukuokaVenueKeys.forEach(key => {
-                if (onlineFukuokaKeys.has(key)) conflictFukuokaKeys.add(key);
-            });
+            // 2. 重複・コンフリクトの検出
+            const globalExcludedKeys = new Set<string>();
+            const allDupWarnings: any[] = [];
+            const venueOnlineConflicts: any[] = [];
 
-            // 重複警告リストに追加（人名・app詳細を取得）
-            conflictTokyoKeys.forEach(key => {
-                const vApp = dedupedTokyo.find(a => `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}` === key);
-                const oApp = dedupedOnlineTokyo.find(a => `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}` === key);
-                if (vApp && oApp) venueOnlineConflicts.push({ name: vApp.input_name, email: vApp.input_email || '', area: '東京', venueApp: vApp, onlineApp: oApp });
-            });
-            conflictFukuokaKeys.forEach(key => {
-                const vApp = dedupedFukuoka.find(a => `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}` === key);
-                const oApp = dedupedOnlineFukuoka.find(a => `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}` === key);
-                if (vApp && oApp) venueOnlineConflicts.push({ name: vApp.input_name, email: vApp.input_email || '', area: '福岡', venueApp: vApp, onlineApp: oApp });
-            });
+            // A. 同一リスト内での重複チェック
+            const checkDup = (appList: Application[], label: string) => {
+                const counts = new Map<string, Application[]>();
+                appList.forEach(a => {
+                    const k = getDedupeKey(a);
+                    if (!counts.has(k)) counts.set(k, []);
+                    counts.get(k)!.push(a);
+                });
+                counts.forEach((appsInKey, key) => {
+                    if (appsInKey.length >= 2) {
+                        globalExcludedKeys.add(key);
+                        allDupWarnings.push({
+                            name: appsInKey[0].input_name,
+                            email: appsInKey[0].input_email || '',
+                            venue: label,
+                            count: appsInKey.length,
+                            excludedApps: appsInKey,
+                            key: key
+                        });
+                    }
+                });
+            };
 
-            // conflict除外済みリスト生成
-            // 会場＋同エリアオンライン重複者を両リストから除外する
-            const getKey = (a: Application) => `${(a.input_name || '').replace(/[\s\u3000]+/g, '')}|${(a.input_email || '').toLowerCase().trim()}`;
-            const rawTokyo = dedupedTokyo.filter(a => !conflictTokyoKeys.has(getKey(a))).map(getMemberInfo);
-            const rawFukuoka = dedupedFukuoka.filter(a => !conflictFukuokaKeys.has(getKey(a))).map(getMemberInfo);
-            const rawOnlineTokyo = dedupedOnlineTokyo.filter(a => !conflictTokyoKeys.has(getKey(a))).map(getMemberInfo);
-            const rawOnlineFukuoka = dedupedOnlineFukuoka.filter(a => !conflictFukuokaKeys.has(getKey(a))).map(getMemberInfo);
+            checkDup(listApps.tokyo, '東京会場');
+            checkDup(listApps.fukuoka, '福岡会場');
+            checkDup(listApps.onlineTokyo, 'オンライン（東京）');
+            checkDup(listApps.onlineFukuoka, 'オンライン（福岡）');
+
+            // B. 会場＋同エリアオンラインのコンフリクトチェック
+            const checkConflict = (vApps: Application[], oApps: Application[], area: string) => {
+                const vKeys = new Map(vApps.map(a => [getDedupeKey(a), a]));
+                const oKeys = new Map(oApps.map(a => [getDedupeKey(a), a]));
+                
+                vKeys.forEach((vApp, key) => {
+                    if (oKeys.has(key)) {
+                        globalExcludedKeys.add(key);
+                        const oApp = oKeys.get(key)!;
+                        // すでに重複警告に出ていない場合のみ追加（二重表示防止）
+                        if (!venueOnlineConflicts.find(c => c.key === key)) {
+                            venueOnlineConflicts.push({
+                                name: vApp.input_name,
+                                email: vApp.input_email || '',
+                                area,
+                                venueApp: vApp,
+                                onlineApp: oApp,
+                                key
+                            });
+                        }
+                    }
+                });
+            };
+
+            checkConflict(listApps.tokyo, listApps.onlineTokyo, '東京');
+            checkConflict(listApps.fukuoka, listApps.onlineFukuoka, '福岡');
+
+            // 3. 最終的なリスト生成 (グローバル除外を適用して整形)
+            const filterAndMap = (list: Application[]) => 
+                list.filter(a => !globalExcludedKeys.has(getDedupeKey(a))).map(getMemberInfo);
+
+            const rawTokyo = filterAndMap(listApps.tokyo);
+            const rawFukuoka = filterAndMap(listApps.fukuoka);
+            const rawOnlineTokyo = filterAndMap(listApps.onlineTokyo);
+            const rawOnlineFukuoka = filterAndMap(listApps.onlineFukuoka);
+            const rawOthers = filterAndMap(listApps.others);
 
             // Grouping Helper
             const groupList = (list: any[]) => {
@@ -1847,22 +1820,34 @@ export default function AdminDashboard() {
                     { id: 'fukuoka', title: 'オンライン（福岡配信分）', groups: onlineFukuokaGroups, list: rawOnlineFukuoka }
                   ];
 
-            // Columns (4 cols + spacers)
-            const colWidths = [4, 14, 5, 5];
+
+
+            // Columns (3 or 4 cols per venue + spacers)
+            const colWidths = exportPaymentStatus ? [4, 20, 5, 8] : [4, 20, 6];
+            const colsPerVenue = colWidths.length;
             const spacerWidth = 2;
-            ws.columns = [
-                { width: colWidths[0] }, { width: colWidths[1] }, { width: colWidths[2] }, { width: colWidths[3] },
-                { width: spacerWidth },
-                { width: colWidths[0] }, { width: colWidths[1] }, { width: colWidths[2] }, { width: colWidths[3] },
-                { width: spacerWidth },
-                { width: colWidths[0] }, { width: colWidths[1] }, { width: colWidths[2] }, { width: colWidths[3] },
-            ];
+            
+            const columnsConfig = [];
+            for (let i = 0; i < 3; i++) {
+                colWidths.forEach(w => columnsConfig.push({ width: w }));
+                if (i < 2) columnsConfig.push({ width: spacerWidth });
+            }
+            ws.columns = columnsConfig;
+
+            // Header Merges based on column count
+            const totalCols = (colsPerVenue * 3) + 2; // 3 blocks + 2 spacers
+            const getColLetter = (n: number) => String.fromCharCode(65 + n - 1); // 1-indexed to Letter (Simple A-Z)
+            const lastColLetter = getColLetter(totalCols);
 
             // Headers
             const totalListedCount = rawTokyo.length + rawFukuoka.length + rawOnlineTokyo.length + rawOnlineFukuoka.length + rawOthers.length;
-            ws.mergeCells('A1:N1');
+            const bothCount = Array.from(new Set(
+                [...rawTokyo, ...rawFukuoka].filter(i => i.isBoth).map(i => i.name + i.furigana)
+            )).length;
+
+            ws.mergeCells(`A1:${lastColLetter}1`);
             const titleCell = ws.getCell('A1');
-            titleCell.value = `神言学集中講座 ${monthStr}月 (名簿掲載数: ${totalListedCount}名)`;
+            titleCell.value = `神言学集中講座 ${monthStr}月 (名簿掲載数: ${totalListedCount}名${bothCount > 0 ? ` / 両会場参加: ${bothCount}名` : ''})`;
             titleCell.font = { size: 16, bold: true };
             titleCell.alignment = { horizontal: 'center' };
             titleCell.border = { bottom: { style: 'thick' } };
@@ -1871,9 +1856,9 @@ export default function AdminDashboard() {
             ws.getRow(2).height = 40; 
             
             // Render Headers for Venues (Ordered)
-            venueOrder.forEach(v => {
-                const startCol = v.colOffset + 1;
-                const endCol = v.colOffset + 4;
+            venueOrder.forEach((v, idx) => {
+                const startCol = idx * (colsPerVenue + 1) + 1;
+                const endCol = startCol + colsPerVenue - 1;
                 const cellRef = ws.getRow(2).getCell(startCol);
                 ws.mergeCells(2, startCol, 2, endCol);
                 cellRef.value = `${v.title} ${monthStr}月${v.date}\n参加者: ${v.count}名`;
@@ -1882,131 +1867,178 @@ export default function AdminDashboard() {
                 cellRef.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
             });
 
-            ws.mergeCells('K2:N2');
-            ws.getCell('K2').value = `オンライン配信\n申込者: ${rawOnlineTokyo.length + rawOnlineFukuoka.length}名`;
-            ws.getCell('K2').font = { bold: true };
-            ws.getCell('K2').alignment = { wrapText: true, horizontal: 'center', vertical: 'middle' };
-            ws.getCell('K2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
+            const onlineStartCol = 2 * (colsPerVenue + 1) + 1;
+            const onlineEndCol = onlineStartCol + colsPerVenue - 1;
+            ws.mergeCells(2, onlineStartCol, 2, onlineEndCol);
+            ws.getCell(2, onlineStartCol).value = `オンライン配信\n申込者: ${rawOnlineTokyo.length + rawOnlineFukuoka.length}名`;
+            ws.getCell(2, onlineStartCol).font = { bold: true };
+            ws.getCell(2, onlineStartCol).alignment = { wrapText: true, horizontal: 'center', vertical: 'middle' };
+            ws.getCell(2, onlineStartCol).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
 
             // Render Block Helper
-            const renderBlock = (startRow: number, colOffset: number, title: string, data: any[], startSeq: number) => {
+            const renderBlock = (startRow: number, colOffset: number, title: string, data: any[], startSeq: number, isTitleOnly = false, themeColor?: string) => {
                 let currentRow = startRow;
+
+                const getBorder = (type: 'all' | 'top-half' | 'bottom-half' = 'all') => {
+                    const borderStyle = { 
+                        style: 'thin' as const, 
+                        color: { argb: 'FF000000' }
+                    };
+                    
+                    if (type === 'top-half') {
+                        return { top: borderStyle, left: borderStyle, right: borderStyle };
+                    }
+                    if (type === 'bottom-half') {
+                        return { bottom: borderStyle, left: borderStyle, right: borderStyle };
+                    }
+                    return { top: borderStyle, left: borderStyle, bottom: borderStyle, right: borderStyle };
+                };
                 
                 // Group Title
                 const titleCellRef = ws.getRow(currentRow).getCell(colOffset + 1);
-                ws.mergeCells(currentRow, colOffset + 1, currentRow, colOffset + 4);
+                ws.mergeCells(currentRow, colOffset + 1, currentRow, colOffset + colsPerVenue);
                 titleCellRef.value = title;
                 titleCellRef.alignment = { vertical: 'middle', horizontal: 'center' };
+                
+                const currentTitleColor = themeColor || (title.includes('配信分') ? 'FFD9EAD3' : 'FFD3D3D3');
+                const finalHeaderColor = (!themeColor && title.includes('東京配信分')) ? 'FFCFE2F3' : currentTitleColor;
+
                 titleCellRef.fill = {
                     type: 'pattern',
                     pattern: 'solid',
-                    fgColor: { argb: title.includes('配信分') ? 'FFD9EAD3' : 'FFD3D3D3' } 
+                    fgColor: { argb: finalHeaderColor } 
                 };
                 titleCellRef.font = { bold: true };
-                titleCellRef.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                titleCellRef.border = getBorder();
                 currentRow++;
 
-                if (data.length === 0) return { nextRow: currentRow, nextSeq: startSeq };
+                if (isTitleOnly) return { nextRow: currentRow, nextSeq: startSeq };
 
                 // Headers
                 const hRow = ws.getRow(currentRow);
-                const headers = ['No', '氏名', '期', '決済'];
-                [0, 1, 2, 3].forEach(i => {
+                const headers = exportPaymentStatus ? ['No', '氏名', '期', '決済'] : ['No', '氏名', '期'];
+                headers.forEach((h, i) => {
                     const c = hRow.getCell(colOffset + 1 + i);
-                    c.value = headers[i];
+                    c.value = h;
                     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } };
-                    c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                    c.border = getBorder();
                     c.alignment = { horizontal: 'center' };
                 });
                 currentRow++;
 
                 // Data
                 let currentSeq = startSeq;
-                data.forEach((d, idx) => {
-                    const statusLabels: Record<string, string> = { paid: '済み', unpaid: '未決済' };
-
-                    if (d.hasIntroducer) {
-                        const r1 = ws.getRow(currentRow);
-                        const r2 = ws.getRow(currentRow + 1);
-
-                        ws.mergeCells(currentRow, colOffset + 1, currentRow + 1, colOffset + 1);
-                        ws.mergeCells(currentRow, colOffset + 3, currentRow + 1, colOffset + 3);
-                        ws.mergeCells(currentRow, colOffset + 4, currentRow + 1, colOffset + 4);
-
-                        const c1 = ws.getCell(currentRow, colOffset + 1);
-                        const c2_1 = ws.getCell(currentRow, colOffset + 2);
-                        const c2_2 = ws.getCell(currentRow + 1, colOffset + 2);
-                        const c3 = ws.getCell(currentRow, colOffset + 3);
-                        const c4 = ws.getCell(currentRow, colOffset + 4);
-
-                        c1.value = currentSeq++;
-                        c1.alignment = { horizontal: 'center', vertical: 'middle' };
-                        
-                        c2_1.value = d.name;
-                        c2_1.alignment = { vertical: 'bottom', wrapText: true };
-                        
-                        c2_2.value = d.introText;
-                        c2_2.alignment = { vertical: 'top', wrapText: true };
-                        
-                        c3.value = d.term;
-                        c3.alignment = { horizontal: 'center', vertical: 'middle' };
-                        c4.value = statusLabels[d.paymentStatus] || '';
-                        c4.alignment = { horizontal: 'center', vertical: 'middle' };
-
-                        // Borders for merged cells
-                        [c1, c3, c4].forEach(c => {
-                            c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                        });
-
-                        // Borders for name cells (no border between them)
-                        c2_1.border = { top: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
-                        c2_2.border = { bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
-
-                        // Highlight 'Both' matches or 'Hybrid'
-                        if (d.isBoth) {
-                            c2_1.font = { color: { argb: 'FFFF0000' } };
-                            c2_2.font = { color: { argb: 'FFFF0000' }, size: 10 };
-                        } else if (d.isHybrid) {
-                            c2_1.font = { color: { argb: 'FF00B050' } };
-                            c2_2.font = { color: { argb: 'FF00B050' }, size: 10 };
-                        } else {
-                            c2_2.font = { size: 10 };
-                        }
-
-                        // Ensure hidden cells in the merge block also have borders (improves compatibility with some viewers)
-                        ws.getCell(currentRow + 1, colOffset + 1).border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                        ws.getCell(currentRow + 1, colOffset + 3).border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                        ws.getCell(currentRow + 1, colOffset + 4).border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-
-                        currentRow += 2;
-                    } else {
-                        const r = ws.getRow(currentRow);
-                        const c1 = r.getCell(colOffset + 1);
-                        const c2 = r.getCell(colOffset + 2);
-                        const c3 = r.getCell(colOffset + 3);
-                        const c4 = r.getCell(colOffset + 4);
-
-                        c1.value = currentSeq++;
-                        c1.alignment = { horizontal: 'center', vertical: 'middle' };
-                        c2.value = d.name;
-                        c2.alignment = { wrapText: true, vertical: 'middle' };
-                        c3.value = d.term;
-                        c3.alignment = { horizontal: 'center', vertical: 'middle' };
-                        c4.value = statusLabels[d.paymentStatus] || '';
-                        c4.alignment = { horizontal: 'center', vertical: 'middle' };
-
-                        [c1, c2, c3, c4].forEach(c => {
-                            c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                        });
-
-                        if (d.isBoth) {
-                            c2.font = { color: { argb: 'FFFF0000' } };
-                        } else if (d.isHybrid) {
-                            c2.font = { color: { argb: 'FF00B050' } };
-                        }
-                        currentRow++;
+                if (data.length === 0) {
+                    const r = ws.getRow(currentRow);
+                    for (let i = 0; i < colsPerVenue; i++) {
+                        const c = r.getCell(colOffset + 1 + i);
+                        c.value = '-';
+                        c.border = getBorder();
+                        c.alignment = { horizontal: 'center' };
                     }
-                });
+                    currentRow++;
+                } else {
+                    data.forEach((d, idx) => {
+                        const statusLabels: Record<string, string> = { paid: '済み', unpaid: '未決済' };
+
+                        if (d.hasIntroducer) {
+                            const r1 = ws.getRow(currentRow);
+                            const r2 = ws.getRow(currentRow + 1);
+
+                            ws.mergeCells(currentRow, colOffset + 1, currentRow + 1, colOffset + 1);
+                            ws.mergeCells(currentRow, colOffset + 3, currentRow + 1, colOffset + 3);
+                            if (exportPaymentStatus) {
+                                ws.mergeCells(currentRow, colOffset + 4, currentRow + 1, colOffset + 4);
+                            }
+
+                            const c1 = ws.getCell(currentRow, colOffset + 1);
+                            const c2_1 = ws.getCell(currentRow, colOffset + 2);
+                            const c2_2 = ws.getCell(currentRow + 1, colOffset + 2);
+                            const c3 = ws.getCell(currentRow, colOffset + 3);
+                            const c4 = exportPaymentStatus ? ws.getCell(currentRow, colOffset + 4) : null;
+
+                            c1.value = currentSeq++;
+                            c1.alignment = { horizontal: 'center', vertical: 'middle' };
+                            
+                            c2_1.value = d.name;
+                            c2_1.alignment = { vertical: 'bottom', wrapText: false };
+                            
+                            c2_2.value = d.introText;
+                            c2_2.alignment = { vertical: 'top', wrapText: true };
+                            
+                            c3.value = d.term;
+                            c3.alignment = { horizontal: 'center', vertical: 'middle' };
+                            if (c4) {
+                                c4.value = statusLabels[d.paymentStatus] || '';
+                                c4.alignment = { horizontal: 'center', vertical: 'middle' };
+                            }
+
+                            // Borders for merged cells
+                            const borderCells = [c1, c3];
+                            if (c4) borderCells.push(c4);
+                            borderCells.forEach(c => {
+                                c.border = getBorder();
+                            });
+
+                            // Borders for name cells (no middle border)
+                            c2_1.border = getBorder('top-half');
+                            c2_2.border = getBorder('bottom-half');
+
+                            // Highlight 'Both' matches or 'Hybrid'
+                            if (d.isBoth) {
+                                c2_1.font = { color: { argb: 'FFFF0000' } };
+                                c2_2.font = { color: { argb: 'FFFF0000' }, size: 9 };
+                            } else if (d.isHybrid) {
+                                c2_1.font = { color: { argb: 'FF00B050' } };
+                                c2_2.font = { color: { argb: 'FF00B050' }, size: 9 };
+                            } else {
+                                c2_2.font = { size: 9 };
+                            }
+
+                            // Ensure hidden cells in the merge block also have borders
+                            ws.getCell(currentRow + 1, colOffset + 1).border = getBorder();
+                            ws.getCell(currentRow + 1, colOffset + 3).border = getBorder();
+                            if (exportPaymentStatus) {
+                                ws.getCell(currentRow + 1, colOffset + 4).border = getBorder();
+                            }
+
+                            currentRow += 2;
+                        } else {
+                            const r = ws.getRow(currentRow);
+                            const c1 = r.getCell(colOffset + 1);
+                            const c2 = r.getCell(colOffset + 2);
+                            const c3 = r.getCell(colOffset + 3);
+                            const c4 = r.getCell(colOffset + 4);
+
+                            c1.value = currentSeq++;
+                            c1.alignment = { horizontal: 'center', vertical: 'middle' };
+                            c2.value = d.name;
+                            c2.alignment = { wrapText: false, vertical: 'middle' };
+                            c3.value = d.term;
+                            c3.alignment = { horizontal: 'center', vertical: 'middle' };
+                            
+                            const borderCells = [c1, c2, c3];
+
+                            if (exportPaymentStatus) {
+                                const c4 = r.getCell(colOffset + 4);
+                                c4.value = statusLabels[d.paymentStatus] || '';
+                                c4.alignment = { horizontal: 'center', vertical: 'middle' };
+                                borderCells.push(c4);
+                            }
+
+                            borderCells.forEach(c => {
+                                c.border = getBorder();
+                            });
+
+                            if (d.isBoth) {
+                                c2.font = { color: { argb: 'FFFF0000' } };
+                            } else if (d.isHybrid) {
+                                c2.font = { color: { argb: 'FF00B050' } };
+                            }
+                            currentRow++;
+                        }
+                    });
+                }
 
                 return { nextRow: currentRow, nextSeq: currentSeq };
             };
@@ -2015,22 +2047,23 @@ export default function AdminDashboard() {
             let maxRow = 4;
 
             // Render Real Venues (Tokyo/Fukuoka in determined order)
-            venueOrder.forEach(v => {
+            venueOrder.forEach((v, idx) => {
+                const colOffset = idx * (colsPerVenue + 1);
                 let rV = startRow;
                 let seqV = 1;
-                let resV = renderBlock(rV, v.colOffset, '特進', v.groups.tokushin, seqV);
-                rV = resV.nextRow; seqV = resV.nextSeq;
+                let resV = renderBlock(rV, colOffset, '特進', v.groups.tokushin, seqV);
+                rV = resV.nextRow + 1; seqV = resV.nextSeq;
 
-                resV = renderBlock(rV, v.colOffset, exportTermLabel || 'リピート＆本講座', v.groups.terms, seqV);
-                rV = resV.nextRow; seqV = resV.nextSeq;
+                resV = renderBlock(rV, colOffset, exportTermLabel || 'リピート＆本講座', v.groups.terms, seqV);
+                rV = resV.nextRow + 1; seqV = resV.nextSeq;
 
-                resV = renderBlock(rV, v.colOffset, '一般 (未受講)', v.groups.general, seqV);
-                rV = resV.nextRow; seqV = resV.nextSeq;
+                resV = renderBlock(rV, colOffset, '一般 (未受講)', v.groups.general, seqV);
+                rV = resV.nextRow + 1; seqV = resV.nextSeq;
 
-                resV = renderBlock(rV, v.colOffset, '経営幹部', v.groups.executive, seqV);
-                rV = resV.nextRow; seqV = resV.nextSeq;
+                resV = renderBlock(rV, colOffset, '経営幹部', v.groups.executive, seqV);
+                rV = resV.nextRow + 1; seqV = resV.nextSeq;
 
-                resV = renderBlock(rV, v.colOffset, exportCampaignLabel || '水無月のご縁ｷｬﾝﾍﾟｰﾝ ご紹介', v.groups.referral, seqV);
+                resV = renderBlock(rV, colOffset, exportCampaignLabel || '水無月のご縁ｷｬﾝﾍﾟｰﾝ ご紹介', v.groups.referral, seqV);
                 rV = resV.nextRow;
 
                 if (rV > maxRow) maxRow = rV;
@@ -2039,22 +2072,26 @@ export default function AdminDashboard() {
             // Online Render (Ordered sub-sections)
             let rO = startRow;
             let seqO = 1;
+            const onlineColOffset = 2 * (colsPerVenue + 1);
 
             onlineOrder.forEach((o, idx) => {
+                const theme = o.title.includes('東京配信分') ? 'FFCFE2F3' : 
+                              o.title.includes('福岡配信分') ? 'FFD9EAD3' : undefined;
+
                 // Header for sub-section
-                let resO = renderBlock(rO, 10, o.title, [], 0);
+                let resO = renderBlock(rO, onlineColOffset, o.title, [], 0, true, theme);
                 rO = resO.nextRow;
                 
                 if (o.list.length > 0) {
-                    resO = renderBlock(rO, 10, '特進', o.groups.tokushin, seqO);
-                    rO = resO.nextRow; seqO = resO.nextSeq;
-                    resO = renderBlock(rO, 10, exportTermLabel || 'リピート＆本講座', o.groups.terms, seqO);
-                    rO = resO.nextRow; seqO = resO.nextSeq;
-                    resO = renderBlock(rO, 10, '一般 (未受講)', o.groups.general, seqO);
-                    rO = resO.nextRow; seqO = resO.nextSeq;
-                    resO = renderBlock(rO, 10, '経営幹部', o.groups.executive, seqO);
-                    rO = resO.nextRow; seqO = resO.nextSeq;
-                    resO = renderBlock(rO, 10, exportCampaignLabel || '水無月のご縁ｷｬﾝﾍﾟｰﾝ ご紹介', o.groups.referral, seqO);
+                    resO = renderBlock(rO, onlineColOffset, '特進', o.groups.tokushin, seqO, false, theme);
+                    rO = resO.nextRow + 1; seqO = resO.nextSeq;
+                    resO = renderBlock(rO, onlineColOffset, exportTermLabel || 'リピート＆本講座', o.groups.terms, seqO, false, theme);
+                    rO = resO.nextRow + 1; seqO = resO.nextSeq;
+                    resO = renderBlock(rO, onlineColOffset, '一般 (未受講)', o.groups.general, seqO, false, theme);
+                    rO = resO.nextRow + 1; seqO = resO.nextSeq;
+                    resO = renderBlock(rO, onlineColOffset, '経営幹部', o.groups.executive, seqO, false, theme);
+                    rO = resO.nextRow + 1; seqO = resO.nextSeq;
+                    resO = renderBlock(rO, onlineColOffset, exportCampaignLabel || '水無月のご縁ｷｬﾝﾍﾟｰﾝ ご紹介', o.groups.referral, seqO, false, theme);
                     rO = resO.nextRow; seqO = resO.nextSeq;
                 }
                 if (idx === 0) rO++; // Spacer between Tokyo/Fukuoka in Online column
@@ -2064,6 +2101,7 @@ export default function AdminDashboard() {
 
 
             // どのカテゴリにも分類されなかった「その他/不明」があれば末尾に追加
+
             if (rawOthers.length > 0) {
                 maxRow += 2; // 少し空ける
                 const othersGroup = groupList(rawOthers);
@@ -2074,9 +2112,9 @@ export default function AdminDashboard() {
             ws.getRow(1).height = 30;
 
             // Render Remarks if exists
-            if (exportRemarks) {
+            if (exportShowRemarks && exportRemarks) {
                 const remarksRow = maxRow + 2;
-                ws.mergeCells(`A${remarksRow}:N${remarksRow}`);
+                ws.mergeCells(`A${remarksRow}:${lastColLetter}${remarksRow}`);
                 const remarksCell = ws.getCell(`A${remarksRow}`);
                 remarksCell.value = exportRemarks;
                 remarksCell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
@@ -2099,9 +2137,9 @@ export default function AdminDashboard() {
             if (hasAnyExclusion) {
                 // セクションタイトル
                 const secRow = maxRow + 2;
-                ws.mergeCells(`A${secRow}:N${secRow}`);
+                ws.mergeCells(`A${secRow}:${lastColLetter}${secRow}`);
                 const secCell = ws.getCell(`A${secRow}`);
-                secCell.value = '【欄外】リストから除外されたお申し込み一覧　※ダッシュボードで内容をご確認・整理の上、再度エクスポートしてください';
+                secCell.value = '【更新版】リストから除外されたお申し込み一覧';
                 secCell.font = { bold: true, size: 12, color: { argb: 'FF7B0000' } };
                 secCell.alignment = { horizontal: 'left', vertical: 'middle' };
                 secCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE0E0' } };
@@ -2115,9 +2153,17 @@ export default function AdminDashboard() {
 
                 // テーブルヘッダー
                 const tblHeaderRow = secRow + 1;
-                const tblHeaders = ['除外理由', '氏名', 'メールアドレス', '申込①内容', '申込②内容', '件数'];
-                const tblColWidths = [3, 2, 3, 3, 3, 1]; // span widths (合計14)
-                const tblHeaderFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFCC0000' } };
+                const tblHeaders = ['除外理由', '氏名', '申込①内容', '申込②内容'];
+                
+                // 配分を totalCols (11 or 14) に合わせる
+                let tblColWidths: number[];
+                if (totalCols === 14) {
+                    tblColWidths = [2, 4, 4, 4]; // 合計 14 (A-B:理由, C-F:氏名, G-J:内容1, K-N:内容2)
+                } else {
+                    tblColWidths = [2, 3, 3, 3]; // 合計 11
+                }
+
+                const tblHeaderFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF990000' } };
                 let colStart = 1;
                 tblHeaders.forEach((h, i) => {
                     const span = tblColWidths[i];
@@ -2146,7 +2192,11 @@ export default function AdminDashboard() {
                         const c = ws.getCell(dataRow, cs);
                         c.value = cols[i] || '';
                         c.font = { size: 9 };
-                        c.alignment = { horizontal: i === 5 ? 'center' : 'left', vertical: 'middle', wrapText: true };
+                        c.alignment = { 
+                            horizontal: i === 0 || i === 1 ? 'center' : 'left', 
+                            vertical: 'middle', 
+                            wrapText: true 
+                        };
                         c.fill = fill;
                         c.border = cellBorder;
                         cs += span;
@@ -2161,29 +2211,25 @@ export default function AdminDashboard() {
                     const apps1 = w.excludedApps[0];
                     const apps2 = w.excludedApps[1];
                     const fmt = (a?: Application) => a
-                        ? `${a.venue || ''}${a.participation_type === 'online' ? '（オンライン）' : '（会場）'} / ${a.applied_rank_name || ''} / ${a.payment_status === 'paid' ? '決済済' : a.payment_status === 'cancelled' ? 'ｷｬﾝｾﾙ' : '未決済'}`
+                        ? `${a.venue || ''}${a.participation_type === 'online' ? '（オンライン）' : '（会場）'} / ${a.applied_rank_name || ''}`
                         : '';
                     writeDataRow([
                         `同一${w.venue}に重複申込`,
                         `${w.name}さま`,
-                        w.email,
                         fmt(apps1),
-                        fmt(apps2),
-                        `${w.count}件`
+                        fmt(apps2)
                     ], fillYellow);
                 });
 
                 // ② 会場＋同エリアオンライン重複（オレンジ）
                 venueOnlineConflicts.forEach(c => {
-                    const fmtV = `${c.venueApp.venue || c.area + '会場'}（リアル） / ${c.venueApp.applied_rank_name || ''} / ${c.venueApp.payment_status === 'paid' ? '決済済' : '未決済'}`;
-                    const fmtO = `${c.onlineApp.venue || c.area + 'オンライン'}（配信） / ${c.onlineApp.applied_rank_name || ''} / ${c.onlineApp.payment_status === 'paid' ? '決済済' : '未決済'}`;
+                    const fmtV = `${c.venueApp.venue || c.area + '会場'}（リアル） / ${c.venueApp.applied_rank_name || ''}`;
+                    const fmtO = `${c.onlineApp.venue || c.area + 'オンライン'}（配信） / ${c.onlineApp.applied_rank_name || ''}`;
                     writeDataRow([
                         `${c.area}：会場＋オンライン同時申込`,
                         `${c.name}さま`,
-                        c.email,
                         fmtV,
-                        fmtO,
-                        '2件'
+                        fmtO
                     ], fillOrange);
                 });
 
@@ -2692,7 +2738,7 @@ export default function AdminDashboard() {
         <div className="min-h-screen bg-gray-100 p-4">
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-2">
-                    <h1 className='text-2xl font-bold text-gray-800'>神言学 管理ダッシュボード</h1>
+                    <h1 className='text-2xl font-bold text-gray-800'>神言学 管理ダッシュボード (v1.6)</h1>
                     <div className="flex items-center space-x-2 ml-auto">
                         <div className="flex space-x-2 mr-4 border-r pr-4 border-gray-300">
                             <Link href="/admin/members" className="text-sm px-3 py-1 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100">受講生マスタ</Link>
@@ -2943,10 +2989,30 @@ export default function AdminDashboard() {
                                     onChange={(e) => setExportCampaignLabel(e.target.value)}
                                 />
                             </div>
+                            <div className="flex flex-wrap items-center gap-3 mb-2 bg-gray-50 p-2 rounded border border-gray-200">
+                                <label className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        className="w-4 h-4 rounded text-green-600 focus:ring-green-500"
+                                        checked={exportPaymentStatus}
+                                        onChange={(e) => setExportPaymentStatus(e.target.checked)}
+                                    />
+                                    <span className="text-xs font-medium text-gray-700">決済状況</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        className="w-4 h-4 rounded text-green-600 focus:ring-green-500"
+                                        checked={exportShowRemarks}
+                                        onChange={(e) => setExportShowRemarks(e.target.checked)}
+                                    />
+                                    <span className="text-xs font-medium text-gray-700">備考欄</span>
+                                </label>
+                            </div>
                             <div className="w-full mb-2">
                                 <textarea
                                     placeholder="エクセル用備考 (下部に表示されます)"
-                                    className="border rounded px-2 py-1 text-xs w-full h-16 resize-none"
+                                    className="border rounded px-2 py-1 text-xs w-full h-16 resize-none bg-white hover:border-indigo-400 transition-colors"
                                     value={exportRemarks}
                                     onChange={(e) => setExportRemarks(e.target.value)}
                                 />

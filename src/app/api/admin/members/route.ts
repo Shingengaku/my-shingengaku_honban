@@ -1,6 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { normalizeName } from '@/lib/kanjiNormalize';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,6 +42,26 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
+        // 漢字マッピングの取得
+        const { data: kanjiSetting } = await supabaseAdmin
+            .from('app_settings')
+            .select('value')
+            .eq('key', 'kanji_mapping')
+            .single();
+        const customKanjiMap = kanjiSetting?.value || undefined;
+
+        // 1. 重複チェック (正規化後の氏名 + 期)
+        const normalizedInputName = normalizeName(name, customKanjiMap);
+        const { data: existing } = await supabaseAdmin
+            .from('members')
+            .select('id, name')
+            .eq('term_id', term_id);
+
+        const nameDuplicate = existing?.find(m => normalizeName(m.name, customKanjiMap) === normalizedInputName);
+        if (nameDuplicate) {
+            return NextResponse.json({ error: `同じ期に同姓同名（表記ゆれ含む）の受講生が既に登録されています: ${nameDuplicate.name}` }, { status: 400 });
+        }
+
         const { data, error } = await supabaseAdmin
             .from('members')
             .insert({
@@ -70,6 +91,30 @@ export async function PUT(request: Request) {
         const { id, name, furigana, email, rank_id, term_id, is_tokushin, exclude_from_count } = body;
 
         if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+
+        // 漢字マッピングの取得
+        const { data: kanjiSetting } = await supabaseAdmin
+            .from('app_settings')
+            .select('value')
+            .eq('key', 'kanji_mapping')
+            .single();
+        const customKanjiMap = kanjiSetting?.value || undefined;
+
+        // 1. 重複チェック (正規化後の氏名 + 期)
+        if (name && term_id) {
+            const normalizedInputName = normalizeName(name, customKanjiMap);
+            
+            const { data: existing } = await supabaseAdmin
+                .from('members')
+                .select('id, name')
+                .eq('term_id', term_id)
+                .neq('id', id); // 自身を除外
+
+            const nameDuplicate = existing?.find(m => normalizeName(m.name, customKanjiMap) === normalizedInputName);
+            if (nameDuplicate) {
+                return NextResponse.json({ error: `同じ期に同姓同名（表記ゆれ含む）の受講生が既に登録されています: ${nameDuplicate.name}` }, { status: 400 });
+            }
+        }
 
         const { data, error } = await supabaseAdmin
             .from('members')

@@ -77,13 +77,21 @@ export const KANJI_MAP: Record<string, string> = {
  * - 旧字体・異体字を新字体に変換
  * - 大文字小文字を統一（アルファベット混じりの名前への対応）
  */
-export function normalizeName(name: string): string {
+export function normalizeName(name: string, customMap?: Record<string, string>): string {
     if (!name) return '';
-    // 1. スペース除去
-    let result = name.replace(/\s+/g, '');
-    // 2. 旧字体 → 新字体 置換
-    for (const [old, next] of Object.entries(KANJI_MAP)) {
+    
+    // 1. Unicode正規化 (NFKC)
+    // 全角英数字を半角に、半角カタカナを全角に、結合文字を合成文字に統一する
+    let result = name.normalize('NFKC');
+
+    // 2. スペース除去（全角・半角）
+    result = result.replace(/[\s\u3000]+/g, '');
+    
+    // 3. 旧字体 → 新字体 置換
+    const map = customMap || KANJI_MAP;
+    for (const [old, next] of Object.entries(map)) {
         result = result.split(old).join(next);
     }
+    
     return result;
 }
