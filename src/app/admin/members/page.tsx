@@ -15,7 +15,7 @@ interface Term {
 }
 
 interface Member {
-    id: string;
+    id: string | number;
     name: string;
     furigana: string;
     email: string;
@@ -1066,7 +1066,7 @@ export default function MembersPage() {
 
                         <div className="mt-4 pt-4 border-t flex items-center justify-between">
                             <div className="text-xs text-gray-500">
-                                ※ 統合後は「正本」として選んだレコード (ID: {mergePrimaryId ? mergePrimaryId.slice(0,8) : '---'}...) が更新・存続し、それ以外のレコードは削除されます。
+                                ※ 統合後は「正本」として選んだレコード (ID: {mergePrimaryId ? String(mergePrimaryId).slice(0,8) : '---'}...) が更新・存続し、それ以外のレコードは削除されます。
                             </div>
                             <div className="flex space-x-3">
                                 <button onClick={() => setShowMergeModal(false)} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400" disabled={merging}>
