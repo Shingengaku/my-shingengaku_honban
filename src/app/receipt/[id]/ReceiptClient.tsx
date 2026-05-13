@@ -28,7 +28,7 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
     const [splitType, setSplitType] = useState<SplitType>('combined');
     const [addressee, setAddressee] = useState(data.input_name);
     const [honorific, setHonorific] = useState('御中');
-    const [description, setDescription] = useState('受講費用・懇親会費用として');
+    const [description, setDescription] = useState('受講費用、懇親会費用として');
 
     // タグから初期値を抽出
     const initialIssueDate = data.tags.find(t => t.startsWith('rd:'))?.split(':')[1] || '';
@@ -174,9 +174,49 @@ export default function ReceiptClient({ data }: { data: ReceiptData }) {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">発行対象</label>
                                 <div className="flex gap-4 flex-wrap">
-                                    <label className="flex items-center"><input type="radio" name="splitType" className="w-4 h-4 text-indigo-600 mr-2" checked={splitType === 'combined'} onChange={() => setSplitType('combined')} />合算</label>
-                                    {data.lecture_fee > 0 && <label className="flex items-center"><input type="radio" name="splitType" className="w-4 h-4 text-indigo-600 mr-2" checked={splitType === 'lecture'} onChange={() => setSplitType('lecture')} />受講費のみ</label>}
-                                    {data.social_fee > 0 && <label className="flex items-center"><input type="radio" name="splitType" className="w-4 h-4 text-indigo-600 mr-2" checked={splitType === 'social'} onChange={() => setSplitType('social')} />懇親会費のみ</label>}
+                                    <label className="flex items-center">
+                                        <input 
+                                            type="radio" 
+                                            name="splitType" 
+                                            className="w-4 h-4 text-indigo-600 mr-2" 
+                                            checked={splitType === 'combined'} 
+                                            onChange={() => {
+                                                setSplitType('combined');
+                                                setDescription('受講費用、懇親会費用として');
+                                            }} 
+                                        />
+                                        合算
+                                    </label>
+                                    {data.lecture_fee > 0 && (
+                                        <label className="flex items-center">
+                                            <input 
+                                                type="radio" 
+                                                name="splitType" 
+                                                className="w-4 h-4 text-indigo-600 mr-2" 
+                                                checked={splitType === 'lecture'} 
+                                                onChange={() => {
+                                                    setSplitType('lecture');
+                                                    setDescription('受講費用のみ');
+                                                }} 
+                                            />
+                                            受講費のみ
+                                        </label>
+                                    )}
+                                    {data.social_fee > 0 && (
+                                        <label className="flex items-center">
+                                            <input 
+                                                type="radio" 
+                                                name="splitType" 
+                                                className="w-4 h-4 text-indigo-600 mr-2" 
+                                                checked={splitType === 'social'} 
+                                                onChange={() => {
+                                                    setSplitType('social');
+                                                    setDescription('懇親会費用のみ');
+                                                }} 
+                                            />
+                                            懇親会費のみ
+                                        </label>
+                                    )}
                                 </div>
                             </div>
                             <div className="flex gap-2 items-end">
