@@ -116,38 +116,69 @@ export default function MembersPage() {
     }, [showDuplicatesModal]);
 
     const duplicateGroups = useMemo(() => {
+        if (members.length === 0) return [];
+
         const groups: Member[][] = [];
-        const processedIds = new Set<string>();
+        const memberMap = new Map<string, Member>();
+        members.forEach(m => memberMap.set(m.id, m));
 
-        // 1. 氏名（正規化）＋期 でグループ化
-        const byNameTerm = new Map<string, Member[]>();
+        // 1. 名前(正規化)でのグルーピング
+        const byName = new Map<string, string[]>();
         members.forEach(m => {
-            const nameKey = `${normalizeName(m.name || '', kanjiMapping)}_${m.term_id}`;
-            if (!byNameTerm.has(nameKey)) byNameTerm.set(nameKey, []);
-            byNameTerm.get(nameKey)!.push(m);
+            const nameKey = normalizeName(m.name || '', kanjiMapping);
+            if (!nameKey) return;
+            if (!byName.has(nameKey)) byName.set(nameKey, []);
+            byName.get(nameKey)!.push(m.id);
         });
 
-        byNameTerm.forEach(group => {
-            if (group.length > 1) {
-                groups.push(group);
-                group.forEach(m => processedIds.add(m.id));
-            }
-        });
-
-        // 2. Email ＋ 期 でグループ化 (まだ処理されていないもの)
-        const byEmailTerm = new Map<string, Member[]>();
+        // 2. Emailでのグルーピング
+        const byEmail = new Map<string, string[]>();
         members.forEach(m => {
-            if (processedIds.has(m.id)) return;
-            const emailKey = `${(m.email || '').toLowerCase().trim()}_${m.term_id}`;
-            if (m.email) {
-                if (!byEmailTerm.has(emailKey)) byEmailTerm.set(emailKey, []);
-                byEmailTerm.get(emailKey)!.push(m);
-            }
+            const emailKey = (m.email || '').toLowerCase().trim();
+            if (!emailKey) return;
+            if (!byEmail.has(emailKey)) byEmail.set(emailKey, []);
+            byEmail.get(emailKey)!.push(m.id);
         });
 
-        byEmailTerm.forEach(group => {
-            if (group.length > 1) {
-                groups.push(group);
+        // 連鎖的な重複（名前が同じA-B、BとEmailが同じCなど）をまとめるためのUnion-Find的な処理
+        const parent = new Map<string, string>();
+        const find = (id: string): string => {
+            if (!parent.has(id)) {
+                parent.set(id, id);
+                return id;
+            }
+            if (parent.get(id) === id) return id;
+            const root = find(parent.get(id)!);
+            parent.set(id, root);
+            return root;
+        };
+
+        const unite = (id1: string, id2: string) => {
+            const root1 = find(id1);
+            const root2 = find(id2);
+            if (root1 !== root2) parent.set(root1, root2);
+        };
+
+        // 名前一致を結合
+        byName.forEach(ids => {
+            for (let i = 1; i < ids.length; i++) unite(ids[0], ids[i]);
+        });
+        // Email一致を結合
+        byEmail.forEach(ids => {
+            for (let i = 1; i < ids.length; i++) unite(ids[0], ids[i]);
+        });
+
+        // グループ集計
+        const finalGroups = new Map<string, string[]>();
+        members.forEach(m => {
+            const root = find(m.id);
+            if (!finalGroups.has(root)) finalGroups.set(root, []);
+            finalGroups.get(root)!.push(m.id);
+        });
+
+        finalGroups.forEach(ids => {
+            if (ids.length > 1) {
+                groups.push(ids.map(id => memberMap.get(id)!));
             }
         });
 
@@ -1059,7 +1090,7 @@ export default function MembersPage() {
                             <button onClick={() => setShowDuplicatesModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl font-bold">&times;</button>
                         </div>
                         <p className="text-sm text-gray-600 mb-4">
-                            氏名（スペース除去）と期が一致するデータを自動でグループ化しています。同じ期に同じ名前が複数登録されている場合に検出されます。
+                            氏名（正規化）またはメールアドレスが一致するデータを自動でグループ化しています。<strong>期が異なるデータ</strong>や、<strong>メールアドレスが異なる同姓同名</strong>も候補として表示されます。
                         </p>
 
                         <div className="flex-1 overflow-y-auto pr-2 space-y-6">
