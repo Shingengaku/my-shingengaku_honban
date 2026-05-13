@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 
         // 新しいパスワードをハッシュ化
         const shasum = crypto.createHash('sha256');
-        shasum.update(password.trim());
+        shasum.update(password.trim().normalize('NFKC'));
         const hashedPassword = shasum.digest('hex');
 
         // パスワードを更新し、トークンをクリア

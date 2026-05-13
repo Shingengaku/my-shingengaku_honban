@@ -39,15 +39,15 @@ export async function POST(request: Request) {
 
         // パスワードをハッシュ化
         const shasum = crypto.createHash('sha256');
-        shasum.update(password.trim());
+        shasum.update(password.trim().normalize('NFKC'));
         const hashedPassword = shasum.digest('hex');
 
         // 挿入
         const { error } = await supabaseAdmin
             .from('admin_users')
             .insert({
-                username: username.trim(),
-                email: email.trim(),
+                username: username.trim().normalize('NFKC'),
+                email: email.trim().toLowerCase().normalize('NFKC'),
                 password_hash: hashedPassword
             });
 

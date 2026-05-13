@@ -14,14 +14,14 @@ export async function POST(request: Request) {
 
         // 入力パスワードをハッシュ化
         const shasum = crypto.createHash('sha256');
-        shasum.update(password.trim());
+        shasum.update(password.trim().normalize('NFKC'));
         const hashedPassword = shasum.digest('hex');
 
         // DBと照合
         const { data: user, error } = await supabaseAdmin
             .from('admin_users')
             .select('*')
-            .eq('username', username.trim())
+            .eq('username', username.trim().normalize('NFKC'))
             .single();
 
         if (error || !user) {
