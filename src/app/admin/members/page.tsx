@@ -1007,13 +1007,13 @@ export default function MembersPage() {
                                     {/* 属性 */}
                                     <tr>
                                         <td className="border p-3 text-sm font-bold bg-gray-50">属性</td>
-                                        <td className="border p-3 text-sm font-bold text-blue-700 bg-blue-50">{ranks.find(r => String(r.id) === formData.rank_id)?.name}</td>
+                                        <td className="border p-3 text-sm font-bold text-blue-700 bg-blue-50">{ranks.find(r => String(r.id) === formData.rank_id)?.name || '---'}</td>
                                         {Array.from(selectedIds).map(id => {
                                             const m = members.find(m => m.id === id);
-                                            const val = String(m?.rank_id || '');
+                                            const val = m ? String(m.rank_id) : '';
                                             return (
                                                 <td key={id} className={`border p-3 text-sm cursor-pointer hover:bg-gray-100 ${formData.rank_id === val ? 'bg-indigo-50 ring-2 ring-indigo-500 ring-inset' : ''}`} onClick={() => setFormData({ ...formData, rank_id: val })}>
-                                                    {m?.ranks?.name}
+                                                    {m?.ranks?.name || '---'}
                                                 </td>
                                             );
                                         })}
@@ -1021,13 +1021,13 @@ export default function MembersPage() {
                                     {/* 期 */}
                                     <tr>
                                         <td className="border p-3 text-sm font-bold bg-gray-50">期</td>
-                                        <td className="border p-3 text-sm font-bold text-blue-700 bg-blue-50">{terms.find(t => String(t.id) === formData.term_id)?.name}</td>
+                                        <td className="border p-3 text-sm font-bold text-blue-700 bg-blue-50">{terms.find(t => String(t.id) === String(formData.term_id))?.name || '---'}</td>
                                         {Array.from(selectedIds).map(id => {
                                             const m = members.find(m => m.id === id);
-                                            const val = String(m?.term_id || '');
+                                            const val = m ? String(m.term_id) : '';
                                             return (
-                                                <td key={id} className={`border p-3 text-sm cursor-pointer hover:bg-gray-100 ${formData.term_id === val ? 'bg-indigo-50 ring-2 ring-indigo-500 ring-inset' : ''}`} onClick={() => setFormData({ ...formData, term_id: val })}>
-                                                    {m?.terms?.name}
+                                                <td key={id} className={`border p-3 text-sm cursor-pointer hover:bg-gray-100 ${String(formData.term_id) === val ? 'bg-indigo-50 ring-2 ring-indigo-500 ring-inset' : ''}`} onClick={() => setFormData({ ...formData, term_id: val })}>
+                                                    {m?.terms?.name || '---'}
                                                 </td>
                                             );
                                         })}
@@ -1066,7 +1066,7 @@ export default function MembersPage() {
 
                         <div className="mt-4 pt-4 border-t flex items-center justify-between">
                             <div className="text-xs text-gray-500">
-                                ※ 統合後は「正本」として選んだレコード (ID: {mergePrimaryId.slice(0,8)}...) が更新・存続し、それ以外のレコードは削除されます。
+                                ※ 統合後は「正本」として選んだレコード (ID: {mergePrimaryId ? mergePrimaryId.slice(0,8) : '---'}...) が更新・存続し、それ以外のレコードは削除されます。
                             </div>
                             <div className="flex space-x-3">
                                 <button onClick={() => setShowMergeModal(false)} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400" disabled={merging}>
@@ -1110,10 +1110,20 @@ export default function MembersPage() {
                                             <button 
                                                 disabled={!canMerge}
                                                 onClick={() => {
+                                                    const primary = selectedInGroup[0];
+                                                    setMergePrimaryId(primary.id);
+                                                    setFormData({
+                                                        name: primary.name || '',
+                                                        furigana: primary.furigana || '',
+                                                        email: primary.email || '',
+                                                        rank_id: primary.rank_id ? String(primary.rank_id) : '',
+                                                        term_id: primary.term_id ? String(primary.term_id) : '',
+                                                        is_tokushin: !!primary.is_tokushin,
+                                                        exclude_from_count: !!primary.exclude_from_count
+                                                    });
                                                     setShowDuplicatesModal(false);
                                                     const ids = new Set(selectedInGroup.map(g => g.id));
                                                     setSelectedIds(ids);
-                                                    setMergePrimaryId(selectedInGroup[0].id);
                                                     setShowMergeModal(true);
                                                 }}
                                                 className={`px-4 py-1.5 text-white text-sm font-bold rounded shadow-sm flex items-center gap-1 transition-colors ${canMerge ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'}`}
