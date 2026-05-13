@@ -264,6 +264,20 @@ export default function AdminDashboard() {
     const [showUnappliedModal, setShowUnappliedModal] = useState(false);
     const [loadingUnapplied, setLoadingUnapplied] = useState(false);
 
+    // 集計除外ラベルがついているメンバーの判定キーセット
+    const excludedMemberKeys = useMemo(() => {
+        const keys = new Set<string>();
+        allMembers.forEach(m => {
+            if (m.exclude_from_count) {
+                const name = (m.name || '').replace(/[\s\u3000]+/g, '');
+                const email = (m.email || '').toLowerCase().trim();
+                const key = (name || email) ? `${name}|${email}` : null;
+                if (key) keys.add(key);
+            }
+        });
+        return keys;
+    }, [allMembers]);
+
     // 追加：人物単位の参加状況マップ（名寄せはせず、判定のみで使用）
     const personStatusMap = useMemo(() => {
         try {
@@ -278,6 +292,9 @@ export default function AdminDashboard() {
             const email = (app.input_email || '').toLowerCase().trim();
             const key = (name || email) ? `${name}|${email}` : null;
             if (!key) return;
+
+            // 集計除外ラベルの人は重複判定から除外
+            if (excludedMemberKeys.has(key)) return;
 
             if (!map.has(key)) map.set(key, { venueArea: new Set(), onlineArea: new Set() });
             const status = getParticipationStatus(app, venueList);
@@ -992,6 +1009,13 @@ export default function AdminDashboard() {
     const nameCounts = useMemo(() => {
         const counts: Record<string, number> = {};
         apps.forEach(app => {
+            const name = (app.input_name || '').replace(/[\s\u3000]+/g, '');
+            const email = (app.input_email || '').toLowerCase().trim();
+            const key = (name || email) ? `${name}|${email}` : null;
+            
+            // 集計除外ラベルの人は重複判定から除外
+            if (key && excludedMemberKeys.has(key)) return;
+
             const n = (app.input_name || '').trim();
             counts[n] = (counts[n] || 0) + 1;
         });
@@ -1561,8 +1585,25 @@ export default function AdminDashboard() {
                 .map((m: any) => normalizeName(m.name || '', currentKanjiMap))
         );
 
-        // 全レコードを出力（名寄せしない：合計金額不整合回避のため）
-        let targetApps = useFilter ? [...filteredApps] : [...apps];
+        // 除外ラベルのメンバーキーセット作成
+        const excludedKeys = new Set(
+            allMembersData
+                .filter((m: any) => m.exclude_from_count)
+                .map((m: any) => {
+                    const name = (m.name || '').replace(/[\s\u3000]+/g, '');
+                    const email = (m.email || '').toLowerCase().trim();
+                    return (name || email) ? `${name}|${email}` : null;
+                })
+                .filter(Boolean)
+        );
+
+        // 全レコードを出力（名寄せしない。除外ラベル付きは飛ばす）
+        let targetApps = (useFilter ? [...filteredApps] : [...apps]).filter(app => {
+            const name = (app.input_name || '').replace(/[\s\u3000]+/g, '');
+            const email = (app.input_email || '').toLowerCase().trim();
+            const key = (name || email) ? `${name}|${email}` : null;
+            return !key || !excludedKeys.has(key);
+        });
 
         // ソート順定義
         const rankOrder: Record<string, number> = {
@@ -1798,7 +1839,25 @@ export default function AdminDashboard() {
 
             // キャンセルされたデータは含まないようにする
             // 名寄せせず、全ての有効な申込みを走査（2カ所参加、ハイブリッド等を漏れなく抽出）
-            const allValidApps = apps.filter(a => (a.payment_status || '').toLowerCase() !== 'cancelled');
+            // 除外ラベル付きもここで弾く
+            const excelExcludedKeys = new Set(
+                allMembersData
+                    .filter((m: any) => m.exclude_from_count)
+                    .map((m: any) => {
+                        const name = (m.name || '').replace(/[\s\u3000]+/g, '');
+                        const email = (m.email || '').toLowerCase().trim();
+                        return (name || email) ? `${name}|${email}` : null;
+                    })
+                    .filter(Boolean)
+            );
+            const allValidApps = apps.filter(a => {
+                if ((a.payment_status || '').toLowerCase() === 'cancelled') return false;
+                const name = (a.input_name || '').replace(/[\s\u3000]+/g, '');
+                const email = (a.input_email || '').toLowerCase().trim();
+                const key = (name || email) ? `${name}|${email}` : null;
+                if (key && excelExcludedKeys.has(key)) return false;
+                return true;
+            });
 
             // 1. 全申込みの正規化キーと出現場所を把握する
             const getDedupeKey = (a: Application) => `${normalizeName(a.input_name, currentKanjiMap)}|${(a.input_email || '').toLowerCase().trim()}`;
@@ -2890,7 +2949,7 @@ export default function AdminDashboard() {
                             <div className="w-px bg-gray-300 h-8 mx-2"></div>
                             <button onClick={() => setShowCreateModal(true)} className="px-4 py-2 rounded-md bg-green-600 text-white font-bold hover:bg-green-700">新規登録</button>
                             <button onClick={fetchUnappliedMembers} className="px-4 py-2 rounded-md bg-yellow-500 text-white font-bold hover:bg-yellow-600 ml-2">未申込者を確認</button>
-                            <span className="ml-4 text-[10px] font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-200">System Logic v2.3</span>
+                            <span className="ml-4 text-[10px] font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-200">System Logic v2.4</span>
                         </div>
                         {/* 統計表示 */}
                         <div className="flex gap-4 items-stretch bg-white border border-gray-200 rounded-lg p-1.5 shadow-sm">
