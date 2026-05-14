@@ -103,13 +103,23 @@ export async function POST(request: Request) {
             }
 
             // 同名・同期が複数いる場合、特進（is_tokushin=true）を優先して照合する
-            const matchedMembers = allMembers?.filter(m => normalizeName(m.name, customKanjiMap) === normalizedInputName) || [];
+            const normalizedInputFurigana = normalizeName(furigana, customKanjiMap);
+            
+            const matchedMembers = allMembers?.filter(m => {
+                const isNameMatch = normalizeName(m.name, customKanjiMap) === normalizedInputName;
+                const isFuriganaMatch = m.furigana && normalizeName(m.furigana, customKanjiMap) === normalizedInputFurigana;
+                return isNameMatch || isFuriganaMatch;
+            }) || [];
+
             const member = matchedMembers.find(m => m.is_tokushin) || matchedMembers[0] || null;
 
             if (member) {
                 rankId = member.ranks?.id ? String(member.ranks.id) : null;
                 rankName = member.ranks?.name || '受講生(属性未設定)'; // マスタに名前があればそれを使用
                 memberId = member.id;
+            } else {
+                // 受講生として申し込んだがマスタに存在しない場合、一般への格下げを防ぐ
+                rankName = '確認中（受講生一致エラー）';
             }
         } else {
             // 一般（マスタ外）の場合
