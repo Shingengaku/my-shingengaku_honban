@@ -128,14 +128,22 @@ export async function POST(request: Request) {
                 const email = appUpdates.input_email || appData?.input_email;
                 const furigana = appUpdates.input_furigana || appData?.input_furigana;
 
-                if (email) {
+                    const { data: terms } = await supabaseAdmin
+                        .from('terms')
+                        .select('id, name');
+                    const targetTerm = terms?.find(t => 
+                        t.name === String(member_generation) || 
+                        t.name === `${member_generation}期`
+                    );
+
                     const { data: newMember, error: createError } = await supabaseAdmin
                         .from('members')
                         .insert({
                             name: name || 'Unknown',
                             email: email,
                             furigana: furigana || '',
-                            generation: member_generation // 直接設定
+                            generation: member_generation,
+                            term_id: targetTerm?.id || null
                         })
                         .select('id')
                         .single();
@@ -163,14 +171,18 @@ export async function POST(request: Request) {
                     memberUpdates.generation = member_generation;
 
                     // term_id も generation に合わせて同期する
-                    // terms テーブルで name = member_generation の行を検索
-                    const { data: termData } = await supabaseAdmin
+                    // terms テーブルで name = member_generation または name = member_generation + "期" の行を検索
+                    const { data: terms } = await supabaseAdmin
                         .from('terms')
-                        .select('id')
-                        .eq('name', String(member_generation))
-                        .single();
-                    if (termData?.id) {
-                        memberUpdates.term_id = termData.id;
+                        .select('id, name');
+                    
+                    const targetTerm = terms?.find(t => 
+                        t.name === String(member_generation) || 
+                        t.name === `${member_generation}期`
+                    );
+
+                    if (targetTerm?.id) {
+                        memberUpdates.term_id = targetTerm.id;
                     }
                 }
 

@@ -32,34 +32,63 @@ export async function POST(request: Request) {
 
         // 期が指定されている場合、メンバーを検索または作成
         if (member_generation) {
-            const { data: existingMembers, error: memberError } = await supabaseAdmin
-                .from('members')
-                .select('id, name')
-                .eq('generation', member_generation);
+            // term_id を特定 (例: 11 -> "11期" を探す)
+            const { data: terms } = await supabaseAdmin
+                .from('terms')
+                .select('id, name');
+            
+            const targetTerm = terms?.find(t => 
+                t.name === String(member_generation) || 
+                t.name === `${member_generation}期`
+            );
 
-            if (!memberError && existingMembers) {
-                const normalizedInputName = input_name.replace(/\s+/g, '');
-                const member = existingMembers.find(m => m.name.replace(/\s+/g, '') === normalizedInputName);
-                if (member) {
-                    targetMemberId = member.id;
-                }
-            }
-
-            // 見つからない場合は新規作成
-            if (!targetMemberId && input_email) {
-                const { data: newMember, error: createError } = await supabaseAdmin
+            if (targetTerm) {
+                const { data: existingMembers, error: memberError } = await supabaseAdmin
                     .from('members')
-                    .insert({
-                        name: input_name,
-                        email: input_email,
-                        furigana: input_furigana || '',
-                        generation: member_generation
-                    })
-                    .select('id')
-                    .single();
+                    .select('id, name')
+                    .eq('term_id', targetTerm.id);
 
-                if (!createError && newMember) {
-                    targetMemberId = newMember.id;
+                if (!memberError && existingMembers) {
+                    const normalizedInputName = input_name.replace(/[\s\u3000]+/g, '');
+                    const member = existingMembers.find(m => m.name.replace(/[\s\u3000]+/g, '') === normalizedInputName);
+                    if (member) {
+                        targetMemberId = member.id;
+                    }
+                }
+
+                // 見つからない場合は新規作成
+                if (!targetMemberId && input_email) {
+                    const { data: newMember, error: createError } = await supabaseAdmin
+                        .from('members')
+                        .insert({
+                            name: input_name,
+                            email: input_email,
+                            furigana: input_furigana || '',
+                            term_id: targetTerm.id,
+                            generation: member_generation // 念のため古いカラムもセット
+                        })
+                        .select('id')
+                        .single();
+
+                    if (!createError && newMember) {
+                        targetMemberId = newMember.id;
+                    }
+                }
+            } else {
+                console.warn(`Term not found for generation: ${member_generation}`);
+                // 期が見つからないが、世代情報だけ保存したい場合のフォールバック（旧カラムのみ）
+                if (input_email) {
+                    const { data: newMember } = await supabaseAdmin
+                        .from('members')
+                        .insert({
+                            name: input_name,
+                            email: input_email,
+                            furigana: input_furigana || '',
+                            generation: member_generation
+                        })
+                        .select('id')
+                        .single();
+                    if (newMember) targetMemberId = newMember.id;
                 }
             }
         }
