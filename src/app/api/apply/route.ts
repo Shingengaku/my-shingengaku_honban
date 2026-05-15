@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { resend } from '@/lib/resend';
 import { processEmailTemplate, DEFAULT_EMAIL_TEMPLATE, DEFAULT_EMAIL_TEMPLATE_GENERAL, DEFAULT_EMAIL_TEMPLATE_NO_PARTICIPATION, DEFAULT_EMAIL_TEMPLATE_MULTIPLE } from '@/lib/emailTemplate';
 import { normalizeVenue, getVenueDisplayName, matchProduct } from '@/lib/venueUtils';
-import { normalizeName } from '@/lib/kanjiNormalize';
+import { normalizeName } from '@/lib/kanjiNormalizeServer';
 
 // 型定義
 interface ApplyRequest {
