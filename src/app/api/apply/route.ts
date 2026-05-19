@@ -82,9 +82,9 @@ export async function POST(request: Request) {
         }
 
         // 取得したレコードの氏名を正規化して比較（表記ゆれがあっても重複として検出）
-        // 「確認中」タグ（under_review）がついたレコードは重複判定から除外
+        // ただし「確認中」タグ付きレコードは重複判定から除外する
         const isDuplicate = existingData?.some(app => {
-            if (app.tags?.includes('under_review')) return false;
+            if (app.tags?.includes('確認中')) return false;
             return normalizeName(app.input_name, customKanjiMap) === normalizedInputName;
         });
         if (isDuplicate) {
