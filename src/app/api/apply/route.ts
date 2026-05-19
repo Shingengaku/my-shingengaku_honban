@@ -73,7 +73,8 @@ export async function POST(request: Request) {
         const { data: existingData, error: duplicateError } = await supabaseAdmin
             .from('applications')
             .select('id, input_name')
-            .eq('input_email', email);
+            .eq('input_email', email)
+            .neq('payment_status', 'cancelled'); // キャンセル済みは重複判定から除外
 
         if (duplicateError) {
             console.error('Duplicate check error:', duplicateError);

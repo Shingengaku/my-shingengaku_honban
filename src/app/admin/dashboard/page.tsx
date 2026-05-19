@@ -1108,7 +1108,29 @@ export default function AdminDashboard() {
     };
 
     const handleUncancel = async (id: string) => {
-        if (!confirm('キャンセルを解除して「未決済」に戻しますか？')) return;
+        // キャンセル解除対象のレコードを取得
+        const targetApp = apps.find(a => a.id === id);
+        if (!targetApp) return;
+
+        // 同一人物のアクティブなレコードが存在するか確認
+        const targetName = (targetApp.input_name || '').replace(/[\s\u3000]+/g, '');
+        const targetEmail = (targetApp.input_email || '').toLowerCase().trim();
+        const hasActiveDuplicate = apps.some(a => {
+            if (a.id === id) return false; // 自分自身は除外
+            if (a.payment_status === 'cancelled') return false; // キャンセル済みも除外
+            const aName = (a.input_name || '').replace(/[\s\u3000]+/g, '');
+            const aEmail = (a.input_email || '').toLowerCase().trim();
+            return aName === targetName && aEmail === targetEmail;
+        });
+
+        if (hasActiveDuplicate) {
+            if (!confirm(
+                `⚠️ 重複の警告\n\n「${targetApp.input_name}」さんのアクティブな申込レコードが既に存在します。\n\nキャンセルを解除すると重複レコードになりますが、よろしいですか？\n\n（重複レコードはダッシュボード上で「重複」バッジにより確認できます）`
+            )) return;
+        } else {
+            if (!confirm('キャンセルを解除して「未決済」に戻しますか？')) return;
+        }
+
         try {
             const res = await fetch('/api/admin/applications/update', {
                 method: 'POST',
