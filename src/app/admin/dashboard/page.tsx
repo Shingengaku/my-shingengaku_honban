@@ -4709,71 +4709,6 @@ export default function AdminDashboard() {
                             </div>
 
                             <div>
-                                <label className="block text-sm text-gray-600">講義会場 (必須)</label>
-                                <select
-                                    className="border w-full p-2 rounded"
-                                    value={createForm.venue || ''}
-                                    onChange={e => handleCreateFieldChange('venue', e.target.value)}
-                                >
-                                    <option value="">選択してください</option>
-                                    {venueList.filter(v => v.type === 'lecture').map(v => (
-                                        <option key={v.id} value={v.name}>{v.name}</option>
-                                    ))}
-                                    <option value="東京・福岡">東京・福岡</option>
-                                    <option value="参加しない">参加しない</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm text-gray-600">懇親会</label>
-                                <select
-                                    className="border w-full p-2 rounded"
-                                    value={createForm.social_venue || 'none'}
-                                    onChange={e => handleCreateFieldChange('social_venue', e.target.value)}
-                                >
-                                    <option value="none">参加しない</option>
-                                    {(() => {
-                                        const lectureVenue = createForm.venue;
-                                        const socialVenues = venueList.filter(v => v.type === 'social');
-                                        const available = getSocialOptionsForLecture(lectureVenue, socialVenues);
-
-                                        return (
-                                            <>
-                                                {available.map(v => (
-                                                    <option key={v.id} value={v.name}>{v.name}</option>
-                                                ))}
-                                                {lectureVenue === '東京・福岡' && !available.some(a => a.name === '東京・福岡') && (
-                                                    <option value="東京・福岡">東京・福岡</option>
-                                                )}
-                                            </>
-                                        );
-                                    })()}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm text-gray-600">判定属性</label>
-                                <select
-                                    className="border w-full p-2 rounded"
-                                    value={createForm.applied_rank_name || '一般'}
-                                    onChange={e => handleCreateFieldChange('applied_rank_name', e.target.value)}
-                                >
-                                    {ranks.map(r => (
-                                        <option key={r.id} value={r.name}>{r.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm text-gray-600">期 (任意)</label>
-                                <input
-                                    type="number"
-                                    className="border w-full p-2 rounded"
-                                    value={createForm.member_generation || ''}
-                                    placeholder="例: 10"
-                                    onChange={e => setCreateForm({ ...createForm, member_generation: e.target.value ? parseInt(e.target.value) : undefined })}
-                                />
-                            </div>
-
-                            <div>
                                 <label className="block text-sm text-gray-600">参加タイプ</label>
                                 <select
                                     className="border w-full p-2 rounded"
@@ -4785,22 +4720,83 @@ export default function AdminDashboard() {
                                 </select>
                             </div>
 
-                            {createForm.participation_type === 'online' && (
-                                <div>
-                                    <label className="block text-sm text-gray-600">オンライン対象会場 <span className="text-red-500">*</span></label>
-                                    <select
-                                        className="border w-full p-2 rounded"
-                                        value={(createForm as any).online_venues || ''}
-                                        onChange={e => handleCreateFieldChange('online_venues', e.target.value)}
-                                    >
-                                        <option value="">選択してください</option>
-                                        {venueList.filter(v => v.type === 'lecture').map(opt => (
-                                            <option key={opt.id} value={opt.name}>{opt.name}</option>
-                                        ))}
-                                        <option value="東京・福岡">東京・福岡</option>
-                                    </select>
-                                    <p className="text-xs text-gray-500 mt-1">LIVE視聴参加者がどの会場の配信を視聴するかを選択してください</p>
-                                </div>
+                            {(!createForm.participation_type || createForm.participation_type === 'venue') ? (
+                                <>
+                                    <div>
+                                        <label className="block text-sm text-gray-600">講義会場 (必須)</label>
+                                        <select
+                                            className="border w-full p-2 rounded"
+                                            value={createForm.venue || ''}
+                                            onChange={e => handleCreateFieldChange('venue', e.target.value)}
+                                        >
+                                            <option value="">選択してください</option>
+                                            {venueList.filter(v => v.type === 'lecture').map(v => (
+                                                <option key={v.id} value={v.name}>{v.name}</option>
+                                            ))}
+                                            <option value="東京・福岡">東京・福岡</option>
+                                            <option value="参加しない">参加しない</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm text-gray-600">懇親会</label>
+                                        <select
+                                            className="border w-full p-2 rounded"
+                                            value={createForm.social_venue || 'none'}
+                                            onChange={e => handleCreateFieldChange('social_venue', e.target.value)}
+                                        >
+                                            <option value="none">参加しない</option>
+                                            {(() => {
+                                                const lectureVenue = createForm.venue;
+                                                const socialVenues = venueList.filter(v => v.type === 'social');
+                                                const available = getSocialOptionsForLecture(lectureVenue, socialVenues);
+
+                                                return (
+                                                    <>
+                                                        {available.map(v => (
+                                                            <option key={v.id} value={v.name}>{v.name}</option>
+                                                        ))}
+                                                        {lectureVenue === '東京・福岡' && !available.some(a => a.name === '東京・福岡') && (
+                                                            <option value="東京・福岡">東京・福岡</option>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
+                                        </select>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div>
+                                        <label className="block text-sm text-gray-600">オンライン視聴タイプ (必須)</label>
+                                        <select
+                                            className="border w-full p-2 rounded"
+                                            value={createForm.venue || ''}
+                                            onChange={e => handleCreateFieldChange('venue', e.target.value)}
+                                        >
+                                            <option value="">選択してください</option>
+                                            {onlineOptionMaster.map(o => (
+                                                <option key={o.id} value={o.name}>{o.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    {createForm.venue?.includes('LIVE') && (
+                                        <div>
+                                            <label className="block text-sm text-gray-600">オンライン対象会場 <span className="text-red-500">*</span></label>
+                                            <select
+                                                className="border w-full p-2 rounded"
+                                                value={(createForm as any).online_venues || ''}
+                                                onChange={e => handleCreateFieldChange('online_venues', e.target.value)}
+                                            >
+                                                <option value="">選択してください</option>
+                                                {venueList.filter(v => v.type === 'lecture').map(opt => (
+                                                    <option key={opt.id} value={opt.name}>{opt.name}</option>
+                                                ))}
+                                                <option value="東京・福岡">東京・福岡</option>
+                                            </select>
+                                            <p className="text-xs text-gray-500 mt-1">LIVE視聴参加者がどの会場の配信を視聴するかを選択してください</p>
+                                        </div>
+                                    )}
+                                </>
                             )}
 
                             <div>
