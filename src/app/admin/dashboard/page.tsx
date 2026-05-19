@@ -3501,6 +3501,13 @@ export default function AdminDashboard() {
                                                         title="クリックで発行済を解除"
                                                     >請求(懇) 済</span>
                                                 )}
+                                                {app.tags?.includes('under_review') && (
+                                                    <span
+                                                        onClick={() => handleRemoveTag(app.id, app.tags || [], 'under_review', '確認中')}
+                                                        className="px-2 py-0.5 mt-1 text-[10px] bg-amber-50 text-amber-700 border border-amber-300 rounded cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors block text-center font-bold"
+                                                        title="クリックで「確認中」を解除"
+                                                    >✉️ 確認中</span>
+                                                )}
                                             </div>
                                         </td>
 
@@ -3660,6 +3667,34 @@ export default function AdminDashboard() {
                                                 }} className="text-indigo-600 hover:text-indigo-900 text-xs text-left block w-full">📋 書類URLコピー</button>
                                                 <button onClick={() => window.open(`/receipt/${app.id}?admin=true`, '_blank')} className="text-teal-600 hover:text-teal-900 text-xs text-left block w-full">📄 領収書 プレビュー</button>
                                                 <button onClick={() => window.open(`/receipt/${app.id}?admin=true&type=invoice`, '_blank')} className="text-sky-600 hover:text-sky-900 text-xs text-left block w-full">📄 請求書 プレビュー</button>
+                                            </div>
+                                            <div className="pt-1 border-t border-gray-100 mt-1">
+                                                <button
+                                                    onClick={async () => {
+                                                        const currentTags = app.tags || [];
+                                                        const hasTag = currentTags.includes('under_review');
+                                                        const newTags = hasTag
+                                                            ? currentTags.filter(t => t !== 'under_review')
+                                                            : [...currentTags, 'under_review'];
+                                                        try {
+                                                            const res = await fetch('/api/admin/applications/update', {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ ids: [app.id], tags: newTags }),
+                                                            });
+                                                            if (res.ok) {
+                                                                setApps(apps.map(a => a.id === app.id ? { ...a, tags: newTags } : a));
+                                                            } else {
+                                                                alert('更新に失敗しました');
+                                                            }
+                                                        } catch (e) {
+                                                            alert('エラーが発生しました');
+                                                        }
+                                                    }}
+                                                    className={`text-xs text-left block w-full ${app.tags?.includes('under_review') ? 'text-amber-700 font-bold' : 'text-gray-500 hover:text-amber-700'}`}
+                                                >
+                                                    {app.tags?.includes('under_review') ? '✉️ 確認中を解除' : '✉️ 確認中にする'}
+                                                </button>
                                             </div>
                                             <div className="pt-1 border-t border-gray-100 mt-1">
                                                 <button onClick={() => handleDeleteApp(app.id)} className="text-red-500 hover:text-red-700 text-xs text-left font-bold flex items-center">
