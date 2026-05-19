@@ -802,7 +802,7 @@ export default function Home() {
               {isMultiple && (
                 <div className="animate-fade-in space-y-3">
                   <p className="text-xs text-orange-700 leading-relaxed font-medium">
-                    ※複数名でのお申し込みの場合、システムからの自動決済は行えません。お申し込み完了後、事務局より合計金額と専用の決済リンクを別途メールにてご連絡させていただきます。
+                    ※複数名でのお申し込みの場合、料金は合算となります。システムからの自動決済は行えませんので、お申し込み完了後、事務局より合計金額と専用の決済リンクを別途メールにてご連絡させていただきます。
                   </p>
                   <div>
                     <label htmlFor="remarks" className="block text-sm font-medium text-gray-700 mb-1">
