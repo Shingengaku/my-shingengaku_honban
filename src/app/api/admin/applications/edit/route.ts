@@ -128,6 +128,7 @@ export async function POST(request: Request) {
                 const email = appUpdates.input_email || appData?.input_email;
                 const furigana = appUpdates.input_furigana || appData?.input_furigana;
 
+                if (email) {
                     const { data: terms } = await supabaseAdmin
                         .from('terms')
                         .select('id, name');

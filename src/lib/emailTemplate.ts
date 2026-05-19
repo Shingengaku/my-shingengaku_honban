@@ -145,7 +145,8 @@ export const DEFAULT_EMAIL_TEMPLATE_REMINDER_VENUE_PAID = {
     body: `{{name}} 様
 
 【開催概要】
-日時：{{lecture_date}}
+日時：
+{{lecture_date}}
 会場：{{venue}}
 懇親会：{{social_venue}}
 
@@ -160,7 +161,8 @@ export const DEFAULT_EMAIL_TEMPLATE_REMINDER_VENUE_UNPAID = {
     body: `{{name}} 様
 
 【開催概要】
-日時：{{lecture_date}}
+日時：
+{{lecture_date}}
 会場：{{venue}}
 懇親会：{{social_venue}}
 
@@ -171,6 +173,8 @@ export const DEFAULT_EMAIL_TEMPLATE_REMINDER_VENUE_UNPAID = {
 
 ▼ご決済リンク
 {{payment_link_section}}
+
+※本状と行き違いでご入金いただいた場合は、何卒ご容赦ください。
 
 当日お会いできることを楽しみにしております。`
 };
@@ -210,6 +214,8 @@ export const DEFAULT_EMAIL_TEMPLATE_REMINDER_ONLINE_UNPAID = {
 
 ▼ご決済リンク
 {{payment_link_section}}
+
+※本状と行き違いでご入金いただいた場合は、何卒ご容赦ください。
 
 当日お会いできることを楽しみにしております。`
 };

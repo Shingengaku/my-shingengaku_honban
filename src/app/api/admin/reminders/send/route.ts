@@ -40,7 +40,8 @@ const getTimeValue = (s: string) => {
 
 export async function POST(request: Request) {
     try {
-        const { ids } = await request.json();
+        const { ids, customOverrides } = await request.json();
+        const overrides: Record<string, { subject: string; content: string }> = customOverrides || {};
 
         if (!ids || !Array.isArray(ids) || ids.length === 0) {
             return NextResponse.json({ error: 'No IDs provided' }, { status: 400 });
@@ -65,6 +66,10 @@ export async function POST(request: Request) {
 
         // 3. Fetch Venues Master (for Area mapping)
         const { data: venuesMaster } = await supabaseAdmin.from('venues').select('*');
+
+        // 4. Fetch Ranks Master (for Rank ID fallback)
+        const { data: ranksMaster } = await supabaseAdmin.from('ranks').select('id, name');
+        const ranks = ranksMaster || [];
 
         const senderName = settings.sender_name || '神言学事務局';
         const senderEmail = settings.sender_email || process.env.FROM_EMAIL || 'noreply@resend.dev';
@@ -101,22 +106,32 @@ export async function POST(request: Request) {
                     area = 'fukuoka';
                 }
 
-                const isPaid = app.payment_status === 'paid';
+                // 2. Resolve Rank ID
+                const rankName = app.applied_rank_name || app.members?.ranks?.name || '一般';
+                let rankId: string | null = null;
+                if (app.members?.ranks?.id) {
+                    rankId = String(app.members.ranks.id);
+                } else if (app.applied_rank_name) {
+                    const found = ranks.find(r => r.name === app.applied_rank_name);
+                    if (found) rankId = String(found.id);
+                }
+
+                const isAlert = app.remarks?.includes('商品マスタ') && !app.tags?.includes('confirmed_product_alert');
+                const isPaidOrFree = app.payment_status === 'paid' || (app.total_amount === 0 && app.payment_status !== 'cancelled' && !isAlert);
 
                 // Select Template
                 let template;
                 if (isOnline) {
-                    template = isPaid 
+                    template = isPaidOrFree 
                         ? (settings.email_template_reminder_online_paid || DEFAULT_EMAIL_TEMPLATE_REMINDER_ONLINE_PAID)
                         : (settings.email_template_reminder_online_unpaid || DEFAULT_EMAIL_TEMPLATE_REMINDER_ONLINE_UNPAID);
                 } else {
-                    template = isPaid
+                    template = isPaidOrFree
                         ? (settings.email_template_reminder_venue_paid || DEFAULT_EMAIL_TEMPLATE_REMINDER_VENUE_PAID)
                         : (settings.email_template_reminder_venue_unpaid || DEFAULT_EMAIL_TEMPLATE_REMINDER_VENUE_UNPAID);
                 }
 
                 // Prepare Variables
-                const rankName = app.applied_rank_name || app.members?.ranks?.name || '一般';
                 const displayVenue = getVenueDisplayName(app.venue, pType, app.online_venues);
                 const displaySocial = (pType === 'online') ? '参加不可' : app.social_venue;
                 
@@ -197,12 +212,9 @@ export async function POST(request: Request) {
                 }
 
                 // Payment Link (for unpaid)
-
-                // Payment Link (for unpaid)
                 let paymentUrl = '';
-                if (!isPaid) {
+                if (!isPaidOrFree) {
                     const paymentLinks = settings.payment_links || [];
-                    const rankId = app.members?.ranks?.id ? String(app.members.ranks.id) : null;
                     const matchedProduct = matchProduct(paymentLinks, {
                         venue: app.venue,
                         social_venue: app.social_venue,
@@ -213,6 +225,11 @@ export async function POST(request: Request) {
                         payment_key: app.payment_key
                     });
                     paymentUrl = matchedProduct?.url || '';
+
+                    if (!paymentUrl) {
+                        results.push({ id: app.id, status: 'error', error: '決済リンクが見つかりません。マスタ設定をご確認ください。' });
+                        continue; // リンク抜けを防ぐため送信をスキップ
+                    }
                 }
 
                 const vars = {
@@ -229,8 +246,10 @@ export async function POST(request: Request) {
                     zoom_info: zoomInfo
                 };
 
-                const emailSubject = processEmailTemplate(template.subject, vars);
-                const emailContent = processEmailTemplate(template.body, vars);
+                // 手動編集 (override) がある場合はそちらを採用、なければテンプレートから生成
+                const override = overrides[app.id];
+                const emailSubject = override?.subject || processEmailTemplate(template.subject, vars);
+                const emailContent = override?.content || processEmailTemplate(template.body, vars);
 
                 // Send Email
                 await resend.emails.send({

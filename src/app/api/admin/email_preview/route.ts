@@ -122,6 +122,7 @@ export async function POST(request: Request) {
             subject: template.subject,
             content,
             email: app.input_email,
+            additional_email: app.additional_email || '',
             cc: adminEmail || undefined,
             bcc: bccList || undefined,
             debug: {

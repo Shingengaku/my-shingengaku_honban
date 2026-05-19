@@ -10,12 +10,6 @@ const nextConfig: NextConfig = {
     // !! 警告 !!
     ignoreBuildErrors: true,
   },
-  eslint: {
-    // !! 警告 !!
-    // ESLintエラーがあっても本番ビルドを成功させます。
-    // !! 警告 !!
-    ignoreDuringBuilds: true,
-  },
 };
 
 export default nextConfig;

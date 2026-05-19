@@ -230,7 +230,7 @@ export default function AdminDashboard() {
     const [emailTemplateForgotPass, setEmailTemplateForgotPass] = useState({ subject: '', body: '' });
     const [emailTemplateMultiple, setEmailTemplateMultiple] = useState({ subject: '', body: '' });
     const [selectedTemplateTab, setSelectedTemplateTab] = useState<'matched' | 'general' | 'free' | 'free_online' | 'resend' | 'forgot' | 'multiple' | 'reminder'>('matched');
-    const [customResendModal, setCustomResendModal] = useState<{ isOpen: boolean, appId: string | null, subject: string, body: string, email: string, additionalEmail: string, sendToOriginal: boolean }>({ isOpen: false, appId: null, subject: '', body: '', email: '', additionalEmail: '', sendToOriginal: true });
+    const [customResendModal, setCustomResendModal] = useState<{ isOpen: boolean, appId: string | null, subject: string, body: string, email: string }>({ isOpen: false, appId: null, subject: '', body: '', email: '' });
 
     const [adminEmail, setAdminEmail] = useState('');
     const [adminBccEmail, setAdminBccEmail] = useState('');
@@ -241,21 +241,19 @@ export default function AdminDashboard() {
     const [termMaster, setTermMaster] = useState<number[]>([]);
     const [applicationActive, setApplicationActive] = useState(true);
 
-    // リマインド関連の状態
+
     const [previewModal, setPreviewModal] = useState<{
         isOpen: boolean;
         targetIds: string[];
         currentIndex: number;
         data: any | null;
         loading: boolean;
-        customOverrides: Record<string, { subject: string; content: string }>;
     }>({
         isOpen: false,
         targetIds: [],
         currentIndex: 0,
         data: null,
-        loading: false,
-        customOverrides: {}
+        loading: false
     });
     const [reminderSending, setReminderSending] = useState(false);
     const [emailTemplateReminderVenuePaid, setEmailTemplateReminderVenuePaid] = useState({ subject: '', body: '' });
@@ -1143,9 +1141,7 @@ export default function AdminDashboard() {
                     appId: id,
                     subject: data.subject,
                     body: data.content,
-                    email: data.email,
-                    additionalEmail: data.additional_email || '',
-                    sendToOriginal: true
+                    email: data.email
                 });
             } else {
                 alert('プレビューの取得に失敗しました');
@@ -1169,9 +1165,7 @@ export default function AdminDashboard() {
                 body: JSON.stringify({
                     id: customResendModal.appId,
                     subject: customResendModal.subject,
-                    body: customResendModal.body,
-                    additionalEmail: customResendModal.additionalEmail,
-                    sendToOriginal: customResendModal.sendToOriginal
+                    body: customResendModal.body
                 })
             });
 
@@ -1552,7 +1546,7 @@ export default function AdminDashboard() {
     const resetIssuanceStatus = async () => {
         if (!editingApp || !confirm('この申込の発行状況をリセットして、再発行（ロック解除）を許可しますか？')) return;
         try {
-            const newTags = (editingApp.tags || []).filter(t => !t.startsWith('receipted') && !t.startsWith('invoiced'));
+            const newTags = (editingApp.tags || []).filter(t => !t.startsWith('receipted'));
             const res = await fetch('/api/admin/applications/edit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2631,17 +2625,15 @@ export default function AdminDashboard() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: targetIds[index] }),
             });
-            const data = await res.json();
-            // 既に手動編集されている場合は、その内容をプレビューデータに反映する
-            setPreviewModal(prev => {
-                const override = prev.customOverrides[targetIds[index]];
-                if (override) {
-                    return { ...prev, data: { ...data, subject: override.subject, content: override.content }, loading: false };
-                }
-                return { ...prev, data, loading: false };
-            });
+            if (res.ok) {
+                const data = await res.json();
+                setPreviewModal(prev => ({ ...prev, data, loading: false }));
+            } else {
+                setPreviewModal(prev => ({ ...prev, loading: false }));
+                alert('プレビューの取得に失敗しました');
+            }
         } catch (e) {
-            setPreviewModal(prev => ({ ...prev, data: { error: 'プレビュー取得エラー', isError: true }, loading: false }));
+            setPreviewModal(prev => ({ ...prev, loading: false }));
         }
     };
 
@@ -2661,8 +2653,7 @@ export default function AdminDashboard() {
             targetIds,
             currentIndex: 0,
             data: null,
-            loading: true,
-            customOverrides: {}
+            loading: true
         });
         fetchPreviewData(targetIds, 0);
     };
@@ -2670,7 +2661,11 @@ export default function AdminDashboard() {
     const submitReminders = async () => {
         if (!confirm('選択した参加者にリマインドメールを一括送信しますか？')) return;
 
-        const targetIds = previewModal.targetIds;
+        // 送信対象を絞り込む（キャンセル済みを除外）
+        const targetIds = Array.from(selectedIds).filter(id => {
+            const app = apps.find(a => a.id === id);
+            return app && app.payment_status !== 'cancelled';
+        });
 
         if (targetIds.length === 0) {
             alert('送信対象となる（キャンセルされていない）データがありません。');
@@ -2682,7 +2677,7 @@ export default function AdminDashboard() {
             const res = await fetch('/api/admin/reminders/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ids: targetIds, customOverrides: previewModal.customOverrides })
+                body: JSON.stringify({ ids: targetIds })
             });
 
             if (res.ok) {
@@ -3458,27 +3453,7 @@ export default function AdminDashboard() {
                                                         title="クリックで発行済を解除"
                                                     >領収(懇) 済</span>
                                                 )}
-                                                {app.tags?.includes('invoiced') && (
-                                                    <span
-                                                        onClick={() => handleRemoveTag(app.id, app.tags || [], 'invoiced', '請求書(合)')}
-                                                        className="px-2 py-0.5 mt-1 text-[10px] bg-sky-50 text-sky-600 border border-sky-200 rounded cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors block text-center"
-                                                        title="クリックで発行済を解除"
-                                                    >請求書(合) 済</span>
-                                                )}
-                                                {app.tags?.includes('invoiced_lecture') && (
-                                                    <span
-                                                        onClick={() => handleRemoveTag(app.id, app.tags || [], 'invoiced_lecture', '請求(講)')}
-                                                        className="px-2 py-0.5 mt-1 text-[10px] bg-sky-50 text-sky-600 border border-sky-200 rounded cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors block text-center"
-                                                        title="クリックで発行済を解除"
-                                                    >請求(講) 済</span>
-                                                )}
-                                                {app.tags?.includes('invoiced_social') && (
-                                                    <span
-                                                        onClick={() => handleRemoveTag(app.id, app.tags || [], 'invoiced_social', '請求(懇)')}
-                                                        className="px-2 py-0.5 mt-1 text-[10px] bg-sky-50 text-sky-600 border border-sky-200 rounded cursor-pointer hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors block text-center"
-                                                        title="クリックで発行済を解除"
-                                                    >請求(懇) 済</span>
-                                                )}
+
                                             </div>
                                         </td>
 
@@ -3637,7 +3612,6 @@ export default function AdminDashboard() {
                                                     navigator.clipboard.writeText(url).then(() => alert('お客様用 書類発行URLをコピーしました。\n' + url));
                                                 }} className="text-indigo-600 hover:text-indigo-900 text-xs text-left block w-full">📋 書類URLコピー</button>
                                                 <button onClick={() => window.open(`/receipt/${app.id}?admin=true`, '_blank')} className="text-teal-600 hover:text-teal-900 text-xs text-left block w-full">📄 領収書 プレビュー</button>
-                                                <button onClick={() => window.open(`/receipt/${app.id}?admin=true&type=invoice`, '_blank')} className="text-sky-600 hover:text-sky-900 text-xs text-left block w-full">📄 請求書 プレビュー</button>
                                             </div>
                                             <div className="pt-1 border-t border-gray-100 mt-1">
                                                 <button onClick={() => handleDeleteApp(app.id)} className="text-red-500 hover:text-red-700 text-xs text-left font-bold flex items-center">
@@ -3858,7 +3832,7 @@ export default function AdminDashboard() {
                                     </div>
                                 </div>
 
-                                {editingApp && (editingApp.tags || []).some(t => t.startsWith('receipted') || t.startsWith('invoiced')) && (
+                                {editingApp && (editingApp.tags || []).some(t => t.startsWith('receipted')) && (
                                     <div className="bg-amber-50 p-3 rounded border border-amber-200 flex justify-between items-center">
                                         <div>
                                             <p className="text-xs font-bold text-amber-800">書類発行済み（ユーザー側はロック中）</p>
@@ -3943,36 +3917,8 @@ export default function AdminDashboard() {
 
                         <p className="text-sm text-gray-600 mb-4">内容を編集して「送信」ボタンを押してください。</p>
 
-                        <div className="mb-3 p-3 bg-gray-50 rounded-lg border">
-                            <div className="flex items-center justify-between mb-2">
-                                <label className="block text-sm font-bold text-gray-700">元の送信先</label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={customResendModal.sendToOriginal}
-                                        onChange={e => setCustomResendModal({ ...customResendModal, sendToOriginal: e.target.checked })}
-                                        className="h-4 w-4 text-indigo-600 rounded"
-                                    />
-                                    <span className="text-xs text-gray-600">このアドレスにも送信する</span>
-                                </label>
-                            </div>
-                            <div className={`text-sm font-mono px-2 py-1.5 rounded ${customResendModal.sendToOriginal ? 'bg-white text-gray-800 border' : 'bg-gray-200 text-gray-400 line-through'}`}>
-                                {customResendModal.email}
-                            </div>
-                        </div>
-
-                        <div className="mb-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
-                            <label className="block text-sm font-bold text-indigo-700 mb-1">追加送信先メールアドレス</label>
-                            <input
-                                className="border w-full p-2 rounded text-sm"
-                                type="email"
-                                value={customResendModal.additionalEmail}
-                                onChange={e => setCustomResendModal({ ...customResendModal, additionalEmail: e.target.value })}
-                                placeholder="例: sub-address@example.com"
-                            />
-                            <p className="text-xs text-indigo-500 mt-1">
-                                ※ 入力したアドレスは保存され、次回再送時にも表示されます
-                            </p>
+                        <div className="mb-2">
+                            <span className="font-bold text-sm">宛先:</span> {customResendModal.email}
                         </div>
 
                         <div className="mb-2">
@@ -4272,6 +4218,96 @@ export default function AdminDashboard() {
                                         <button onClick={() => setReminderSettingsTab('online')} className={`px-3 py-1 text-sm ${reminderSettingsTab === 'online' ? 'border-b-2 border-indigo-500 font-bold' : ''}`}>ライブ視聴者向け</button>
                                     </div>
 
+                                    {/* Reminder Preview Modal */}
+                                    {previewModal.isOpen && (
+                                        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+                                            <div className="bg-white p-6 rounded-lg shadow-xl w-[700px] max-h-[90vh] flex flex-col">
+                                                <h3 className="text-xl font-bold mb-4 text-indigo-700 flex items-center gap-2">
+                                                    <span>🚀</span> 一括リマインド送信の確認
+                                                </h3>
+                                                
+                                                <div className="mb-4 text-sm text-gray-600 flex justify-between items-center bg-gray-50 p-2 rounded border">
+                                                    <span>送信対象: <strong className="text-indigo-600">{previewModal.targetIds.length}</strong> 件</span>
+                                                    <div className="flex items-center gap-4">
+                                                        <button 
+                                                            onClick={() => fetchPreviewData(previewModal.targetIds, previewModal.currentIndex - 1)}
+                                                            disabled={previewModal.currentIndex === 0 || previewModal.loading}
+                                                            className="px-3 py-1 bg-white border rounded hover:bg-gray-100 disabled:opacity-50"
+                                                        >
+                                                            ◀ 前へ
+                                                        </button>
+                                                        <span className="font-bold text-gray-700 w-16 text-center">{previewModal.currentIndex + 1} / {previewModal.targetIds.length}</span>
+                                                        <button 
+                                                            onClick={() => fetchPreviewData(previewModal.targetIds, previewModal.currentIndex + 1)}
+                                                            disabled={previewModal.currentIndex === previewModal.targetIds.length - 1 || previewModal.loading}
+                                                            className="px-3 py-1 bg-white border rounded hover:bg-gray-100 disabled:opacity-50"
+                                                        >
+                                                            次へ ▶
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex-1 overflow-y-auto pr-2 border rounded p-4 bg-gray-50 relative min-h-[300px]">
+                                                    {previewModal.loading ? (
+                                                        <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-80 z-10">
+                                                            <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                                                        </div>
+                                                    ) : previewModal.data ? (
+                                                        <>
+                                                            {previewModal.data.isError && (
+                                                                <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm font-bold border border-red-200 shadow-sm flex items-start gap-2">
+                                                                    <span>⚠️</span>
+                                                                    <div>
+                                                                        {previewModal.data.error}
+                                                                        <div className="text-xs font-normal mt-1 text-red-600">この参加者は送信対象からスキップされます。</div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            <div className="mb-3 border-b pb-2">
+                                                                <div className="text-xs text-gray-500 font-bold mb-1">送信先:</div>
+                                                                <div className="text-sm font-mono text-gray-800">{previewModal.data.email}</div>
+                                                            </div>
+                                                            <div className="mb-3 border-b pb-2">
+                                                                <div className="text-xs text-gray-500 font-bold mb-1">件名:</div>
+                                                                <div className="text-sm font-bold text-gray-800">{previewModal.data.subject}</div>
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-xs text-gray-500 font-bold mb-1">本文:</div>
+                                                                <pre className="text-sm font-sans whitespace-pre-wrap text-gray-700 font-medium leading-relaxed bg-white p-3 rounded border shadow-inner max-h-[400px] overflow-y-auto">
+                                                                    {previewModal.data.content}
+                                                                </pre>
+                                                            </div>
+                                                        </>
+                                                    ) : null}
+                                                </div>
+
+                                                <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+                                                    <button
+                                                        onClick={() => setPreviewModal(prev => ({ ...prev, isOpen: false }))}
+                                                        className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-50 font-bold"
+                                                        disabled={reminderSending}
+                                                    >
+                                                        キャンセル
+                                                    </button>
+                                                    <button
+                                                        onClick={submitReminders}
+                                                        className={`px-6 py-2 bg-indigo-600 text-white rounded font-bold hover:bg-indigo-700 shadow flex items-center gap-2 ${reminderSending ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        disabled={reminderSending || previewModal.loading}
+                                                    >
+                                                        {reminderSending ? (
+                                                            <>
+                                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                                送信中...
+                                                            </>
+                                                        ) : (
+                                                            '一括送信を実行する'
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* エリア別設定 */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-4 rounded border">
                                         {Array.from(new Set((venueList || []).filter(v => v && ['tokyo', 'fukuoka'].includes(v.area)).map(v => v.area))).sort().map(area => (
@@ -4453,107 +4489,101 @@ export default function AdminDashboard() {
                 </div >
             )}
 
-            {/* Reminder Preview Modal */}
-            {previewModal.isOpen && (
+            {/* Reminder Confirmation Modal */}
+            {showReminderModal && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-                    <div className="bg-white p-6 rounded-lg shadow-xl w-[700px] max-h-[90vh] flex flex-col">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-[500px]">
                         <h3 className="text-xl font-bold mb-4 text-indigo-700 flex items-center gap-2">
                             <span>🚀</span> 一括リマインド送信の確認
                         </h3>
-                        
-                        <div className="mb-4 text-sm text-gray-600 flex justify-between items-center bg-gray-50 p-2 rounded border">
-                            <span>送信対象: <strong className="text-indigo-600">{previewModal.targetIds.length}</strong> 件</span>
-                            <div className="flex items-center gap-4">
-                                <button 
-                                    onClick={() => fetchPreviewData(previewModal.targetIds, previewModal.currentIndex - 1)}
-                                    disabled={previewModal.currentIndex === 0 || previewModal.loading}
-                                    className="px-3 py-1 bg-white border rounded hover:bg-gray-100 disabled:opacity-50"
-                                >
-                                    ◀ 前へ
-                                </button>
-                                <span className="font-bold text-gray-700 w-16 text-center">{previewModal.currentIndex + 1} / {previewModal.targetIds.length}</span>
-                                <button 
-                                    onClick={() => fetchPreviewData(previewModal.targetIds, previewModal.currentIndex + 1)}
-                                    disabled={previewModal.currentIndex === previewModal.targetIds.length - 1 || previewModal.loading}
-                                    className="px-3 py-1 bg-white border rounded hover:bg-gray-100 disabled:opacity-50"
-                                >
-                                    次へ ▶
-                                </button>
+
+                        <div className="bg-indigo-50 p-4 rounded-md mb-6 border border-indigo-100">
+                            <p className="text-sm text-gray-700 font-bold mb-3">送信対象の内訳:</p>
+                            <div className="grid grid-cols-2 gap-4 text-xs">
+                                <div>
+                                    <p className="text-gray-500 mb-1 font-bold">■ 会場参加 (合計: {reminderSummary.tokyo_venue + reminderSummary.fukuoka_venue}名)</p>
+                                    <ul className="pl-3 space-y-1">
+                                        <li>東京エリア: {reminderSummary.tokyo_venue}名</li>
+                                        <li>福岡エリア: {reminderSummary.fukuoka_venue}名</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500 mb-1 font-bold">■ ライブ視聴 (合計: {reminderSummary.tokyo_online + reminderSummary.fukuoka_online}名)</p>
+                                    <ul className="pl-3 space-y-1">
+                                        <li>東京エリア配信分: {reminderSummary.tokyo_online}名</li>
+                                        <li>福岡エリア配信分: {reminderSummary.fukuoka_online}名</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div className="mt-4 pt-3 border-t border-indigo-100 flex justify-between text-sm">
+                                <div>
+                                    <span className="text-gray-600">決済済:</span> <span className="font-bold text-green-600">{reminderSummary.paid}名</span>
+                                </div>
+                                <div>
+                                    <span className="text-gray-600">未決済:</span> <span className="font-bold text-red-600">{reminderSummary.unpaid}名</span>
+                                </div>
+                                <div className="border-l pl-3 border-indigo-200">
+                                    <span className="text-gray-600">キャンセル済:</span> <span className="font-bold text-gray-400">{reminderSummary.cancelled}名</span>
+                                </div>
+                            </div>
+                            {reminderSummary.cancelled > 0 && (
+                                <p className="text-[10px] text-red-500 mt-2 font-bold">
+                                    ※キャンセル済みのデータは送信対象から自動的に除外されます。
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="mb-6">
+                            <p className="text-sm text-gray-700 font-bold mb-2">送信文面のプレビュー:</p>
+                            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                                <div className="border rounded bg-gray-50">
+                                    <div className="bg-gray-100 px-3 py-1.5 text-[10px] font-bold border-b flex justify-between">
+                                        <span>【会場参加・決済済】</span>
+                                        <span className="text-gray-500 font-normal">件名: {emailTemplateReminderVenuePaid.subject}</span>
+                                    </div>
+                                    <pre className="p-3 text-[10px] whitespace-pre-wrap font-sans text-gray-600">
+                                        {emailTemplateReminderVenuePaid.body}
+                                    </pre>
+                                </div>
+                                <div className="border rounded bg-gray-50">
+                                    <div className="bg-gray-100 px-3 py-1.5 text-[10px] font-bold border-b flex justify-between">
+                                        <span>【会場参加・未決済】</span>
+                                        <span className="text-gray-500 font-normal">件名: {emailTemplateReminderVenueUnpaid.subject}</span>
+                                    </div>
+                                    <pre className="p-3 text-[10px] whitespace-pre-wrap font-sans text-gray-600">
+                                        {emailTemplateReminderVenueUnpaid.body}
+                                    </pre>
+                                </div>
+                                <div className="border rounded bg-gray-50">
+                                    <div className="bg-gray-100 px-3 py-1.5 text-[10px] font-bold border-b flex justify-between">
+                                        <span>【ライブ視聴・決済済】</span>
+                                        <span className="text-gray-500 font-normal">件名: {emailTemplateReminderOnlinePaid.subject}</span>
+                                    </div>
+                                    <pre className="p-3 text-[10px] whitespace-pre-wrap font-sans text-gray-600">
+                                        {emailTemplateReminderOnlinePaid.body}
+                                    </pre>
+                                </div>
+                                <div className="border rounded bg-gray-50">
+                                    <div className="bg-gray-100 px-3 py-1.5 text-[10px] font-bold border-b flex justify-between">
+                                        <span>【ライブ視聴・未決済】</span>
+                                        <span className="text-gray-500 font-normal">件名: {emailTemplateReminderOnlineUnpaid.subject}</span>
+                                    </div>
+                                    <pre className="p-3 text-[10px] whitespace-pre-wrap font-sans text-gray-600">
+                                        {emailTemplateReminderOnlineUnpaid.body}
+                                    </pre>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto pr-2 border rounded p-4 bg-gray-50 relative min-h-[300px]">
-                            {previewModal.loading ? (
-                                <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-80 z-10">
-                                    <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                                </div>
-                            ) : previewModal.data ? (
-                                <>
-                                    {previewModal.data.isError && (
-                                        <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm font-bold border border-red-200 shadow-sm flex items-start gap-2">
-                                            <span>⚠️</span>
-                                            <div>
-                                                {previewModal.data.error}
-                                                <div className="text-xs font-normal mt-1 text-red-600">この参加者は送信対象からスキップされます。</div>
-                                            </div>
-                                        </div>
-                                    )}
-                                    <div className="mb-3 border-b pb-2">
-                                        <div className="text-xs text-gray-500 font-bold mb-1">送信先:</div>
-                                        <div className="text-sm font-mono text-gray-800">{previewModal.data.email}</div>
-                                    </div>
-                                    <div className="mb-3 border-b pb-2">
-                                        <div className="text-xs text-gray-500 font-bold mb-1 flex items-center gap-2">
-                                            件名:
-                                            {previewModal.customOverrides[previewModal.targetIds[previewModal.currentIndex]] && (
-                                                <span className="text-[10px] text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-200">✏️ 編集済み</span>
-                                            )}
-                                        </div>
-                                        <input
-                                            type="text"
-                                            className="w-full border rounded p-2 text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                                            value={previewModal.data.subject || ''}
-                                            onChange={(e) => {
-                                                const currentId = previewModal.targetIds[previewModal.currentIndex];
-                                                const currentContent = previewModal.data?.content || '';
-                                                setPreviewModal(prev => ({
-                                                    ...prev,
-                                                    data: { ...prev.data, subject: e.target.value },
-                                                    customOverrides: {
-                                                        ...prev.customOverrides,
-                                                        [currentId]: { subject: e.target.value, content: prev.customOverrides[currentId]?.content || currentContent }
-                                                    }
-                                                }));
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="flex-1 flex flex-col">
-                                        <div className="text-xs text-gray-500 font-bold mb-1">本文:</div>
-                                        <textarea
-                                            className="w-full flex-1 border rounded p-3 text-sm font-sans text-gray-700 font-medium leading-relaxed bg-white shadow-inner focus:outline-none focus:ring-2 focus:ring-indigo-300 min-h-[300px] resize-y"
-                                            value={previewModal.data.content || ''}
-                                            onChange={(e) => {
-                                                const currentId = previewModal.targetIds[previewModal.currentIndex];
-                                                const currentSubject = previewModal.data?.subject || '';
-                                                setPreviewModal(prev => ({
-                                                    ...prev,
-                                                    data: { ...prev.data, content: e.target.value },
-                                                    customOverrides: {
-                                                        ...prev.customOverrides,
-                                                        [currentId]: { subject: prev.customOverrides[currentId]?.subject || currentSubject, content: e.target.value }
-                                                    }
-                                                }));
-                                            }}
-                                        />
-                                    </div>
-                                </>
-                            ) : null}
+                        <div className="text-[11px] text-gray-500 space-y-1 mb-6 bg-yellow-50 p-3 rounded border border-yellow-100">
+                            <p>※ 設定画面で登録した各エリアの「開催日時」および「視聴リンク」が自動的に挿入されます。</p>
+                            <p>※ 決済状況や参加タイプに応じて、上記の4種類のテンプレートから自動選択されます。</p>
                         </div>
 
-                        <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+                        <div className="flex justify-end gap-3">
                             <button
-                                onClick={() => setPreviewModal(prev => ({ ...prev, isOpen: false }))}
-                                className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-50 font-bold"
+                                onClick={() => setShowReminderModal(false)}
+                                className="px-4 py-2 border rounded text-gray-600 hover:bg-gray-50"
                                 disabled={reminderSending}
                             >
                                 キャンセル
@@ -4561,16 +4591,14 @@ export default function AdminDashboard() {
                             <button
                                 onClick={submitReminders}
                                 className={`px-6 py-2 bg-indigo-600 text-white rounded font-bold hover:bg-indigo-700 shadow flex items-center gap-2 ${reminderSending ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                disabled={reminderSending || previewModal.loading}
+                                disabled={reminderSending}
                             >
                                 {reminderSending ? (
                                     <>
                                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                         送信中...
                                     </>
-                                ) : (
-                                    '一括送信を実行する'
-                                )}
+                                ) : '今すぐ送信を開始する'}
                             </button>
                         </div>
                     </div>

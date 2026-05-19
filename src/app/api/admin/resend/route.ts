@@ -7,7 +7,7 @@ import { normalizeVenue, getVenueDisplayName, matchProduct } from '@/lib/venueUt
 
 export async function POST(request: Request) {
     try {
-        const { id, subject: customSubject, body: customBody } = await request.json();
+        const { id, subject: customSubject, body: customBody, additionalEmail, sendToOriginal = true } = await request.json();
 
         // 1. 申込データ取得
         const { data: app, error } = await supabaseAdmin
@@ -20,10 +20,14 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Application not found' }, { status: 404 });
         }
 
-        // 2. 設定取得
-        const { data: settingsData } = await supabaseAdmin
-            .from('app_settings')
-            .select('*');
+        // 2. 設定およびランクマスタ取得
+        const [settingsDataRes, ranksDataRes] = await Promise.all([
+            supabaseAdmin.from('app_settings').select('*'),
+            supabaseAdmin.from('ranks').select('id, name')
+        ]);
+        
+        const settingsData = settingsDataRes.data;
+        const ranks = ranksDataRes.data || [];
 
         const settings: any = {};
         settingsData?.forEach(row => {
@@ -38,8 +42,14 @@ export async function POST(request: Request) {
         const adminBccEmail = settings.admin_bcc_email || process.env.ADMIN_BCC_EMAIL;
 
         // 3. 商品マッチング (共通ユーティリティを使用)
-        const rankId = app.members?.ranks?.id ? String(app.members.ranks.id) : null;
         const rankName = app.applied_rank_name || app.members?.ranks?.name || '一般';
+        let rankId: string | null = null;
+        if (app.members?.ranks?.id) {
+            rankId = String(app.members.ranks.id);
+        } else if (app.applied_rank_name) {
+            const found = ranks.find(r => r.name === app.applied_rank_name);
+            if (found) rankId = String(found.id);
+        }
 
         const paymentLink = matchProduct(paymentLinks, {
             venue: app.venue,
@@ -94,15 +104,44 @@ export async function POST(request: Request) {
             finalBcc = undefined;
         }
 
+        // 送信先リストの構築
+        const toList: string[] = [];
+        if (sendToOriginal !== false) {
+            toList.push(app.input_email);
+        }
+        if (additionalEmail && additionalEmail.trim()) {
+            const trimmed = additionalEmail.trim();
+            if (!toList.includes(trimmed)) {
+                toList.push(trimmed);
+            }
+        }
+        // 安全策: 送信先が空にならないようにする
+        if (toList.length === 0) {
+            toList.push(app.input_email);
+        }
+
         const fromEmail = process.env.FROM_EMAIL || 'noreply@resend.dev';
         await resend.emails.send({
             from: `神言学事務局 <${fromEmail}>`,
-            to: [app.input_email],
+            to: toList,
             cc: adminEmail ? [adminEmail] : undefined,
             bcc: finalBcc,
             subject: emailSubject,
             text: emailContent,
         });
+
+        // 追加送信先をDBに保存（永続化）
+        if (additionalEmail !== undefined) {
+            try {
+                await supabaseAdmin
+                    .from('applications')
+                    .update({ additional_email: additionalEmail.trim() || null })
+                    .eq('id', id);
+            } catch (saveErr) {
+                // カラムが存在しない場合でも送信自体は成功しているのでエラーにしない
+                console.warn('Failed to save additional_email (column may not exist):', saveErr);
+            }
+        }
 
         return NextResponse.json({ success: true });
 
