@@ -1853,11 +1853,18 @@ export default function AdminDashboard() {
             });
 
             // 1. 特進生の全リストを取得して、名前ベースで特進判定を補完する
-            const [membersRes, kanjiRes] = await Promise.all([
-                fetch('/api/admin/members'),
-                fetch('/api/admin/settings/kanji-mapping')
-            ]);
+            // 最新の受講生データを特進判定・カウント除外用に軽量フェッチ（常に最新状態を確保）
+            const membersRes = await fetch('/api/admin/members?simple=true');
+            if (!membersRes.ok) {
+                throw new Error(`受講生データの取得に失敗しました (HTTP ${membersRes.status})`);
+            }
             const allMembersData = await membersRes.json();
+            if (!Array.isArray(allMembersData)) {
+                throw new Error('受講生データが配列ではありません。');
+            }
+
+            // 漢字マッピング設定のみフェッチ
+            const kanjiRes = await fetch('/api/admin/settings/kanji-mapping');
             const currentKanjiMap = kanjiRes.ok ? await kanjiRes.json() : undefined;
 
             const tokushinNameSet = new Set(
@@ -2561,9 +2568,9 @@ export default function AdminDashboard() {
             a.download = `simple_participants_${monthStr}_${new Date().toISOString().slice(0, 10)}.xlsx`;
             a.click();
 
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
-            alert('エクセル生成エラー');
+            alert('エクセル生成エラー: ' + (e?.message || e || '不明なエラー'));
         } finally {
             setLoading(false);
         }

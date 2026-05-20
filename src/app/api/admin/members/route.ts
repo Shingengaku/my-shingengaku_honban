@@ -7,6 +7,19 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
     try {
+        const { searchParams } = new URL(request.url);
+        const simple = searchParams.get('simple') === 'true';
+
+        if (simple) {
+            // エクセル判定に必要な最小限のフィールドのみを高速に取得
+            const { data, error } = await supabaseAdmin
+                .from('members')
+                .select('name, email, is_tokushin, exclude_from_count');
+
+            if (error) throw error;
+            return NextResponse.json(data);
+        }
+
         const { data, error } = await supabaseAdmin
             .from('members')
             .select(`
