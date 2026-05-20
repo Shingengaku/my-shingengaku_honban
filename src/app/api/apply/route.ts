@@ -266,17 +266,19 @@ export async function POST(request: Request) {
         let displayVenue = getVenueDisplayName(venue, participation_type, online_venues);
         let displaySocialVenue = (participation_type === 'online') ? '参加不可' : social_venue;
 
-        // 個別金額の付加
-        if (matchedProduct) {
-            const lectureFee = Number(matchedProduct.lecture_fee) || 0;
-            displayVenue += `（${lectureFee.toLocaleString()}円）`;
-            const socialFee = Number(matchedProduct.social_fee) || 0;
-            if (participation_type !== 'online' && social_venue !== '参加しない') {
-                displaySocialVenue += `（${socialFee.toLocaleString()}円）`;
+        // 個別金額の付加 (複数名申し込み時は混乱を避けるため金額を表示しない)
+        if (!is_multiple) {
+            if (matchedProduct) {
+                const lectureFee = Number(matchedProduct.lecture_fee) || 0;
+                displayVenue += `（${lectureFee.toLocaleString()}円）`;
+                const socialFee = Number(matchedProduct.social_fee) || 0;
+                if (participation_type !== 'online' && social_venue !== '参加しない') {
+                    displaySocialVenue += `（${socialFee.toLocaleString()}円）`;
+                }
+            } else {
+                if (venue === '参加しない') displayVenue += `（0円）`;
+                if (social_venue === '参加しない' && participation_type !== 'online') displaySocialVenue += `（0円）`;
             }
-        } else {
-            if (venue === '参加しない') displayVenue += `（0円）`;
-            if (social_venue === '参加しない' && participation_type !== 'online') displaySocialVenue += `（0円）`;
         }
 
         let template;
