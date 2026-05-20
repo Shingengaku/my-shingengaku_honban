@@ -44,6 +44,7 @@ interface Application {
     is_duplicate_confirmed?: boolean;
     receipt_date?: string; // 領収日 (タグ用仮想フィールド)
     payment_method?: string; // お支払い方法 (タグ用仮想フィールド)
+    parent_application_id?: string | null; // 合算用親ID
     updated_at: string;
 }
 
@@ -206,6 +207,11 @@ export default function AdminDashboard() {
     const [editForm, setEditForm] = useState<Partial<Application & { member_generation?: number }>>({});
     const [showModal, setShowModal] = useState(false);
 
+    // 合算モーダルの状態
+    const [showLinkModal, setShowLinkModal] = useState(false);
+    const [linkParentId, setLinkParentId] = useState<string>('');
+    const [linking, setLinking] = useState(false);
+
     // 新規登録モーダルの状態
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [createForm, setCreateForm] = useState<Partial<Application & { member_generation?: number }>>({});
@@ -309,6 +315,10 @@ export default function AdminDashboard() {
 
                 // 集計除外ラベルの人は重複判定から除外
                 if (excludedMemberKeys.has(key)) return;
+
+                // 「確認中」タグ、または「確認中（受講生一致エラー）」のものは重複・コンフリクト判定（ハイライト）から除外
+                const isKakuninChu = app.tags?.includes('確認中') || (app.applied_rank_name || '').includes('確認中');
+                if (isKakuninChu) return;
 
                 if (!map.has(key)) map.set(key, { venueArea: new Set(), onlineArea: new Set() });
                 const status = getParticipationStatus(app, venueList);
@@ -1344,6 +1354,86 @@ export default function AdminDashboard() {
         setShowModal(true);
     };
 
+    const handleOpenLinkModal = () => {
+        if (selectedIds.size < 2) {
+            alert('合算するには2件以上のお申し込みを選択してください。');
+            return;
+        }
+        const selectedApps = apps.filter(a => selectedIds.has(a.id));
+        if (selectedApps.length > 0) {
+            setLinkParentId(selectedApps[0].id);
+        }
+        setShowLinkModal(true);
+    };
+
+    const handleLinkApplications = async () => {
+        if (!linkParentId) {
+            alert('代表者（親）を選択してください。');
+            return;
+        }
+        setLinking(true);
+        try {
+            const childIds = Array.from(selectedIds).filter(id => id !== linkParentId);
+            const res = await fetch('/api/admin/applications/link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'link',
+                    parent_application_id: linkParentId,
+                    child_application_ids: childIds
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert('お申し込みを合算しました。');
+                setSelectedIds(new Set());
+                setShowLinkModal(false);
+                fetchApplications();
+            } else {
+                alert('合算に失敗しました: ' + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+            alert('通信エラーが発生しました。');
+        } finally {
+            setLinking(false);
+        }
+    };
+
+    const handleUnlinkApplications = async () => {
+        if (selectedIds.size === 0) {
+            alert('解除するお申し込みを選択してください。');
+            return;
+        }
+        if (!confirm(`選択された ${selectedIds.size} 件のお申し込みの合算（紐付け）を解除しますか？`)) {
+            return;
+        }
+        setLoading(true);
+        try {
+            const res = await fetch('/api/admin/applications/link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'unlink',
+                    child_application_ids: Array.from(selectedIds)
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert('合算を解除しました。');
+                setSelectedIds(new Set());
+                fetchApplications();
+            } else {
+                alert('解除に失敗しました: ' + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+            alert('通信エラーが発生しました。');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Key解析 ('【Rank】Venue/Social') からフィールドを抽出するヘルパー
     const parseKey = (key: string) => {
         // 新フォーマット: 【属性】会場 / 懇親会
@@ -1829,7 +1919,11 @@ export default function AdminDashboard() {
                 const nameKey = `${(app.input_name || '').replace(/[\s\u3000]+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
                 const personStatus = personStatusMap.get(nameKey);
 
+                const isKakuninChu = app.tags?.includes('確認中') || (app.applied_rank_name || '').includes('確認中');
                 let name = app.input_name + 'さま';
+                if (isKakuninChu) {
+                    name += ' (要確認)';
+                }
                 let introText = '';
                 let hasIntroducer = false;
 
@@ -1931,6 +2025,10 @@ export default function AdminDashboard() {
             const checkDup = (appList: Application[], label: string) => {
                 const counts = new Map<string, Application[]>();
                 appList.forEach(a => {
+                    // 「確認中」タグ、または「確認中（受講生一致エラー）」のものは重複判定のカウントから除外
+                    const isKakuninChu = a.tags?.includes('確認中') || (a.applied_rank_name || '').includes('確認中');
+                    if (isKakuninChu) return;
+
                     const k = getDedupeKey(a);
                     if (!counts.has(k)) counts.set(k, []);
                     counts.get(k)!.push(a);
@@ -1957,8 +2055,9 @@ export default function AdminDashboard() {
 
             // B. 会場＋同エリアオンラインのコンフリクトチェック
             const checkConflict = (vApps: Application[], oApps: Application[], area: string) => {
-                const vKeys = new Map(vApps.map(a => [getDedupeKey(a), a]));
-                const oKeys = new Map(oApps.map(a => [getDedupeKey(a), a]));
+                const isNotKakuninChu = (a: Application) => !(a.tags?.includes('確認中') || (a.applied_rank_name || '').includes('確認中'));
+                const vKeys = new Map(vApps.filter(isNotKakuninChu).map(a => [getDedupeKey(a), a]));
+                const oKeys = new Map(oApps.filter(isNotKakuninChu).map(a => [getDedupeKey(a), a]));
 
                 vKeys.forEach((vApp, key) => {
                     if (oKeys.has(key)) {
@@ -3323,6 +3422,12 @@ export default function AdminDashboard() {
                                     <span>✉️</span>
                                     リマインド一括送信 ({selectedIds.size}件)
                                 </button>
+                                <button onClick={handleOpenLinkModal} className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 ml-4 font-bold shadow-md">
+                                    お申し込みを合算する ({selectedIds.size}件)
+                                </button>
+                                <button onClick={handleUnlinkApplications} className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 ml-2 font-bold shadow-md">
+                                    合算解除する ({selectedIds.size}件)
+                                </button>
                             </div>
                         )}
                     </div>
@@ -3430,6 +3535,10 @@ export default function AdminDashboard() {
                                     displayProductName = `【${rankName}】${vName}${sName ? '/' + sName : ''}`;
                                 }
 
+                                const isParent = apps.some(a => a.parent_application_id === app.id);
+                                const isChild = !!app.parent_application_id;
+                                const parentApp = isChild ? apps.find(a => a.id === app.parent_application_id) : null;
+
                                 return (
                                     <tr key={app.id} className={`${selectedIds.has(app.id) ? 'bg-indigo-50' : (isAlert ? 'bg-red-50' : '')} ${isAlert ? 'text-red-600' : ''}`}>
                                         <td className="px-3 py-2 whitespace-nowrap align-top">
@@ -3522,6 +3631,21 @@ export default function AdminDashboard() {
                                                 >
                                                     {app.input_name}
                                                 </span>
+                                                {isParent && (
+                                                    <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800" title="他の同行者の決済情報と紐付いています">
+                                                        代表者
+                                                    </span>
+                                                )}
+                                                {isChild && (
+                                                    <div className="mt-0.5 text-xs text-gray-500 flex items-center gap-1">
+                                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800" title="代表者のお支払い状況と同期しています">
+                                                            同行者
+                                                        </span>
+                                                        {parentApp && (
+                                                            <span>(代表: {parentApp.input_name})</span>
+                                                        )}
+                                                    </div>
+                                                )}
                                                 {((nameCounts[(app.input_name || '').trim()] || 0) > 1 && !isIgnored) && (
                                                     <div className="mt-1">
                                                         {app.is_duplicate_confirmed ? (
@@ -3951,6 +4075,74 @@ export default function AdminDashboard() {
                     </div>
                 )
             }
+
+            {/* Link Applications Modal */}
+            {showLinkModal && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+                    <div className="bg-white p-5 rounded-lg shadow-xl w-[550px] flex flex-col">
+                        <h3 className="text-lg font-bold mb-3 text-indigo-700">お申し込みの合算</h3>
+                        <div className="bg-blue-50 border-l-4 border-blue-400 p-3 mb-4 rounded-r shadow-sm">
+                            <p className="text-xs text-blue-800 leading-relaxed">
+                                <span className="font-bold">💡 お申し込み合算について</span><br />
+                                選択されたお申し込みを親子関係（代表者と同行者）として紐付けます。<br />
+                                お支払いは代表者が一括して行う形になり、同行者の決済状況やキャンセル状態は代表者のものと同期されます。
+                            </p>
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-bold text-gray-700 mb-2">代表者（お支払いを行う方）を選択してください：</label>
+                            <div className="space-y-2 max-h-40 overflow-y-auto border p-2 rounded bg-gray-50">
+                                {apps.filter(a => selectedIds.has(a.id)).map(app => (
+                                    <label key={app.id} className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-gray-100 rounded">
+                                        <input
+                                            type="radio"
+                                            name="linkParent"
+                                            checked={linkParentId === app.id}
+                                            onChange={() => setLinkParentId(app.id)}
+                                            className="h-4 w-4 text-indigo-600 focus:ring-0"
+                                        />
+                                        <span className="text-sm font-medium text-gray-800">
+                                            {app.input_name} ({app.input_email || 'Emailなし'}) - {app.applied_rank_name || '一般'}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-bold text-gray-700 mb-1">同行者（代表者に紐付けられるお申し込み）：</label>
+                            <div className="space-y-1.5 max-h-32 overflow-y-auto border p-2 rounded bg-gray-50">
+                                {apps.filter(a => selectedIds.has(a.id) && a.id !== linkParentId).length === 0 ? (
+                                    <span className="text-xs text-gray-400">（なし）</span>
+                                ) : (
+                                    apps.filter(a => selectedIds.has(a.id) && a.id !== linkParentId).map(app => (
+                                        <div key={app.id} className="text-xs text-gray-600 pl-2">
+                                            ・{app.input_name} ({app.applied_rank_name || '一般'})
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="mt-4 flex justify-end gap-2">
+                            <button
+                                onClick={() => setShowLinkModal(false)}
+                                className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400 text-sm font-medium text-gray-800"
+                                disabled={linking}
+                            >
+                                キャンセル
+                            </button>
+                            <button
+                                onClick={handleLinkApplications}
+                                className="bg-indigo-600 text-white px-5 py-2 rounded hover:bg-indigo-700 text-sm font-bold shadow-sm"
+                                disabled={linking}
+                            >
+                                {linking ? '処理中...' : '合算を実行'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Email Preview Modal */}
             {showEmailModal && emailPreview && (

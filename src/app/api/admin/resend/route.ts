@@ -9,16 +9,16 @@ export async function POST(request: Request) {
     try {
         const { id, subject: customSubject, body: customBody, additionalEmail, sendToOriginal = true } = await request.json();
 
-        // 1. 申込データ取得
-        const { data: app, error } = await supabaseAdmin
-            .from('applications')
-            .select('*, members(*, ranks(*))')
-            .eq('id', id)
-            .single();
+        // 1. 申込データ取得 (同行者のデータも合わせて取得)
+        const [appRes, childrenRes] = await Promise.all([
+            supabaseAdmin.from('applications').select('*, members(*, ranks(*))').eq('id', id).single(),
+            supabaseAdmin.from('applications').select('*, members(*, ranks(*))').eq('parent_application_id', id)
+        ]);
 
-        if (error || !app) {
+        if (appRes.error || !appRes.data) {
             return NextResponse.json({ error: 'Application not found' }, { status: 404 });
         }
+        const app = appRes.data;
 
         // 2. 設定およびランクマスタ取得
         const [settingsDataRes, ranksDataRes] = await Promise.all([
@@ -69,6 +69,13 @@ export async function POST(request: Request) {
             template = DEFAULT_EMAIL_TEMPLATE_NO_PARTICIPATION;
         }
 
+        // 同行者の金額を合算
+        const children = childrenRes.data || [];
+        let combinedAmount = app.total_amount;
+        children.forEach(child => {
+            combinedAmount += child.total_amount;
+        });
+
         // 5. 表示用文字列
         let displayVenue = getVenueDisplayName(app.venue, app.participation_type, app.online_venues);
         let displaySocialVenue = (app.participation_type === 'online') ? '参加不可' : app.social_venue;
@@ -86,12 +93,45 @@ export async function POST(request: Request) {
             if (app.social_venue === '参加しない' && app.participation_type !== 'online') displaySocialVenue += `（0円）`;
         }
 
+        // 同行者の内訳を追記する
+        if (children.length > 0) {
+            children.forEach(child => {
+                const childRankName = child.applied_rank_name || child.members?.ranks?.name || '一般';
+                const childRankId = child.members?.ranks?.id ? String(child.members.ranks.id) : null;
+                
+                const childMatched = matchProduct(paymentLinks, {
+                    venue: child.venue,
+                    social_venue: child.social_venue,
+                    participation_type: child.participation_type || 'venue',
+                    online_venues: child.online_venues,
+                    rank_id: childRankId,
+                    rank_name: childRankName,
+                    payment_key: child.payment_key
+                });
+                
+                let childVFee = 0;
+                let childSFee = 0;
+                if (childMatched) {
+                    childVFee = Number(childMatched.lecture_fee) || 0;
+                    childSFee = Number(childMatched.social_fee) || 0;
+                }
+
+                const childVenueDisp = getVenueDisplayName(child.venue, child.participation_type, child.online_venues);
+                displayVenue += `\n  + 同行者(${child.input_name}様): ${childVenueDisp}（${childVFee.toLocaleString()}円）`;
+
+                if (child.participation_type !== 'online' && child.social_venue !== '参加しない') {
+                    const childSocialDisp = child.social_venue;
+                    displaySocialVenue += `\n  + 同行者(${child.input_name}様): ${childSocialDisp}（${childSFee.toLocaleString()}円）`;
+                }
+            });
+        }
+
         const vars = {
             name: app.input_name,
             rank: rankName,
             venue: displayVenue,
             social_venue: displaySocialVenue,
-            amount: app.total_amount.toLocaleString(),
+            amount: combinedAmount.toLocaleString(),
             payment_link_section: paymentUrl ? paymentUrl : ''
         };
 

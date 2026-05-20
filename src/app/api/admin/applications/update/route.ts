@@ -29,6 +29,17 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
+        // 決済ステータスの変更があった場合、紐付く子レコードも連動して一括更新する
+        if (status !== undefined) {
+            const { error: childError } = await supabaseAdmin
+                .from('applications')
+                .update({ payment_status: status })
+                .in('parent_application_id', ids);
+            if (childError) {
+                console.error('Failed to sync child applications in batch update:', childError);
+            }
+        }
+
         return NextResponse.json({ success: true });
     } catch (e) {
         return NextResponse.json({ error: 'Server Error' }, { status: 500 });

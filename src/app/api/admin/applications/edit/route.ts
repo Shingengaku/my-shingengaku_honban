@@ -19,6 +19,17 @@ export async function POST(request: Request) {
                 .eq('id', id);
 
             if (error) throw error;
+
+            // 子レコードも連動してキャンセル
+            const { error: childError } = await supabaseAdmin
+                .from('applications')
+                .update({ payment_status: 'cancelled' })
+                .eq('parent_application_id', id);
+
+            if (childError) {
+                console.error('Failed to cancel child applications:', childError);
+            }
+
             return NextResponse.json({ success: true });
         }
 
@@ -77,6 +88,17 @@ export async function POST(request: Request) {
 
                 if (!appError) {
                     console.log('Application update successful');
+
+                    // 支払ステータスが更新された場合、子レコードにも同期する
+                    if (currentUpdates.payment_status) {
+                        const { error: childSyncError } = await supabaseAdmin
+                            .from('applications')
+                            .update({ payment_status: currentUpdates.payment_status })
+                            .eq('parent_application_id', id);
+                        if (childSyncError) {
+                            console.error('Failed to sync child applications payment status:', childSyncError);
+                        }
+                    }
                     break;
                 }
 
