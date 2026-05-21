@@ -93,6 +93,8 @@ export async function POST(request: Request) {
             }
         }
 
+        const isOnline = (participation_type === 'online');
+
         const { data, error: insertError } = await supabaseAdmin
             .from('applications')
             .insert({
@@ -100,15 +102,15 @@ export async function POST(request: Request) {
                 input_furigana: input_furigana || '',
                 input_email: input_email || '',
                 venue,
-                social_venue: social_venue || 'none',
-                attend_social: attendSocial,
+                social_venue: isOnline ? 'none' : (social_venue || 'none'),
+                attend_social: isOnline ? false : attendSocial,
                 total_amount: total_amount || 0,
                 payment_status: payment_status || (total_amount === 0 ? 'paid' : 'unpaid'),
                 applied_rank_name: applied_rank_name || '一般',
                 matched_member_id: targetMemberId,
                 remarks: remarks || null,
                 participation_type: participation_type || 'venue',
-                online_venues: body.online_venues || null,
+                online_venues: isOnline ? (body.online_venues || null) : null,
                 cc_email: cc_email || null,
                 bcc_email: bcc_email || null,
                 environment: process.env.NODE_ENV === 'production' ? 'production' : 'development'

@@ -1500,6 +1500,12 @@ export default function AdminDashboard() {
                         next.venue = '';
                     }
 
+                    if (value === 'venue') {
+                        next.online_venues = null;
+                    } else if (value === 'online') {
+                        next.social_venue = 'none';
+                    }
+
                     // 金額の再計算のため、再マッチングを試みる
                     const updatedMatchData = {
                         ...matchData,
@@ -1565,6 +1571,12 @@ export default function AdminDashboard() {
                         next.venue = 'LIVE視聴';
                     } else if (value === 'venue' && (next.venue?.includes('LIVE') || next.venue?.includes('オンライン') || next.venue?.includes('アーカイブ'))) {
                         next.venue = '';
+                    }
+
+                    if (value === 'venue') {
+                        next.online_venues = null;
+                    } else if (value === 'online') {
+                        next.social_venue = 'none';
                     }
 
                     const updatedMatchData = {

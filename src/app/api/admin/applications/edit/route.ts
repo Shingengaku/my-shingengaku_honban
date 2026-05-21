@@ -77,6 +77,15 @@ export async function POST(request: Request) {
             console.log('App updates to apply:', appUpdates);
 
             let currentUpdates = { ...appUpdates };
+
+            // 参加形式に応じて不要なデータをクリア
+            if (currentUpdates.participation_type === 'venue') {
+                currentUpdates.online_venues = null;
+            } else if (currentUpdates.participation_type === 'online') {
+                currentUpdates.social_venue = 'none';
+                currentUpdates.attend_social = false;
+            }
+
             let attempt = 0;
             const maxRetries = 5;
 
