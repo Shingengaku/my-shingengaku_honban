@@ -2009,6 +2009,15 @@ export default function AdminDashboard() {
             );
             const allValidApps = apps.filter(a => {
                 if ((a.payment_status || '').toLowerCase() === 'cancelled') return false;
+                
+                // 不参加・キャンセル・欠席タグのあるデータを除外
+                const tags = a.tags || [];
+                if (tags.includes('不参加') || tags.includes('キャンセル') || tags.includes('欠席')) return false;
+
+                // 会場が「参加しない」などに設定されているデータを除外
+                const venue = (a.venue || '').trim();
+                if (venue === '参加しない' || venue === '不参加' || venue === 'キャンセル' || venue === '欠席') return false;
+
                 const name = (a.input_name || '').replace(/[\s\u3000]+/g, '');
                 const email = (a.input_email || '').toLowerCase().trim();
                 const key = (name || email) ? `${name}|${email}` : null;
@@ -2603,7 +2612,19 @@ export default function AdminDashboard() {
         try {
             const ExcelJS = (await import('exceljs')).default;
             const wb = new ExcelJS.Workbook();
-            const allValidApps = apps.filter(a => (a.payment_status || '').toLowerCase() !== 'cancelled');
+            const allValidApps = apps.filter(a => {
+                if ((a.payment_status || '').toLowerCase() === 'cancelled') return false;
+                
+                // 不参加・キャンセル・欠席タグのあるデータを除外
+                const tags = a.tags || [];
+                if (tags.includes('不参加') || tags.includes('キャンセル') || tags.includes('欠席')) return false;
+
+                // 会場が「参加しない」などに設定されているデータを除外
+                const venue = (a.venue || '').trim();
+                if (venue === '参加しない' || venue === '不参加' || venue === 'キャンセル' || venue === '欠席') return false;
+
+                return true;
+            });
 
             const createSheet = (sheetName: string, filterFn: (a: Application) => boolean) => {
                 const ws = wb.addWorksheet(sheetName);
