@@ -217,6 +217,13 @@ export default function AdminDashboard() {
     const [createForm, setCreateForm] = useState<Partial<Application & { member_generation?: number }>>({});
     const [creating, setCreating] = useState(false);
 
+    // 一括削除認証モーダルの状態
+    const [showTruncateAuthModal, setShowTruncateAuthModal] = useState(false);
+    const [authUsername, setAuthUsername] = useState('');
+    const [authPassword, setAuthPassword] = useState('');
+    const [authError, setAuthError] = useState('');
+    const [authVerifying, setAuthVerifying] = useState(false);
+
     // メールプレビューモーダルの状態
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [emailPreview, setEmailPreview] = useState<{ subject: string, content: string, email?: string, cc?: string, bcc?: string } | null>(null);
@@ -2691,10 +2698,47 @@ export default function AdminDashboard() {
             return;
         }
 
-        if (!confirm('【最重要・危険】全ての申込データを削除しますか？\n（復元できません。本当に実行する場合のみOKを押してください）')) return;
+        // 認証入力モーダルを表示して、第一のロックを開始
+        setAuthUsername('');
+        setAuthPassword('');
+        setAuthError('');
+        setShowTruncateAuthModal(true);
+    };
 
-        setLoading(true);
+    const handleVerifyAndTruncate = async () => {
+        if (!authUsername || !authPassword) {
+            setAuthError('ユーザーIDとパスワードを入力してください');
+            return;
+        }
+
+        setAuthVerifying(true);
+        setAuthError('');
+
         try {
+            // 認証情報を検証（クッキーの設定等は行わない専用API）
+            const authRes = await fetch('/api/admin/verify-credentials', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: authUsername, password: authPassword })
+            });
+
+            if (!authRes.ok) {
+                const data = await authRes.json();
+                setAuthError(data.error || 'ユーザーIDまたはパスワードが間違っています');
+                setAuthVerifying(false);
+                return;
+            }
+
+            // 認証成功したらモーダルを閉じる
+            setShowTruncateAuthModal(false);
+
+            // 第二のロック：最終確認ダイアログ
+            if (!confirm('【最重要・二重確認】本当に消していいですか？\n（申込者データがすべて削除され、元に戻せなくなります）')) {
+                return;
+            }
+
+            // データ削除処理を実行
+            setLoading(true);
             const res = await fetch('/api/admin/applications/truncate', { method: 'POST' });
             if (res.ok) {
                 alert('全データを削除しました');
@@ -2704,8 +2748,9 @@ export default function AdminDashboard() {
                 alert(`削除に失敗しました: ${data.error || '不明なエラー'}`);
             }
         } catch (e) {
-            alert('エラー');
+            alert('通信エラーが発生しました');
         } finally {
+            setAuthVerifying(false);
             setLoading(false);
         }
     };
@@ -5054,6 +5099,71 @@ export default function AdminDashboard() {
                                 className={`px-6 py-2 rounded text-white font-bold ${creating ? 'bg-green-400' : 'bg-green-600 hover:bg-green-700'}`}
                             >
                                 {creating ? '登録中...' : '登録する'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 一括削除認証モーダル */}
+            {showTruncateAuthModal && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+                    <div className="bg-white p-5 rounded-lg shadow-xl w-[400px]">
+                        <h3 className="text-xl font-bold mb-4 text-red-600 flex items-center gap-2">
+                            <span>⚠️</span> データの初期リセット認証
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-4 font-medium">
+                            この操作はすべての申込者データを完全に削除します。実行するには管理者のログインIDとパスワードを入力してください。
+                        </p>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm text-gray-600 font-medium">ログインアカウント (ユーザー名)</label>
+                                <input
+                                    type="text"
+                                    className="border w-full p-2 rounded focus:ring-red-500 focus:border-red-500 mt-1"
+                                    value={authUsername}
+                                    onChange={e => setAuthUsername(e.target.value)}
+                                    placeholder="admin"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-600 font-medium">パスワード</label>
+                                <input
+                                    type="password"
+                                    className="border w-full p-2 rounded focus:ring-red-500 focus:border-red-500 mt-1"
+                                    value={authPassword}
+                                    onChange={e => setAuthPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                />
+                            </div>
+
+                            {authError && (
+                                <p className="text-sm text-red-500 font-bold bg-red-50 p-2 rounded border border-red-200">
+                                    {authError}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="flex justify-end gap-2 mt-6">
+                            <button
+                                onClick={() => {
+                                    setShowTruncateAuthModal(false);
+                                    setAuthUsername('');
+                                    setAuthPassword('');
+                                    setAuthError('');
+                                }}
+                                className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400 text-sm font-medium"
+                                disabled={authVerifying}
+                            >
+                                キャンセル
+                            </button>
+                            <button
+                                onClick={handleVerifyAndTruncate}
+                                disabled={authVerifying}
+                                className={`px-6 py-2 rounded text-white font-bold text-sm ${authVerifying ? 'bg-red-400' : 'bg-red-600 hover:bg-red-700'}`}
+                            >
+                                {authVerifying ? '認証中...' : '認証して進む'}
                             </button>
                         </div>
                     </div>
