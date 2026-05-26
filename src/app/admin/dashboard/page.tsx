@@ -437,6 +437,7 @@ export default function AdminDashboard() {
     const [exportMonth, setExportMonth] = useState('');
     const [exportPaymentStatus, setExportPaymentStatus] = useState(true);
     const [exportShowRemarks, setExportShowRemarks] = useState(true);
+    const [exportShowSocial, setExportShowSocial] = useState(false);
 
     // Persist Export Settings
     useEffect(() => {
@@ -457,6 +458,9 @@ export default function AdminDashboard() {
 
         const savedShowRemarks = localStorage.getItem('shingengaku_export_show_remarks');
         if (savedShowRemarks !== null) setExportShowRemarks(savedShowRemarks === 'true');
+
+        const savedShowSocial = localStorage.getItem('shingengaku_export_show_social');
+        if (savedShowSocial !== null) setExportShowSocial(savedShowSocial === 'true');
     }, []);
 
     useEffect(() => {
@@ -486,6 +490,10 @@ export default function AdminDashboard() {
     useEffect(() => {
         localStorage.setItem('shingengaku_export_show_remarks', exportShowRemarks.toString());
     }, [exportShowRemarks]);
+
+    useEffect(() => {
+        localStorage.setItem('shingengaku_export_show_social', exportShowSocial.toString());
+    }, [exportShowSocial]);
 
     // 定数 (UIフォールバック、libをミラーリング)
     const DEFAULT_TEMPLATE = {
@@ -2175,8 +2183,10 @@ export default function AdminDashboard() {
 
 
 
-            // Columns (4 or 5 cols per venue + spacers)
-            const colWidths = exportPaymentStatus ? [4, 20, 5, 8, 8] : [4, 20, 6, 8];
+            // Columns configurations (No, Name, Term, Payment?, Social?)
+            const colWidths = [4, 20, exportPaymentStatus || exportShowSocial ? 5 : 6];
+            if (exportPaymentStatus) colWidths.push(8);
+            if (exportShowSocial) colWidths.push(8);
             const colsPerVenue = colWidths.length;
             const spacerWidth = 2;
 
@@ -2269,7 +2279,9 @@ export default function AdminDashboard() {
 
                 // Headers
                 const hRow = ws.getRow(currentRow);
-                const headers = exportPaymentStatus ? ['No', '氏名', '期', '決済', '懇親会'] : ['No', '氏名', '期', '懇親会'];
+                const headers = ['No', '氏名', '期'];
+                if (exportPaymentStatus) headers.push('決済');
+                if (exportShowSocial) headers.push('懇親会');
                 headers.forEach((h, i) => {
                     const c = hRow.getCell(colOffset + 1 + i);
                     c.value = h;
@@ -2300,19 +2312,21 @@ export default function AdminDashboard() {
 
                             ws.mergeCells(currentRow, colOffset + 1, currentRow + 1, colOffset + 1);
                             ws.mergeCells(currentRow, colOffset + 3, currentRow + 1, colOffset + 3);
+
+                            let currentMergeCol = 4;
                             if (exportPaymentStatus) {
-                                ws.mergeCells(currentRow, colOffset + 4, currentRow + 1, colOffset + 4);
-                                ws.mergeCells(currentRow, colOffset + 5, currentRow + 1, colOffset + 5);
-                            } else {
-                                ws.mergeCells(currentRow, colOffset + 4, currentRow + 1, colOffset + 4);
+                                ws.mergeCells(currentRow, colOffset + currentMergeCol, currentRow + 1, colOffset + currentMergeCol);
+                                currentMergeCol++;
+                            }
+                            if (exportShowSocial) {
+                                ws.mergeCells(currentRow, colOffset + currentMergeCol, currentRow + 1, colOffset + currentMergeCol);
+                                currentMergeCol++;
                             }
 
                             const c1 = ws.getCell(currentRow, colOffset + 1);
                             const c2_1 = ws.getCell(currentRow, colOffset + 2);
                             const c2_2 = ws.getCell(currentRow + 1, colOffset + 2);
                             const c3 = ws.getCell(currentRow, colOffset + 3);
-                            const c4 = ws.getCell(currentRow, colOffset + 4);
-                            const c5 = exportPaymentStatus ? ws.getCell(currentRow, colOffset + 5) : null;
 
                             c1.value = currentSeq++;
                             c1.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -2325,22 +2339,27 @@ export default function AdminDashboard() {
 
                             c3.value = d.term;
                             c3.alignment = { horizontal: 'center', vertical: 'middle' };
-                            
+
+                            const borderCells = [c1, c3];
+
+                            let currentColIndex = 4;
                             if (exportPaymentStatus) {
-                                c4.value = statusLabels[d.paymentStatus] || '';
-                                c4.alignment = { horizontal: 'center', vertical: 'middle' };
-                                if (c5) {
-                                    c5.value = d.social;
-                                    c5.alignment = { horizontal: 'center', vertical: 'middle' };
-                                }
-                            } else {
-                                c4.value = d.social;
-                                c4.alignment = { horizontal: 'center', vertical: 'middle' };
+                                const cPay = ws.getCell(currentRow, colOffset + currentColIndex);
+                                cPay.value = statusLabels[d.paymentStatus] || '';
+                                cPay.alignment = { horizontal: 'center', vertical: 'middle' };
+                                borderCells.push(cPay);
+                                ws.getCell(currentRow + 1, colOffset + currentColIndex).border = getBorder();
+                                currentColIndex++;
+                            }
+                            if (exportShowSocial) {
+                                const cSoc = ws.getCell(currentRow, colOffset + currentColIndex);
+                                cSoc.value = d.social;
+                                cSoc.alignment = { horizontal: 'center', vertical: 'middle' };
+                                borderCells.push(cSoc);
+                                ws.getCell(currentRow + 1, colOffset + currentColIndex).border = getBorder();
+                                currentColIndex++;
                             }
 
-                            // Borders for merged cells
-                            const borderCells = [c1, c3, c4];
-                            if (c5) borderCells.push(c5);
                             borderCells.forEach(c => {
                                 c.border = getBorder();
                             });
@@ -2363,10 +2382,6 @@ export default function AdminDashboard() {
                             // Ensure hidden cells in the merge block also have borders
                             ws.getCell(currentRow + 1, colOffset + 1).border = getBorder();
                             ws.getCell(currentRow + 1, colOffset + 3).border = getBorder();
-                            ws.getCell(currentRow + 1, colOffset + 4).border = getBorder();
-                            if (exportPaymentStatus) {
-                                ws.getCell(currentRow + 1, colOffset + 5).border = getBorder();
-                            }
 
                             currentRow += 2;
                         } else {
@@ -2374,8 +2389,6 @@ export default function AdminDashboard() {
                             const c1 = r.getCell(colOffset + 1);
                             const c2 = r.getCell(colOffset + 2);
                             const c3 = r.getCell(colOffset + 3);
-                            const c4 = r.getCell(colOffset + 4);
-                            const c5 = exportPaymentStatus ? r.getCell(colOffset + 5) : null;
 
                             c1.value = currentSeq++;
                             c1.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -2384,19 +2397,22 @@ export default function AdminDashboard() {
                             c3.value = d.term;
                             c3.alignment = { horizontal: 'center', vertical: 'middle' };
 
-                            const borderCells = [c1, c2, c3, c4];
+                            const borderCells = [c1, c2, c3];
 
+                            let currentColIndex = 4;
                             if (exportPaymentStatus) {
-                                c4.value = statusLabels[d.paymentStatus] || '';
-                                c4.alignment = { horizontal: 'center', vertical: 'middle' };
-                                if (c5) {
-                                    c5.value = d.social;
-                                    c5.alignment = { horizontal: 'center', vertical: 'middle' };
-                                    borderCells.push(c5);
-                                }
-                            } else {
-                                c4.value = d.social;
-                                c4.alignment = { horizontal: 'center', vertical: 'middle' };
+                                const cPay = r.getCell(colOffset + currentColIndex);
+                                cPay.value = statusLabels[d.paymentStatus] || '';
+                                cPay.alignment = { horizontal: 'center', vertical: 'middle' };
+                                borderCells.push(cPay);
+                                currentColIndex++;
+                            }
+                            if (exportShowSocial) {
+                                const cSoc = r.getCell(colOffset + currentColIndex);
+                                cSoc.value = d.social;
+                                cSoc.alignment = { horizontal: 'center', vertical: 'middle' };
+                                borderCells.push(cSoc);
+                                currentColIndex++;
                             }
 
                             borderCells.forEach(c => {
@@ -3472,6 +3488,15 @@ export default function AdminDashboard() {
                                         onChange={(e) => setExportPaymentStatus(e.target.checked)}
                                     />
                                     <span className="text-xs font-medium text-gray-700">決済状況</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        className="w-4 h-4 rounded text-green-600 focus:ring-green-500"
+                                        checked={exportShowSocial}
+                                        onChange={(e) => setExportShowSocial(e.target.checked)}
+                                    />
+                                    <span className="text-xs font-medium text-gray-700">懇親会</span>
                                 </label>
                                 <label className="flex items-center gap-2 cursor-pointer select-none">
                                     <input
