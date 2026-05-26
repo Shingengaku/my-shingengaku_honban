@@ -1981,8 +1981,9 @@ export default function AdminDashboard() {
                 const isHybrid = personStatus?.isHybrid || false;
 
                 const priority = getPriorityByMaster(app);
+                const social = app.social_venue ? app.social_venue : (app.attend_social ? '参加' : '参加しない');
 
-                return { name, introText, term, furigana, isBoth, isHybrid, gen, priority, paymentStatus: app.payment_status, hasIntroducer };
+                return { name, introText, term, furigana, isBoth, isHybrid, gen, priority, paymentStatus: app.payment_status, hasIntroducer, social };
             };
 
             const normalizeKana = (str: string) => str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
@@ -2174,8 +2175,8 @@ export default function AdminDashboard() {
 
 
 
-            // Columns (3 or 4 cols per venue + spacers)
-            const colWidths = exportPaymentStatus ? [4, 20, 5, 8] : [4, 20, 6];
+            // Columns (4 or 5 cols per venue + spacers)
+            const colWidths = exportPaymentStatus ? [4, 20, 5, 8, 8] : [4, 20, 6, 8];
             const colsPerVenue = colWidths.length;
             const spacerWidth = 2;
 
@@ -2268,7 +2269,7 @@ export default function AdminDashboard() {
 
                 // Headers
                 const hRow = ws.getRow(currentRow);
-                const headers = exportPaymentStatus ? ['No', '氏名', '期', '決済'] : ['No', '氏名', '期'];
+                const headers = exportPaymentStatus ? ['No', '氏名', '期', '決済', '懇親会'] : ['No', '氏名', '期', '懇親会'];
                 headers.forEach((h, i) => {
                     const c = hRow.getCell(colOffset + 1 + i);
                     c.value = h;
@@ -2301,13 +2302,17 @@ export default function AdminDashboard() {
                             ws.mergeCells(currentRow, colOffset + 3, currentRow + 1, colOffset + 3);
                             if (exportPaymentStatus) {
                                 ws.mergeCells(currentRow, colOffset + 4, currentRow + 1, colOffset + 4);
+                                ws.mergeCells(currentRow, colOffset + 5, currentRow + 1, colOffset + 5);
+                            } else {
+                                ws.mergeCells(currentRow, colOffset + 4, currentRow + 1, colOffset + 4);
                             }
 
                             const c1 = ws.getCell(currentRow, colOffset + 1);
                             const c2_1 = ws.getCell(currentRow, colOffset + 2);
                             const c2_2 = ws.getCell(currentRow + 1, colOffset + 2);
                             const c3 = ws.getCell(currentRow, colOffset + 3);
-                            const c4 = exportPaymentStatus ? ws.getCell(currentRow, colOffset + 4) : null;
+                            const c4 = ws.getCell(currentRow, colOffset + 4);
+                            const c5 = exportPaymentStatus ? ws.getCell(currentRow, colOffset + 5) : null;
 
                             c1.value = currentSeq++;
                             c1.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -2320,14 +2325,22 @@ export default function AdminDashboard() {
 
                             c3.value = d.term;
                             c3.alignment = { horizontal: 'center', vertical: 'middle' };
-                            if (c4) {
+                            
+                            if (exportPaymentStatus) {
                                 c4.value = statusLabels[d.paymentStatus] || '';
+                                c4.alignment = { horizontal: 'center', vertical: 'middle' };
+                                if (c5) {
+                                    c5.value = d.social;
+                                    c5.alignment = { horizontal: 'center', vertical: 'middle' };
+                                }
+                            } else {
+                                c4.value = d.social;
                                 c4.alignment = { horizontal: 'center', vertical: 'middle' };
                             }
 
                             // Borders for merged cells
-                            const borderCells = [c1, c3];
-                            if (c4) borderCells.push(c4);
+                            const borderCells = [c1, c3, c4];
+                            if (c5) borderCells.push(c5);
                             borderCells.forEach(c => {
                                 c.border = getBorder();
                             });
@@ -2350,8 +2363,9 @@ export default function AdminDashboard() {
                             // Ensure hidden cells in the merge block also have borders
                             ws.getCell(currentRow + 1, colOffset + 1).border = getBorder();
                             ws.getCell(currentRow + 1, colOffset + 3).border = getBorder();
+                            ws.getCell(currentRow + 1, colOffset + 4).border = getBorder();
                             if (exportPaymentStatus) {
-                                ws.getCell(currentRow + 1, colOffset + 4).border = getBorder();
+                                ws.getCell(currentRow + 1, colOffset + 5).border = getBorder();
                             }
 
                             currentRow += 2;
@@ -2361,6 +2375,7 @@ export default function AdminDashboard() {
                             const c2 = r.getCell(colOffset + 2);
                             const c3 = r.getCell(colOffset + 3);
                             const c4 = r.getCell(colOffset + 4);
+                            const c5 = exportPaymentStatus ? r.getCell(colOffset + 5) : null;
 
                             c1.value = currentSeq++;
                             c1.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -2369,13 +2384,19 @@ export default function AdminDashboard() {
                             c3.value = d.term;
                             c3.alignment = { horizontal: 'center', vertical: 'middle' };
 
-                            const borderCells = [c1, c2, c3];
+                            const borderCells = [c1, c2, c3, c4];
 
                             if (exportPaymentStatus) {
-                                const c4 = r.getCell(colOffset + 4);
                                 c4.value = statusLabels[d.paymentStatus] || '';
                                 c4.alignment = { horizontal: 'center', vertical: 'middle' };
-                                borderCells.push(c4);
+                                if (c5) {
+                                    c5.value = d.social;
+                                    c5.alignment = { horizontal: 'center', vertical: 'middle' };
+                                    borderCells.push(c5);
+                                }
+                            } else {
+                                c4.value = d.social;
+                                c4.alignment = { horizontal: 'center', vertical: 'middle' };
                             }
 
                             borderCells.forEach(c => {
