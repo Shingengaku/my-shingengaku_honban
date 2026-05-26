@@ -4380,10 +4380,10 @@ export default function AdminDashboard() {
                             />
                         </div>
 
-                        <div className="flex-1 mb-2">
-                            <label className="block text-sm font-bold text-gray-700">本文</label>
+                        <div className="flex-1 mb-2 flex flex-col">
+                            <label className="block text-sm font-bold text-gray-700 mb-1">本文</label>
                             <textarea
-                                className="border w-full p-2 rounded h-full font-mono text-sm resize-none"
+                                className="border w-full p-2 rounded flex-1 font-mono text-sm resize-none"
                                 value={customResendModal.body}
                                 onChange={e => setCustomResendModal({ ...customResendModal, body: e.target.value })}
                             />
