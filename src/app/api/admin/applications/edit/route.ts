@@ -1,6 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { matchProduct, normalizeVenue } from '@/lib/venueUtils';
 
 export async function POST(request: Request) {
     try {
@@ -84,6 +85,112 @@ export async function POST(request: Request) {
             } else if (currentUpdates.participation_type === 'online') {
                 currentUpdates.social_venue = 'none';
                 currentUpdates.attend_social = false;
+            }
+
+            // DBから現在の情報を取得し、紹介者の反映や料金の再計算を行う
+            try {
+                const { data: currentDbApp, error: dbFetchError } = await supabaseAdmin
+                    .from('applications')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
+                if (!dbFetchError && currentDbApp) {
+                    // 各項目の最終的な決定値 (入力された値 または 現在のDB値)
+                    const finalVenue = currentUpdates.venue !== undefined ? normalizeVenue(currentUpdates.venue) : currentDbApp.venue;
+                    const finalSocialVenue = currentUpdates.social_venue !== undefined ? normalizeVenue(currentUpdates.social_venue) : currentDbApp.social_venue;
+                    const finalParticipationType = currentUpdates.participation_type !== undefined ? currentUpdates.participation_type : currentDbApp.participation_type;
+                    const finalOnlineVenues = currentUpdates.online_venues !== undefined ? currentUpdates.online_venues : currentDbApp.online_venues;
+                    const finalMemberId = currentUpdates.matched_member_id !== undefined ? currentUpdates.matched_member_id : currentDbApp.matched_member_id;
+                    let finalRankName = currentUpdates.applied_rank_name !== undefined ? currentUpdates.applied_rank_name : currentDbApp.applied_rank_name;
+                    let finalRemarks = currentUpdates.remarks !== undefined ? currentUpdates.remarks : (currentDbApp.remarks || '');
+                    let finalTags = currentUpdates.tags !== undefined ? currentUpdates.tags : (currentDbApp.tags || []);
+
+                    // 1. 紹介者 (introducer) が指定された場合、備考欄およびタグを更新する
+                    if (body.introducer !== undefined) {
+                        const introducer = body.introducer.trim();
+                        let remarksText = finalRemarks;
+
+                        // 備考欄の中の「紹介者: XXX」の置換または追加
+                        if (remarksText.includes('紹介者:')) {
+                            remarksText = remarksText.replace(/紹介者:\s*[^\n]*/g, introducer ? `紹介者: ${introducer}` : '紹介者: なし');
+                        } else if (introducer) {
+                            remarksText = remarksText ? `${remarksText}\n紹介者: ${introducer}` : `紹介者: ${introducer}`;
+                        }
+                        
+                        finalRemarks = remarksText;
+                        currentUpdates.remarks = finalRemarks;
+
+                        // タグの同期
+                        if (introducer) {
+                            if (!finalTags.includes('ご紹介')) {
+                                finalTags = [...finalTags, 'ご紹介'];
+                            }
+                        } else {
+                            finalTags = finalTags.filter((t: string) => t !== 'ご紹介');
+                        }
+                        currentUpdates.tags = finalTags;
+                    }
+
+                    // 2. 一般申し込み（matched_member_id が null）の場合に、紹介者有無により属性名を自動変更する
+                    const hasIntro = finalRemarks.includes('紹介者:') && 
+                                     !finalRemarks.includes('紹介者: なし') && 
+                                     !finalRemarks.includes('紹介者: 未入力') &&
+                                     !finalRemarks.includes('紹介者: ありません') && 
+                                     finalRemarks.match(/紹介者:\s*([^\n]+)/)?.[1]?.trim() !== '';
+
+                    if (!finalMemberId) {
+                        if (hasIntro) {
+                            finalRankName = '神言学未受講（ご紹介）';
+                        } else {
+                            finalRankName = '神言学未受講（一般）';
+                        }
+                        currentUpdates.applied_rank_name = finalRankName;
+                    }
+
+                    // 3. 商品マッチングと料金の再計算
+                    const { data: settingsData } = await supabaseAdmin
+                        .from('app_settings')
+                        .select('*');
+
+                    const paymentLinks = settingsData?.find(row => row.key === 'payment_links')?.value || [];
+
+                    let rankId = null;
+                    try {
+                        const { data: rankData } = await supabaseAdmin
+                            .from('ranks')
+                            .select('id')
+                            .eq('name', finalRankName)
+                            .single();
+                        if (rankData) rankId = String(rankData.id);
+                    } catch {}
+
+                    const matchedProduct = matchProduct(paymentLinks, {
+                        venue: finalVenue,
+                        social_venue: finalSocialVenue || 'ー',
+                        participation_type: finalParticipationType || 'venue',
+                        online_venues: finalOnlineVenues,
+                        rank_id: rankId,
+                        rank_name: finalRankName
+                    });
+
+                    if (matchedProduct) {
+                        const totalAmount = Number(matchedProduct.lecture_fee) + Number(matchedProduct.social_fee);
+                        currentUpdates.total_amount = totalAmount;
+                        currentUpdates.payment_key = matchedProduct.key;
+                        
+                        // 懇親会の参加フラグも更新
+                        currentUpdates.attend_social = (finalSocialVenue && finalSocialVenue !== '参加しない');
+
+                        // 以前が unpaid の場合に限り、金額0円になれば自動的に paid に切り替える
+                        const currentPaymentStatus = currentUpdates.payment_status !== undefined ? currentUpdates.payment_status : currentDbApp.payment_status;
+                        if (currentPaymentStatus === 'unpaid' && totalAmount === 0) {
+                            currentUpdates.payment_status = 'paid';
+                        }
+                    }
+                }
+            } catch (calcError) {
+                console.error('Error recalculating rates in edit API:', calcError);
             }
 
             let attempt = 0;

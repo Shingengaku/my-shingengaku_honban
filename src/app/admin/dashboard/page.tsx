@@ -1348,6 +1348,12 @@ export default function AdminDashboard() {
 
     const openEditModal = (app: Application) => {
         setEditingApp(app);
+        
+        // 備考欄から「紹介者」を抽出
+        const remarksText = app.remarks || '';
+        const introMatch = remarksText.match(/紹介者:\s*([^\n]+)/);
+        const introducerVal = (introMatch && !introMatch[1].includes('なし') && !introMatch[1].includes('未入力') && !introMatch[1].includes('ありません')) ? introMatch[1].trim() : '';
+
         setEditForm({
             input_name: app.input_name,
             input_furigana: app.members?.furigana || app.input_furigana, // Pre-fill with best available
@@ -1364,7 +1370,8 @@ export default function AdminDashboard() {
             participation_type: app.participation_type,
             payment_status: app.payment_status,
             receipt_date: app.tags?.find(t => t.startsWith('rd:'))?.split(':')[1] || '',
-            payment_method: app.tags?.find(t => t.startsWith('pm:'))?.split(':')[1] || ''
+            payment_method: app.tags?.find(t => t.startsWith('pm:'))?.split(':')[1] || '',
+            introducer: introducerVal
         });
         setShowModal(true);
     };
@@ -1655,6 +1662,7 @@ export default function AdminDashboard() {
                 participation_type: editForm.participation_type,
                 online_venues: editForm.online_venues,
                 payment_status: editForm.payment_status,
+                introducer: editForm.introducer || '',
                 // タグの構築
                 tags: [
                     ...(editingApp.tags || []).filter(t => !t.startsWith('rd:') && !t.startsWith('pm:')),
@@ -4004,6 +4012,21 @@ export default function AdminDashboard() {
                                             placeholder="数字のみ (例 1)"
                                         />
                                     </div>
+                                </div>
+
+                                {/* 紹介者入力欄 (一般のみ) */}
+                                <div className="mb-4">
+                                    <label className="block text-sm font-bold text-gray-700 text-indigo-800">紹介者 (一般お申し込みのみ有効)</label>
+                                    <input
+                                        type="text"
+                                        className="border w-full p-2 rounded border-indigo-200 focus:ring-indigo-500 focus:border-indigo-500 bg-indigo-50/30"
+                                        value={(editForm as any).introducer || ''}
+                                        onChange={e => setEditForm({ ...editForm, introducer: e.target.value })}
+                                        placeholder="紹介者の氏名を入力 (例: 山田 太郎)"
+                                    />
+                                    <p className="text-[10px] text-gray-500 mt-1">
+                                        ※紹介者が入力されると、属性が「神言学未受講（ご紹介）」になり、該当する紹介料金へ自動で再計算されます（空にすると「一般」に戻ります）。
+                                    </p>
                                 </div>
 
                                 {/* Product Name with Auto-Populate */}
