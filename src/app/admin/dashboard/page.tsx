@@ -4324,81 +4324,86 @@ export default function AdminDashboard() {
             {/* Custom Resend Modal */}
             {customResendModal.isOpen && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-                    <div className="bg-white p-5 rounded-lg shadow-xl w-[600px] h-[80vh] flex flex-col">
-                        <h3 className="text-lg font-bold mb-4 text-indigo-700 flex items-center gap-2">
+                    <div className="bg-white p-5 rounded-lg shadow-xl w-[600px] max-h-[90vh] flex flex-col">
+                        <h3 className="text-lg font-bold mb-3 text-indigo-700 flex items-center gap-2 border-b pb-2">
                             <span>✉️</span> 再送メールの編集
                         </h3>
 
-                        <div className="bg-amber-50 border-l-4 border-amber-400 p-3 mb-4 rounded-r shadow-sm">
-                            <p className="text-xs text-amber-800 leading-relaxed">
-                                <span className="font-bold">⚠️ 注意事項</span><br />
-                                ここでの修正内容は、<span className="font-bold">今回の送信にのみ</span>反映されます。<br />
-                                申込者データやオリジナルのテンプレートには保存・反映されませんので、安心して調整してください。
-                            </p>
-                        </div>
-
-                        <p className="text-sm text-gray-600 mb-4">内容を編集して「送信」ボタンを押してください。</p>
-
-                        <div className="mb-3 p-3 bg-gray-50 rounded-lg border">
-                            <div className="flex items-center justify-between mb-2">
-                                <label className="block text-sm font-bold text-gray-700">元の送信先</label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={customResendModal.sendToOriginal}
-                                        onChange={e => setCustomResendModal({ ...customResendModal, sendToOriginal: e.target.checked })}
-                                        className="h-4 w-4 text-indigo-600 rounded"
-                                    />
-                                    <span className="text-xs text-gray-600">このアドレスにも送信する</span>
-                                </label>
+                        {/* Scrollable Form Content */}
+                        <div className="flex-1 overflow-y-auto pr-1 mb-4 space-y-4 min-h-0">
+                            <div className="bg-amber-50 border-l-4 border-amber-400 p-3 rounded shadow-sm">
+                                <p className="text-xs text-amber-800 leading-relaxed">
+                                    <span className="font-bold">⚠️ 注意事項</span><br />
+                                    ここでの修正内容は、<span className="font-bold">今回の送信にのみ</span>反映されます。<br />
+                                    申込者データやオリジナルのテンプレートには保存・反映されませんので、安心して調整してください。
+                                </p>
                             </div>
-                            <div className={`text-sm font-mono px-2 py-1.5 rounded ${customResendModal.sendToOriginal ? 'bg-white text-gray-800 border' : 'bg-gray-200 text-gray-400 line-through'}`}>
-                                {customResendModal.email}
+
+                            <p className="text-sm text-gray-600">内容を編集して「送信」ボタンを押してください。</p>
+
+                            <div className="p-3 bg-gray-50 rounded-lg border">
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="block text-sm font-bold text-gray-700">元の送信先</label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={customResendModal.sendToOriginal}
+                                            onChange={e => setCustomResendModal({ ...customResendModal, sendToOriginal: e.target.checked })}
+                                            className="h-4 w-4 text-indigo-600 rounded"
+                                        />
+                                        <span className="text-xs text-gray-600">このアドレスにも送信する</span>
+                                    </label>
+                                </div>
+                                <div className={`text-sm font-mono px-2 py-1.5 rounded ${customResendModal.sendToOriginal ? 'bg-white text-gray-800 border' : 'bg-gray-200 text-gray-400 line-through'}`}>
+                                    {customResendModal.email}
+                                </div>
+                            </div>
+
+                            <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                                <label className="block text-sm font-bold text-indigo-700 mb-1">追加送信先メールアドレス</label>
+                                <input
+                                    className="border w-full p-2 rounded text-sm bg-white"
+                                    type="email"
+                                    value={customResendModal.additionalEmail}
+                                    onChange={e => setCustomResendModal({ ...customResendModal, additionalEmail: e.target.value })}
+                                    placeholder="例: sub-address@example.com"
+                                />
+                                <p className="text-xs text-indigo-500 mt-1">
+                                    ※ 入力したアドレスは保存され、次回再送時にも表示されます
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">件名</label>
+                                <input
+                                    className="border w-full p-2 rounded text-sm"
+                                    value={customResendModal.subject}
+                                    onChange={e => setCustomResendModal({ ...customResendModal, subject: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="flex flex-col">
+                                <label className="block text-sm font-bold text-gray-700 mb-1">本文</label>
+                                <textarea
+                                    className="border w-full p-2 rounded font-mono text-sm resize-y min-h-[220px]"
+                                    rows={10}
+                                    value={customResendModal.body}
+                                    onChange={e => setCustomResendModal({ ...customResendModal, body: e.target.value })}
+                                />
                             </div>
                         </div>
 
-                        <div className="mb-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
-                            <label className="block text-sm font-bold text-indigo-700 mb-1">追加送信先メールアドレス</label>
-                            <input
-                                className="border w-full p-2 rounded text-sm"
-                                type="email"
-                                value={customResendModal.additionalEmail}
-                                onChange={e => setCustomResendModal({ ...customResendModal, additionalEmail: e.target.value })}
-                                placeholder="例: sub-address@example.com"
-                            />
-                            <p className="text-xs text-indigo-500 mt-1">
-                                ※ 入力したアドレスは保存され、次回再送時にも表示されます
-                            </p>
-                        </div>
-
-                        <div className="mb-2">
-                            <label className="block text-sm font-bold text-gray-700">件名</label>
-                            <input
-                                className="border w-full p-2 rounded"
-                                value={customResendModal.subject}
-                                onChange={e => setCustomResendModal({ ...customResendModal, subject: e.target.value })}
-                            />
-                        </div>
-
-                        <div className="flex-1 mb-2 flex flex-col">
-                            <label className="block text-sm font-bold text-gray-700 mb-1">本文</label>
-                            <textarea
-                                className="border w-full p-2 rounded flex-1 font-mono text-sm resize-none"
-                                value={customResendModal.body}
-                                onChange={e => setCustomResendModal({ ...customResendModal, body: e.target.value })}
-                            />
-                        </div>
-
-                        <div className="mt-4 flex justify-end gap-2">
+                        {/* Fixed Footer */}
+                        <div className="pt-3 border-t flex justify-end gap-2">
                             <button
                                 onClick={() => setCustomResendModal({ ...customResendModal, isOpen: false })}
-                                className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400"
+                                className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400 text-sm"
                             >
                                 キャンセル
                             </button>
                             <button
                                 onClick={submitCustomResend}
-                                className="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 font-bold"
+                                className="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 font-bold text-sm"
                             >
                                 送信
                             </button>
