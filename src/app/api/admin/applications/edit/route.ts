@@ -48,6 +48,7 @@ export async function POST(request: Request) {
             const {
                 member_generation,
                 updated_at,
+                introducer,
                 ...appUpdates
             } = updates;
 
