@@ -1941,7 +1941,11 @@ export default function AdminDashboard() {
                 const rankName = app.applied_rank_name || app.members?.ranks?.name || '';
 
                 // 法人グループ (優先度 6) の追加
-                if (rankName.includes('法人') || rankName.includes('初年/法人') || (app.members?.terms?.name || '').includes('法人')) {
+                // ※受講生マスタの所属期が「法人コース」である場合のみ優先度6とする。
+                // 属性が「初年/法人」であっても、所属期が通常の期生（11期、12期など）の場合は対象外とする。
+                const termName = app.members?.terms?.name || '';
+                const genVal = app.members?.generation;
+                if (termName.includes('法人') || genVal === 9991) {
                     return 6;
                 }
 
