@@ -3,6 +3,19 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { matchProduct, normalizeVenue } from '@/lib/venueUtils';
 
+function parseInputGeneration(genInput: any): number {
+    if (genInput === undefined || genInput === null) return 0;
+    const str = String(genInput).trim();
+    if (str === '法人' || str === '法人コース' || str === '9991') {
+        return 9991;
+    }
+    if (str === '経営幹部' || str === '経営幹部コース' || str === '9992') {
+        return 9992;
+    }
+    const val = parseInt(str);
+    return isNaN(val) ? 0 : val;
+}
+
 export async function POST(request: Request) {
     try {
         const body = await request.json();
@@ -274,10 +287,13 @@ export async function POST(request: Request) {
                     const { data: terms } = await supabaseAdmin
                         .from('terms')
                         .select('id, name');
-                    const targetTerm = terms?.find(t => 
-                        t.name === String(member_generation) || 
-                        t.name === `${member_generation}期`
-                    );
+                    const genVal = parseInputGeneration(member_generation);
+                    const targetTerm = terms?.find(t => {
+                        const tName = t.name || '';
+                        if (genVal === 9991) return tName.includes('法人');
+                        if (genVal === 9992) return tName.includes('経営幹部');
+                        return tName === String(genVal) || tName === `${genVal}期`;
+                    });
 
                     const { data: newMember, error: createError } = await supabaseAdmin
                         .from('members')
@@ -285,7 +301,7 @@ export async function POST(request: Request) {
                             name: name || 'Unknown',
                             email: email,
                             furigana: furigana || '',
-                            generation: member_generation,
+                            generation: genVal,
                             term_id: targetTerm?.id || null
                         })
                         .select('id')
@@ -311,7 +327,8 @@ export async function POST(request: Request) {
                 const memberUpdates: any = {};
 
                 if (member_generation !== undefined && member_generation !== null) {
-                    memberUpdates.generation = member_generation;
+                    const genVal = parseInputGeneration(member_generation);
+                    memberUpdates.generation = genVal;
 
                     // term_id も generation に合わせて同期する
                     // terms テーブルで name = member_generation または name = member_generation + "期" の行を検索
@@ -319,10 +336,12 @@ export async function POST(request: Request) {
                         .from('terms')
                         .select('id, name');
                     
-                    const targetTerm = terms?.find(t => 
-                        t.name === String(member_generation) || 
-                        t.name === `${member_generation}期`
-                    );
+                    const targetTerm = terms?.find(t => {
+                        const tName = t.name || '';
+                        if (genVal === 9991) return tName.includes('法人');
+                        if (genVal === 9992) return tName.includes('経営幹部');
+                        return tName === String(genVal) || tName === `${genVal}期`;
+                    });
 
                     if (targetTerm?.id) {
                         memberUpdates.term_id = targetTerm.id;

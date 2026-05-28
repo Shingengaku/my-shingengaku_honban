@@ -213,7 +213,7 @@ export default function AdminDashboard() {
 
     // 編集モーダルの状態
     const [editingApp, setEditingApp] = useState<Application | null>(null);
-    const [editForm, setEditForm] = useState<Partial<Application & { member_generation?: number }>>({});
+    const [editForm, setEditForm] = useState<Partial<Application & { member_generation?: number | string }>>({});
     const [showModal, setShowModal] = useState(false);
 
     // 合算モーダルの状態
@@ -1374,7 +1374,9 @@ export default function AdminDashboard() {
             applied_rank_name: app.applied_rank_name || app.members?.ranks?.name || '',
             remarks: app.remarks || '',
             payment_key: app.payment_key,
-            member_generation: app.members?.generation,
+            member_generation: app.members?.generation === 9991 ? '法人' : 
+                               app.members?.generation === 9992 ? '経営幹部' : 
+                               (app.members?.generation ? String(app.members.generation) : ''),
             cc_email: app.cc_email || adminEmail || '',
             bcc_email: app.bcc_email || adminBccEmail || '',
             participation_type: app.participation_type,
@@ -4059,11 +4061,11 @@ export default function AdminDashboard() {
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700">期(Term)</label>
                                         <input
-                                            type="number"
+                                            type="text"
                                             className="border w-full p-2 rounded"
                                             value={editForm.member_generation || ''}
-                                            onChange={e => setEditForm({ ...editForm, member_generation: Number(e.target.value) })}
-                                            placeholder="数字のみ (例 1)"
+                                            onChange={e => setEditForm({ ...editForm, member_generation: e.target.value })}
+                                            placeholder="例: 11、法人、経営幹部"
                                         />
                                     </div>
                                 </div>
