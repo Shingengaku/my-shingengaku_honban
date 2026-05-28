@@ -17,7 +17,8 @@ export async function POST(request: Request) {
             participation_type,
             cc_email,
             bcc_email,
-            member_generation
+            member_generation,
+            matched_member_id
         } = body;
 
         // 必須チェック（ダッシュボードからの手動登録なので、ある程度緩くすることも可能ですが、基本は合わせます）
@@ -28,10 +29,10 @@ export async function POST(request: Request) {
         const attendSocial = (social_venue && social_venue !== 'none' && social_venue !== '参加しない');
 
         // memberの処理
-        let targetMemberId = null;
+        let targetMemberId = matched_member_id || null;
 
-        // 期が指定されている場合、メンバーを検索または作成
-        if (member_generation) {
+        // targetMemberIdがなく、期が指定されている場合、メンバーを検索または作成
+        if (!targetMemberId && member_generation) {
             // term_id を特定 (例: 11 -> "11期" を探す)
             const { data: terms } = await supabaseAdmin
                 .from('terms')

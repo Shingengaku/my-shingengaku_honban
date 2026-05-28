@@ -14,7 +14,7 @@ export async function GET(request: Request) {
             // エクセル判定に必要な最小限のフィールドのみを高速に取得
             const { data, error } = await supabaseAdmin
                 .from('members')
-                .select('name, email, is_tokushin, exclude_from_count');
+                .select('name, email, is_tokushin, exclude_from_count, term_id, terms(name)');
 
             if (error) throw error;
             return NextResponse.json(data);

@@ -140,7 +140,10 @@ export async function POST(request: Request) {
                                      !finalRemarks.includes('紹介者: ありません') && 
                                      finalRemarks.match(/紹介者:\s*([^\n]+)/)?.[1]?.trim() !== '';
 
-                    if (!finalMemberId) {
+                    // 自動切り替えの対象とする属性名（一般またはご紹介）
+                    const autoConvertRanks = ['神言学未受講（一般）', '神言学未受講（ご紹介）'];
+
+                    if (!finalMemberId && autoConvertRanks.includes(finalRankName)) {
                         if (hasIntro) {
                             finalRankName = '神言学未受講（ご紹介）';
                         } else {

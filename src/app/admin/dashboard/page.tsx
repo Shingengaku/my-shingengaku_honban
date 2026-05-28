@@ -216,7 +216,8 @@ export default function AdminDashboard() {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [createForm, setCreateForm] = useState<Partial<Application & { member_generation?: number }>>({});
     const [creating, setCreating] = useState(false);
-
+    const [memberSearchTerm, setMemberSearchTerm] = useState('');
+    const [showMemberSearch, setShowMemberSearch] = useState(false);
     // 一括削除認証モーダルの状態
     const [showTruncateAuthModal, setShowTruncateAuthModal] = useState(false);
     const [authUsername, setAuthUsername] = useState('');
@@ -1908,9 +1909,30 @@ export default function AdminDashboard() {
                     .map((m: any) => normalizeName(m.name || '', currentKanjiMap))
             );
 
+            // メンバーIDから期へのマッピング、およびフォールバック用の名前から期へのマッピング
+            const memberIdToGenMap = new Map<number, number>();
+            const memberGenerationMap = new Map<string, number>();
+            allMembersData.forEach((m: any) => {
+                const normName = normalizeName(m.name || '', currentKanjiMap);
+                const termName = m.terms?.name || '';
+                const genMatch = termName.match(/(\d+)/);
+                if (genMatch) {
+                    const genNum = parseInt(genMatch[1], 10);
+                    memberIdToGenMap.set(m.id, genNum);
+                    if (normName) {
+                        memberGenerationMap.set(normName, genNum);
+                    }
+                }
+            });
+
             // Helper: Find Master-defined group priority (1:Tokushin, 2:Terms, 3:Executive, 4:Referral)
             const getPriorityByMaster = (app: Application) => {
                 const rankName = app.applied_rank_name || app.members?.ranks?.name || '';
+
+                // 法人グループ (優先度 6) の追加
+                if (rankName.includes('法人') || rankName.includes('初年/法人') || (app.members?.terms?.name || '').includes('法人')) {
+                    return 6;
+                }
 
                 // 1. Tokushin check (Highest Priority)
                 if (rankName.includes('特進') || (app.members?.is_tokushin) || tokushinNameSet.has(normalizeName(app.input_name, currentKanjiMap))) return 1;
@@ -1986,9 +2008,26 @@ export default function AdminDashboard() {
                     hasIntroducer = true;
                 }
 
-                const rawGen = app.members?.generation;
-                const gen = (rawGen !== undefined && rawGen !== null) ? Number(rawGen) : 99;
-                const term = gen === 99 ? '' : `${gen}期`;
+                let rawGen = app.members?.generation;
+                // 紐付けがあるが generation が null の場合、マスタの term_id (memberIdToGenMap) から補完
+                if ((rawGen === undefined || rawGen === null) && app.members) {
+                    rawGen = memberIdToGenMap.get(app.members.id) ?? undefined;
+                }
+                // 紐付けがない場合、名前ベースでマスタから期を補完
+                if ((rawGen === undefined || rawGen === null) && !app.members) {
+                    const nameKey = normalizeName(app.input_name, currentKanjiMap);
+                    rawGen = memberGenerationMap.get(nameKey) ?? undefined;
+                }
+                let term = '';
+                const termName = app.members?.terms?.name || '';
+                if (termName.includes('法人')) {
+                    term = '法人';
+                } else if (termName.includes('経営幹部')) {
+                    term = '経営幹部';
+                } else {
+                    const gen = (rawGen !== undefined && rawGen !== null) ? Number(rawGen) : 99;
+                    term = gen === 99 ? '' : `${gen}期`;
+                }
                 const furigana = app.members?.furigana || app.input_furigana || '';
 
                 // 集約ステータスを使用
@@ -2150,7 +2189,8 @@ export default function AdminDashboard() {
                     terms: list.filter(i => i.priority === 2).sort(sorterTerm),
                     general: list.filter(i => i.priority === 3).sort(sorterName),
                     executive: list.filter(i => i.priority === 4).sort(sorterName),
-                    referral: list.filter(i => i.priority === 5).sort(sorterName)
+                    referral: list.filter(i => i.priority === 5).sort(sorterName),
+                    hojin: list.filter(i => i.priority === 6).sort(sorterName)
                 };
             };
             const tokyoGroups = groupList(rawTokyo);
@@ -2454,6 +2494,9 @@ export default function AdminDashboard() {
                 resV = renderBlock(rV, colOffset, exportTermLabel || 'リピート＆本講座', v.groups.terms, seqV);
                 rV = resV.nextRow + 1; seqV = resV.nextSeq;
 
+                resV = renderBlock(rV, colOffset, '法人', v.groups.hojin, seqV);
+                rV = resV.nextRow + 1; seqV = resV.nextSeq;
+
                 resV = renderBlock(rV, colOffset, '一般 (未受講)', v.groups.general, seqV);
                 rV = resV.nextRow + 1; seqV = resV.nextSeq;
 
@@ -2483,6 +2526,8 @@ export default function AdminDashboard() {
                     resO = renderBlock(rO, onlineColOffset, '特進', o.groups.tokushin, seqO, false, theme);
                     rO = resO.nextRow + 1; seqO = resO.nextSeq;
                     resO = renderBlock(rO, onlineColOffset, exportTermLabel || 'リピート＆本講座', o.groups.terms, seqO, false, theme);
+                    rO = resO.nextRow + 1; seqO = resO.nextSeq;
+                    resO = renderBlock(rO, onlineColOffset, '法人', o.groups.hojin, seqO, false, theme);
                     rO = resO.nextRow + 1; seqO = resO.nextSeq;
                     resO = renderBlock(rO, onlineColOffset, '一般 (未受講)', o.groups.general, seqO, false, theme);
                     rO = resO.nextRow + 1; seqO = resO.nextSeq;
@@ -5030,11 +5075,68 @@ export default function AdminDashboard() {
             {showCreateModal && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
                     <div className="bg-white p-5 rounded-lg shadow-xl w-[600px] max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-xl font-bold mb-4 text-green-700">新規登録（手動・自動メールなし）</h3>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold text-green-700">新規登録（手動・自動メールなし）</h3>
+                            <button
+                                onClick={() => setShowMemberSearch(!showMemberSearch)}
+                                className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-sm font-bold hover:bg-indigo-200"
+                            >
+                                {showMemberSearch ? '検索を閉じる' : '受講生マスタから検索'}
+                            </button>
+                        </div>
+
+                        {showMemberSearch && (
+                            <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded">
+                                <label className="block text-sm text-indigo-800 font-bold mb-2">受講生検索（名前・ふりがな）</label>
+                                <input
+                                    type="text"
+                                    className="border w-full p-2 rounded focus:ring-indigo-500 focus:border-indigo-500 mb-2"
+                                    placeholder="例: 山田太郎、やまだ"
+                                    value={memberSearchTerm}
+                                    onChange={e => setMemberSearchTerm(e.target.value)}
+                                />
+                                <div className="max-h-40 overflow-y-auto bg-white rounded border">
+                                    {allMembers.filter(m => 
+                                        memberSearchTerm.length > 0 && 
+                                        ((m.name && m.name.includes(memberSearchTerm)) || 
+                                         (m.furigana && m.furigana.includes(memberSearchTerm)))
+                                    ).map(m => (
+                                        <div 
+                                            key={m.id} 
+                                            className="p-2 border-b hover:bg-indigo-100 cursor-pointer text-sm flex justify-between"
+                                            onClick={() => {
+                                                setCreateForm(prev => ({
+                                                    ...prev,
+                                                    input_name: m.name,
+                                                    input_furigana: m.furigana,
+                                                    input_email: m.email || '',
+                                                    matched_member_id: m.id,
+                                                    applied_rank_name: m.ranks?.name || prev.applied_rank_name
+                                                }));
+                                                setShowMemberSearch(false);
+                                                setMemberSearchTerm('');
+                                            }}
+                                        >
+                                            <span>{m.name} ({m.furigana}) - {m.terms?.name || '期不明'}</span>
+                                            {m.is_tokushin && <span className="text-xs bg-red-100 text-red-800 px-1 rounded ml-2">特進</span>}
+                                        </div>
+                                    ))}
+                                    {memberSearchTerm.length > 0 && allMembers.filter(m => 
+                                        (m.name && m.name.includes(memberSearchTerm)) || 
+                                        (m.furigana && m.furigana.includes(memberSearchTerm))
+                                    ).length === 0 && (
+                                        <div className="p-2 text-sm text-gray-500">見つかりません</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm text-gray-600">氏名 (必須)</label>
+                                <label className="block text-sm text-gray-600">
+                                    氏名 (必須) 
+                                    {createForm.matched_member_id && <span className="text-xs bg-green-100 text-green-800 px-1 ml-2 rounded">受講生紐付け済</span>}
+                                </label>
                                 <input
                                     className="border w-full p-2 rounded focus:ring-green-500 focus:border-green-500"
                                     value={createForm.input_name || ''}
@@ -5049,8 +5151,18 @@ export default function AdminDashboard() {
                                     onChange={e => setCreateForm({ ...createForm, input_furigana: e.target.value })}
                                 />
                             </div>
-                            <div className="col-span-2">
+                            <div className="col-span-2 flex items-center justify-between">
                                 <label className="block text-sm text-gray-600">Email</label>
+                                {createForm.matched_member_id && (
+                                    <button 
+                                        className="text-xs text-red-500 hover:text-red-700" 
+                                        onClick={() => setCreateForm(prev => ({ ...prev, matched_member_id: undefined }))}
+                                    >
+                                        紐付けを解除
+                                    </button>
+                                )}
+                            </div>
+                            <div className="col-span-2">
                                 <input
                                     type="email"
                                     className="border w-full p-2 rounded focus:ring-green-500 focus:border-green-500"

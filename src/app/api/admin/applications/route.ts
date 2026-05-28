@@ -2,6 +2,19 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
+function parseGeneration(termName: string, memberGen: any, fallback: string): number {
+  const name = termName || '';
+  if (name.includes('法人')) {
+    return 9991;
+  }
+  if (name.includes('経営幹部')) {
+    return 9992;
+  }
+  const val = parseInt(name || memberGen || fallback);
+  return isNaN(val) ? 0 : val;
+}
+
+
 
 
 export const dynamic = 'force-dynamic';
@@ -53,8 +66,8 @@ export async function GET() {
     if (rankOrderA !== rankOrderB) return rankOrderA - rankOrderB;
 
     // 3. 期順
-    const genA = parseInt(a.members?.terms?.name || a.members?.generation || '9999');
-    const genB = parseInt(b.members?.terms?.name || b.members?.generation || '9999');
+    const genA = parseGeneration(a.members?.terms?.name || '', a.members?.generation, '9999');
+    const genB = parseGeneration(b.members?.terms?.name || '', b.members?.generation, '9999');
     if (genA !== genB) return genA - genB;
 
     // 4. ふりがな順
@@ -70,7 +83,7 @@ export async function GET() {
     const venue = app.venue;
     const social_venue = app.social_venue || 'none';
 
-    const generation = parseInt(app.members?.terms?.name || app.members?.generation || '0');
+    const generation = parseGeneration(app.members?.terms?.name || '', app.members?.generation, '0');
     // フロントエンド向けにメンバー構造をフラット化
     const members = app.members ? { ...app.members, generation } : null;
 
