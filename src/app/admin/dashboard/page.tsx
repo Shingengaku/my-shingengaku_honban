@@ -2029,14 +2029,14 @@ export default function AdminDashboard() {
                     const nameKey = normalizeName(app.input_name, currentKanjiMap);
                     rawGen = memberGenerationMap.get(nameKey) ?? undefined;
                 }
+                const gen = (rawGen !== undefined && rawGen !== null) ? Number(rawGen) : 99;
                 let term = '';
                 const termName = app.members?.terms?.name || '';
-                if (termName.includes('法人') || rawGen === 9991) {
+                if (termName.includes('法人') || gen === 9991) {
                     term = '法人';
-                } else if (termName.includes('経営幹部') || rawGen === 9992) {
+                } else if (termName.includes('経営幹部') || gen === 9992) {
                     term = '経幹';
                 } else {
-                    const gen = (rawGen !== undefined && rawGen !== null) ? Number(rawGen) : 99;
                     term = (gen === 99 || gen === 9999 || gen === 0) ? '' : `${gen}期`;
                 }
                 const furigana = app.members?.furigana || app.input_furigana || '';
