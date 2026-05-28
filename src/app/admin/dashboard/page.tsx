@@ -74,6 +74,15 @@ interface Venue {
     area: 'tokyo' | 'fukuoka' | 'online';
 }
 
+const formatGeneration = (generation: number | undefined | null): string => {
+    if (generation === undefined || generation === null) return '';
+    const val = Number(generation);
+    if (val === 9991) return '法人';
+    if (val === 9992) return '経営幹部';
+    if (val === 9999 || val === 0) return '';
+    return `${val}期`;
+};
+
 // 複数選択コンポーネント
 const MultiSelect = ({ label, options, selected, onChange, width = "w-40" }: { label: string, options: { label: string, value: string }[], selected: Set<string>, onChange: (s: Set<string>) => void, width?: string }) => {
     const [open, setOpen] = useState(false);
@@ -1803,7 +1812,7 @@ export default function AdminDashboard() {
 
         const rows = targetApps.map(app => {
             const rank = app.applied_rank_name || app.members?.ranks?.name || '一般';
-            const gen = app.members?.generation ? `${app.members.generation}期` : '-';
+            const gen = formatGeneration(app.members?.generation) || '-';
             // マスタ重複救済ロジック適用
             const isTokushin = app.members?.is_tokushin || tokushinNameSet.has(normalizeName(app.input_name, currentKanjiMap));
             const tokushin = isTokushin ? '特進' : '';
@@ -2020,13 +2029,13 @@ export default function AdminDashboard() {
                 }
                 let term = '';
                 const termName = app.members?.terms?.name || '';
-                if (termName.includes('法人')) {
+                if (termName.includes('法人') || rawGen === 9991) {
                     term = '法人';
-                } else if (termName.includes('経営幹部')) {
+                } else if (termName.includes('経営幹部') || rawGen === 9992) {
                     term = '経営幹部';
                 } else {
                     const gen = (rawGen !== undefined && rawGen !== null) ? Number(rawGen) : 99;
-                    term = gen === 99 ? '' : `${gen}期`;
+                    term = (gen === 99 || gen === 9999 || gen === 0) ? '' : `${gen}期`;
                 }
                 const furigana = app.members?.furigana || app.input_furigana || '';
 
@@ -2742,7 +2751,7 @@ export default function AdminDashboard() {
 
                 const data = allValidApps.filter(filterFn).map(app => {
                     const rank = app.applied_rank_name || app.members?.ranks?.name || '一般';
-                    const gen = app.members?.generation ? `${app.members.generation}期` : '-';
+                    const gen = formatGeneration(app.members?.generation) || '-';
                     const tokushin = app.members?.is_tokushin ? '特進' : '';
                     const social = app.social_venue ? app.social_venue : (app.attend_social ? '参加' : '参加しない');
 
@@ -3682,7 +3691,7 @@ export default function AdminDashboard() {
                         ) : (
                             sortedApps.map((app) => {
                                 const rankName = app.applied_rank_name || app.members?.ranks?.name || '一般';
-                                const gen = app.members?.generation ? `${app.members.generation}期` : '';
+                                const gen = formatGeneration(app.members?.generation);
                                 const furigana = app.members?.furigana || app.input_furigana;
 
                                 const isAlert = app.remarks?.includes('商品マスタ') && !app.tags?.includes('confirmed_product_alert');
