@@ -2032,7 +2032,7 @@ export default function AdminDashboard() {
                 if (termName.includes('法人') || rawGen === 9991) {
                     term = '法人';
                 } else if (termName.includes('経営幹部') || rawGen === 9992) {
-                    term = '経営幹部';
+                    term = '経幹';
                 } else {
                     const gen = (rawGen !== undefined && rawGen !== null) ? Number(rawGen) : 99;
                     term = (gen === 99 || gen === 9999 || gen === 0) ? '' : `${gen}期`;
