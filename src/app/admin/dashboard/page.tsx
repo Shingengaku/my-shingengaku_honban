@@ -86,22 +86,40 @@ const formatGeneration = (generation: number | undefined | null): string => {
 // 複数選択コンポーネント
 const MultiSelect = ({ label, options, selected, onChange, width = "w-40" }: { label: string, options: { label: string, value: string }[], selected: Set<string>, onChange: (s: Set<string>) => void, width?: string }) => {
     const [open, setOpen] = useState(false);
+    const isActive = selected.size > 0;
 
     return (
         <div className={`relative ${width}`}>
             <button
                 onClick={() => setOpen(!open)}
-                className="w-full text-left border rounded px-2 py-2 text-sm flex justify-between items-center bg-white cursor-pointer hover:border-gray-400"
+                className={`w-full text-left border-2 rounded px-2 py-1.5 text-sm flex justify-between items-center cursor-pointer transition-all ${
+                    isActive
+                        ? 'border-red-400 bg-red-50 hover:border-red-500'
+                        : 'border-gray-300 bg-white hover:border-gray-400'
+                }`}
             >
-                <span className="truncate block">
-                    {selected.size === 0 ? label : `${selected.size}件選択中`}
+                <span className="flex items-center gap-1 min-w-0">
+                    {isActive && (
+                        <span className="text-red-500 text-xs flex-shrink-0">🔴</span>
+                    )}
+                    <span className="truncate block font-medium" style={{ color: isActive ? '#b91c1c' : '#374151' }}>
+                        {label}
+                    </span>
+                    {isActive && (
+                        <span className="flex-shrink-0 ml-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                            ×{selected.size}
+                        </span>
+                    )}
                 </span>
-                <span className="text-xs text-gray-500 ml-1">▼</span>
+                <span className={`text-xs ml-1 flex-shrink-0 ${isActive ? 'text-red-400' : 'text-gray-500'}`}>▼</span>
             </button>
             {open && (
                 <>
                     <div className="fixed inset-0 z-10" onClick={() => setOpen(false)}></div>
-                    <div className="absolute top-full left-0 w-full bg-white border rounded shadow-lg z-20 max-h-80 overflow-y-auto mt-1">
+                    <div className="absolute top-full left-0 w-full bg-white border rounded shadow-lg z-20 max-h-80 overflow-y-auto mt-1" style={{ minWidth: '160px' }}>
+                        <div className="px-3 py-1.5 bg-gray-50 border-b">
+                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</span>
+                        </div>
                         <div
                             className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center border-b"
                             onClick={() => {
@@ -116,7 +134,9 @@ const MultiSelect = ({ label, options, selected, onChange, width = "w-40" }: { l
                         {options.map((opt) => (
                             <div
                                 key={opt.value}
-                                className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0"
+                                className={`px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 ${
+                                    selected.has(opt.value) ? 'bg-red-50' : ''
+                                }`}
                                 onClick={() => {
                                     const newSet = new Set(selected);
                                     if (newSet.has(opt.value)) newSet.delete(opt.value);
@@ -128,11 +148,21 @@ const MultiSelect = ({ label, options, selected, onChange, width = "w-40" }: { l
                                     type="checkbox"
                                     checked={selected.has(opt.value)}
                                     readOnly
-                                    className="pointer-events-none h-4 w-4 text-indigo-600 focus:ring-0"
+                                    className="pointer-events-none h-4 w-4 text-red-500 focus:ring-0"
                                 />
-                                <span className="text-sm truncate select-none text-gray-700">{opt.label}</span>
+                                <span className={`text-sm truncate select-none ${
+                                    selected.has(opt.value) ? 'text-red-700 font-bold' : 'text-gray-700'
+                                }`}>{opt.label}</span>
                             </div>
                         ))}
+                        {isActive && (
+                            <div
+                                className="px-3 py-2 bg-red-50 hover:bg-red-100 cursor-pointer flex items-center gap-2 border-t border-red-100"
+                                onClick={() => { onChange(new Set()); setOpen(false); }}
+                            >
+                                <span className="text-xs font-bold text-red-600">✕ フィルタを解除</span>
+                            </div>
+                        )}
                     </div>
                 </>
             )}
@@ -3035,7 +3065,8 @@ export default function AdminDashboard() {
 
             const status = getParticipationStatus(app, venueList);
             const isOnline = app.participation_type === 'online' || isOnlineVenue(app.venue || '') || isOnlineVenue(app.online_venues || '');
-            const isAlert = app.remarks?.includes('商品マスタ') && !app.tags?.includes('confirmed_product_alert');
+            const isAlert = (app.remarks?.includes('商品マスタ') && !app.tags?.includes('confirmed_product_alert'))
+                || (app.applied_rank_name?.startsWith('確認中'));
             const isPaidOrFree = app.payment_status === 'paid' || (app.total_amount === 0 && app.payment_status !== 'cancelled' && !isAlert);
 
             if (isPaidOrFree) summary.paid++; else summary.unpaid++;
@@ -3075,7 +3106,8 @@ export default function AdminDashboard() {
     const filteredApps = apps.filter(app => {
         // Status Filter
         if (filter !== 'all') {
-            const isAlert = app.remarks?.includes('商品マスタ') && !app.tags?.includes('confirmed_product_alert');
+            const isAlert = (app.remarks?.includes('商品マスタ') && !app.tags?.includes('confirmed_product_alert'))
+                || (app.applied_rank_name?.startsWith('確認中'));
             const isNotRequired = app.total_amount === 0 && !isAlert && app.payment_status !== 'cancelled';
 
             if (filter === 'not_required') {
@@ -3593,8 +3625,45 @@ export default function AdminDashboard() {
                         </div>
                     </div>
 
-                    {/* データリセットボタン (右端) */}
-                    <div className="flex justify-end pt-2 border-t border-gray-100 mt-2">
+                    {/* フィルタ状態バナー + データリセットボタン */}
+                    <div className="flex justify-between items-center pt-2 border-t border-gray-100 mt-2">
+                        <div className="flex-1">
+                            {(() => {
+                                const hasActiveFilters = filter !== 'all' || searchQuery ||
+                                    filterRank.size > 0 || filterGen.size > 0 || filterProduct.size > 0 ||
+                                    filterVenueLecture.size > 0 || filterVenueSocial.size > 0 ||
+                                    filterOnlineOption.size > 0 || filterOnlineArea.size > 0;
+                                if (!hasActiveFilters) return null;
+                                return (
+                                    <div className="flex items-center gap-3">
+                                        <span className="inline-flex items-center gap-2 bg-red-50 border border-red-300 text-red-700 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm animate-pulse">
+                                            <span className="text-red-500">🔴</span>
+                                            フィルタ適用中
+                                        </span>
+                                        <span className="text-sm text-gray-600">
+                                            全 <span className="font-bold text-gray-800">{apps.length}</span> 件中
+                                            <span className="font-black text-indigo-600 mx-1">{filteredApps.length}</span>件を表示
+                                        </span>
+                                        <button
+                                            onClick={() => {
+                                                setFilter('all');
+                                                setSearchQuery('');
+                                                setFilterRank(new Set());
+                                                setFilterGen(new Set());
+                                                setFilterProduct(new Set());
+                                                setFilterVenueLecture(new Set());
+                                                setFilterVenueSocial(new Set());
+                                                setFilterOnlineOption(new Set());
+                                                setFilterOnlineArea(new Set());
+                                            }}
+                                            className="text-xs text-red-600 hover:text-red-800 underline font-bold"
+                                        >
+                                            全てのフィルタを解除
+                                        </button>
+                                    </div>
+                                );
+                            })()}
+                        </div>
                         <button onClick={(e) => handleTruncate(e)} className="px-2 py-1 text-xs text-red-500 hover:text-red-700 border border-red-200 rounded hover:bg-red-50" title="【重要】Ctrlキー（MacはCommand）を押しながらクリックして、全ての申込データを一括削除します">
                             データをリセット(削除)
                         </button>
@@ -3700,7 +3769,8 @@ export default function AdminDashboard() {
                                 const gen = formatGeneration(app.members?.generation);
                                 const furigana = app.members?.furigana || app.input_furigana;
 
-                                const isAlert = app.remarks?.includes('商品マスタ') && !app.tags?.includes('confirmed_product_alert');
+                                const isAlert = (app.remarks?.includes('商品マスタ') && !app.tags?.includes('confirmed_product_alert'))
+                                    || (app.applied_rank_name?.startsWith('確認中'));
                                 // 除外されているか確認
                                 const isIgnored = app.tags?.includes('ignore_duplicate');
 
@@ -3957,6 +4027,9 @@ export default function AdminDashboard() {
                                                         if (lecture < 0 && app.total_amount > 0) isMismatched = true;
                                                     }
 
+                                                    // 確認中（受講生一致エラー等）は金額確定前なので比較しない
+                                                    if (isMismatched && isAlert) isMismatched = false;
+
                                                     if (isMismatched) {
                                                         return (
                                                             <div className="flex items-center gap-1 text-[10px] bg-red-100 text-red-700 border border-red-200 px-1.5 py-0.5 rounded shadow-sm" title="商品マスタや設定からの算出額と実際の決済額が一致していません。割引や例外的な決済の可能性があります。">
@@ -4205,6 +4278,10 @@ export default function AdminDashboard() {
                                             onChange={e => handleFieldChange('applied_rank_name', e.target.value)}
                                         >
                                             <option value="">(ランクなし)</option>
+                                            {/* 現在の値が通常ランク一覧にない場合（「確認中」等）は選択肢として追加 */}
+                                            {editForm.applied_rank_name && !ranks.some(r => r.name === editForm.applied_rank_name) && (
+                                                <option value={editForm.applied_rank_name}>{editForm.applied_rank_name}</option>
+                                            )}
                                             {ranks.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
                                         </select>
                                     </div>

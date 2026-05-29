@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { resend } from '@/lib/resend';
 import { processEmailTemplate, DEFAULT_EMAIL_TEMPLATE, DEFAULT_EMAIL_TEMPLATE_GENERAL, DEFAULT_EMAIL_TEMPLATE_NO_PARTICIPATION, DEFAULT_EMAIL_TEMPLATE_MULTIPLE } from '@/lib/emailTemplate';
-import { normalizeVenue, getVenueDisplayName, matchProduct } from '@/lib/venueUtils';
+import { normalizeVenue, getVenueDisplayName, matchProduct, normalizeOnlineVenues } from '@/lib/venueUtils';
 import { normalizeName } from '@/lib/kanjiNormalizeServer';
 
 // 型定義
@@ -42,6 +42,11 @@ export async function POST(request: Request) {
     try {
     const body: ApplyRequest = await request.json();
     let { name, furigana, email, venue, social_venue, term_id, introducer, no_introducer, participation_type, online_venues, remarks: userRemarks, is_multiple } = body;
+
+        // online_venuesを正規化（「福岡・東京」→「東京・福岡」のように拠点名を五十音順に統一）
+        if (online_venues) {
+            online_venues = normalizeOnlineVenues(online_venues) || online_venues;
+        }
 
         // 漢字マッピングの取得
         const { data: kanjiSetting } = await supabaseAdmin

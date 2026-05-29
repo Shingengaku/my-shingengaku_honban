@@ -1,7 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { matchProduct, normalizeVenue } from '@/lib/venueUtils';
+import { matchProduct, normalizeVenue, normalizeOnlineVenues } from '@/lib/venueUtils';
 
 function parseInputGeneration(genInput: any): number {
     if (genInput === undefined || genInput === null) return 0;
@@ -114,7 +114,12 @@ export async function POST(request: Request) {
                     const finalVenue = currentUpdates.venue !== undefined ? normalizeVenue(currentUpdates.venue) : currentDbApp.venue;
                     const finalSocialVenue = currentUpdates.social_venue !== undefined ? normalizeVenue(currentUpdates.social_venue) : currentDbApp.social_venue;
                     const finalParticipationType = currentUpdates.participation_type !== undefined ? currentUpdates.participation_type : currentDbApp.participation_type;
-                    const finalOnlineVenues = currentUpdates.online_venues !== undefined ? currentUpdates.online_venues : currentDbApp.online_venues;
+                    const rawOnlineVenues = currentUpdates.online_venues !== undefined ? currentUpdates.online_venues : currentDbApp.online_venues;
+                    const finalOnlineVenues = normalizeOnlineVenues(rawOnlineVenues) ?? rawOnlineVenues;
+                    // 正規化した値をDBへの更新対象にも反映
+                    if (currentUpdates.online_venues !== undefined && finalOnlineVenues !== currentUpdates.online_venues) {
+                        currentUpdates.online_venues = finalOnlineVenues;
+                    }
                     const finalMemberId = currentUpdates.matched_member_id !== undefined ? currentUpdates.matched_member_id : currentDbApp.matched_member_id;
                     let finalRankName = currentUpdates.applied_rank_name !== undefined ? currentUpdates.applied_rank_name : currentDbApp.applied_rank_name;
                     let finalRemarks = currentUpdates.remarks !== undefined ? currentUpdates.remarks : (currentDbApp.remarks || '');
@@ -276,52 +281,8 @@ export async function POST(request: Request) {
 
             let targetMemberId = appData?.matched_member_id;
 
-            // メンバーが一致しないが期を保存する必要がある場合、メンバーを作成します。
-            if (!targetMemberId && member_generation !== undefined && member_generation !== null) {
-                console.log('No matched member, attempting to create new member for Term storage...');
-                const name = appUpdates.input_name || appData?.input_name;
-                const email = appUpdates.input_email || appData?.input_email;
-                const furigana = appUpdates.input_furigana || appData?.input_furigana;
-
-                if (email) {
-                    const { data: terms } = await supabaseAdmin
-                        .from('terms')
-                        .select('id, name');
-                    const genVal = parseInputGeneration(member_generation);
-                    const targetTerm = terms?.find(t => {
-                        const tName = t.name || '';
-                        if (genVal === 9991) return tName.includes('法人');
-                        if (genVal === 9992) return tName.includes('経営幹部');
-                        return tName === String(genVal) || tName === `${genVal}期`;
-                    });
-
-                    const { data: newMember, error: createError } = await supabaseAdmin
-                        .from('members')
-                        .insert({
-                            name: name || 'Unknown',
-                            email: email,
-                            furigana: furigana || '',
-                            generation: genVal,
-                            term_id: targetTerm?.id || null
-                        })
-                        .select('id')
-                        .single();
-
-                    if (createError) {
-                        console.error('Failed to create new member:', createError);
-                    } else if (newMember) {
-                        targetMemberId = newMember.id;
-                        // アプリケーションに再リンク
-                        await supabaseAdmin
-                            .from('applications')
-                            .update({ matched_member_id: targetMemberId })
-                            .eq('id', id);
-                        console.log('Created and linked new member:', targetMemberId);
-                    }
-                } else {
-                    console.warn('Cannot create member without email');
-                }
-            }
+            // matched_member_id があれば、期・ふりがなのみ更新する
+            // ※ メンバーマスタへの自動登録は行わない（管理画面で明示的に操作すること）
 
             if (targetMemberId) {
                 const memberUpdates: any = {};

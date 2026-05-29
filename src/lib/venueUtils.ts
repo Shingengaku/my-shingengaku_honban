@@ -42,6 +42,18 @@ export function normalizeVenue(v: string | null | undefined): string {
 }
 
 /**
+ * online_venues（複数拠点の「・」区切り文字列）を正規化します。
+ * 拠点の入力順序に依存しないよう、常に五十音ソート順に揃えます。
+ * 例: "福岡・東京" → "東京・福岡"
+ */
+export function normalizeOnlineVenues(onlineVenues: string | null | undefined): string | null {
+    if (!onlineVenues) return null;
+    const parts = onlineVenues.split('・').map(v => v.trim()).filter(Boolean);
+    if (parts.length === 0) return null;
+    return parts.sort().join('・');
+}
+
+/**
  * メールや画面表示用の会場名（金額なし）を生成します。
  * オンラインの場合は online_venues カラムの情報も付加します。
  */
@@ -92,11 +104,27 @@ export function matchProduct(paymentLinks: any[], appData: {
     if (participationType === 'online') {
         // オンラインの場合は「詳細名」→「標準名」の順で探す
         if (appData.online_venues) {
+            // 複数拠点（「・」区切り）の場合、順序の違いによるミスマッチを防ぐため
+            // 五十音ソートで正規化したキーも候補に追加する（例：「福岡・東京」→「東京・福岡」）
+            const sortedVenues = appData.online_venues.split('・').map((v: string) => v.trim()).filter(Boolean).sort().join('・');
+            const isMultiVenue = sortedVenues !== appData.online_venues || sortedVenues.includes('・');
+
+            // 入力そのままのキー
             searchLectureVenues.push(`LIVE視聴（${appData.online_venues}）`);
             searchLectureVenues.push(`LIVE視聴(${appData.online_venues})`);
+            // ソート済みキー（順序が違っても一致させる）
+            if (isMultiVenue) {
+                searchLectureVenues.push(`LIVE視聴（${sortedVenues}）`);
+                searchLectureVenues.push(`LIVE視聴(${sortedVenues})`);
+            }
         }
-        searchLectureVenues.push('LIVE視聴');
-        searchLectureVenues.push('LIVE視聴（2会場）');
+        // 複数拠点の場合は「LIVE視聴」単体へのフォールバックをしない
+        // （1拠点用商品に誤マッチするのを防ぐため）
+        const onlineVenuesCount = (appData.online_venues || '').split('・').filter(Boolean).length;
+        if (onlineVenuesCount <= 1) {
+            searchLectureVenues.push('LIVE視聴');
+            searchLectureVenues.push('LIVE視聴（2会場）');
+        }
     } else {
         searchLectureVenues.push(normalizedVenue);
     }

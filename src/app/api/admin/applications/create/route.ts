@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { normalizeOnlineVenues } from '@/lib/venueUtils';
 
 export async function POST(request: Request) {
     try {
@@ -111,7 +112,7 @@ export async function POST(request: Request) {
                 matched_member_id: targetMemberId,
                 remarks: remarks || null,
                 participation_type: participation_type || 'venue',
-                online_venues: isOnline ? (body.online_venues || null) : null,
+                online_venues: isOnline ? (normalizeOnlineVenues(body.online_venues) || null) : null,
                 cc_email: cc_email || null,
                 bcc_email: bcc_email || null,
                 environment: process.env.NODE_ENV === 'production' ? 'production' : 'development'
