@@ -2278,14 +2278,19 @@ export default function AdminDashboard() {
             const dayF = parseDay(dateF);
             const isFukuokaFirst = dayF < dayT;
 
+            const getSocialCount = (list: any[]) => list.filter(i => {
+                const s = i.social || '';
+                return s !== '' && s !== '参加しない' && s !== '不参加' && s !== '未定' && s !== '-';
+            }).length;
+
             const venueOrder = isFukuokaFirst
                 ? [
-                    { id: 'fukuoka', title: '福岡会場', date: labelF, groups: fukuokaGroups, count: rawFukuoka.length, colOffset: 0 },
-                    { id: 'tokyo', title: '東京会場', date: labelT, groups: tokyoGroups, count: rawTokyo.length, colOffset: 5 }
+                    { id: 'fukuoka', title: '福岡会場', date: labelF, groups: fukuokaGroups, count: rawFukuoka.length, socialCount: getSocialCount(rawFukuoka), colOffset: 0 },
+                    { id: 'tokyo', title: '東京会場', date: labelT, groups: tokyoGroups, count: rawTokyo.length, socialCount: getSocialCount(rawTokyo), colOffset: 5 }
                 ]
                 : [
-                    { id: 'tokyo', title: '東京会場', date: labelT, groups: tokyoGroups, count: rawTokyo.length, colOffset: 0 },
-                    { id: 'fukuoka', title: '福岡会場', date: labelF, groups: fukuokaGroups, count: rawFukuoka.length, colOffset: 5 }
+                    { id: 'tokyo', title: '東京会場', date: labelT, groups: tokyoGroups, count: rawTokyo.length, socialCount: getSocialCount(rawTokyo), colOffset: 0 },
+                    { id: 'fukuoka', title: '福岡会場', date: labelF, groups: fukuokaGroups, count: rawFukuoka.length, socialCount: getSocialCount(rawFukuoka), colOffset: 5 }
                 ];
 
             const onlineOrder = isFukuokaFirst
@@ -2341,7 +2346,7 @@ export default function AdminDashboard() {
                 const endCol = startCol + colsPerVenue - 1;
                 const cellRef = ws.getRow(2).getCell(startCol);
                 ws.mergeCells(2, startCol, 2, endCol);
-                cellRef.value = `${v.title} ${monthStr}月${v.date}\n参加者: ${v.count}名`;
+                cellRef.value = `${v.title} ${monthStr}月${v.date}\n参加者: ${v.count}名 (うち懇親会: ${v.socialCount}名)`;
                 cellRef.font = { bold: true };
                 cellRef.alignment = { wrapText: true, horizontal: 'center', vertical: 'middle' };
                 cellRef.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FA' } };
