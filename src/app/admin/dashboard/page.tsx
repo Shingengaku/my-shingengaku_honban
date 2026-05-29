@@ -2024,7 +2024,7 @@ export default function AdminDashboard() {
             };
 
             // Data Preparation for rows
-            const getMemberInfo = (app: Application) => {
+            const getMemberInfo = (app: Application, targetArea?: 'tokyo' | 'fukuoka') => {
                 const nameKey = `${(app.input_name || '').replace(/[\s\u3000]+/g, '')}|${(app.input_email || '').toLowerCase().trim()}`;
                 const personStatus = personStatusMap.get(nameKey);
 
@@ -2081,7 +2081,31 @@ export default function AdminDashboard() {
                 const isHybrid = personStatus?.isHybrid || false;
 
                 const priority = getPriorityByMaster(app);
-                const social = app.social_venue ? app.social_venue : (app.attend_social ? '参加' : '参加しない');
+                let social = app.social_venue ? app.social_venue : (app.attend_social ? '参加' : '参加しない');
+
+                const bothKeywords = ['東京・福岡', '福岡・東京', '両方', '東京、福岡', '福岡、東京'];
+
+                if (targetArea === 'tokyo') {
+                    if (social === '福岡' || social === '福岡のみ') {
+                        social = '';
+                    } else if (bothKeywords.includes(social)) {
+                        social = '東京';
+                    } else if (social === '東京のみ') {
+                        social = '東京';
+                    } else if (social === '東京') {
+                        social = '東京';
+                    }
+                } else if (targetArea === 'fukuoka') {
+                    if (social === '東京' || social === '東京のみ') {
+                        social = '';
+                    } else if (bothKeywords.includes(social)) {
+                        social = '福岡';
+                    } else if (social === '福岡のみ') {
+                        social = '福岡';
+                    } else if (social === '福岡') {
+                        social = '福岡';
+                    }
+                }
 
                 return { name, introText, term, furigana, isBoth, isHybrid, gen, priority, paymentStatus: app.payment_status, hasIntroducer, social };
             };
@@ -2218,13 +2242,13 @@ export default function AdminDashboard() {
             checkConflict(listApps.fukuoka, listApps.onlineFukuoka, '福岡');
 
             // 3. 最終的なリスト生成 (グローバル除外を適用して整形)
-            const filterAndMap = (list: Application[]) =>
-                list.filter(a => !globalExcludedKeys.has(getDedupeKey(a))).map(getMemberInfo);
+            const filterAndMap = (list: Application[], targetArea?: 'tokyo' | 'fukuoka') =>
+                list.filter(a => !globalExcludedKeys.has(getDedupeKey(a))).map(a => getMemberInfo(a, targetArea));
 
-            const rawTokyo = filterAndMap(listApps.tokyo);
-            const rawFukuoka = filterAndMap(listApps.fukuoka);
-            const rawOnlineTokyo = filterAndMap(listApps.onlineTokyo);
-            const rawOnlineFukuoka = filterAndMap(listApps.onlineFukuoka);
+            const rawTokyo = filterAndMap(listApps.tokyo, 'tokyo');
+            const rawFukuoka = filterAndMap(listApps.fukuoka, 'fukuoka');
+            const rawOnlineTokyo = filterAndMap(listApps.onlineTokyo, 'tokyo');
+            const rawOnlineFukuoka = filterAndMap(listApps.onlineFukuoka, 'fukuoka');
             const rawOthers = filterAndMap(listApps.others);
 
             // Grouping Helper
