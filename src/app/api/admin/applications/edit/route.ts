@@ -159,17 +159,32 @@ export async function POST(request: Request) {
                                      !finalRemarks.includes('紹介者: ありません') && 
                                      finalRemarks.match(/紹介者[:：]\s*([^\n]+)/)?.[1]?.trim() !== '';
 
-                    // 自動切り替えの対象とする属性名（一般またはご紹介、表記ゆれ対応）
-                    const autoConvertRanks = [
-                        '神言学未受講（一般）', '神言学未受講（ご紹介）',
-                        '神言学未受講 (一般)', '神言学未受講 (ご紹介)'
-                    ];
+                    const normalizeRankName = (name: string) => {
+                        if (name === '神言学未受講 (一般)') return '神言学未受講（一般）';
+                        if (name === '神言学未受講 (ご紹介)') return '神言学未受講（ご紹介）';
+                        return name || '';
+                    };
+                    
+                    const originalRankName = normalizeRankName(currentDbApp.applied_rank_name);
+                    const updatedRankName = normalizeRankName(currentUpdates.applied_rank_name);
 
-                    if (autoConvertRanks.includes(finalRankName)) {
-                        if (hasIntro) {
-                            finalRankName = '神言学未受講（ご紹介）';
+                    // ユーザーが手動で属性を変更したかどうかを判定
+                    const isRankManuallyChanged = currentUpdates.applied_rank_name !== undefined && 
+                                                  updatedRankName !== originalRankName;
+
+                    if (['神言学未受講（一般）', '神言学未受講（ご紹介）'].includes(normalizeRankName(finalRankName)) || 
+                        ['神言学未受講（一般）', '神言学未受講（ご紹介）'].includes(originalRankName)) {
+                        
+                        if (isRankManuallyChanged) {
+                            // ユーザーが手動でドロップダウンを変更した場合はその選択を優先
+                            finalRankName = updatedRankName;
                         } else {
-                            finalRankName = '神言学未受講（一般）';
+                            // 手動変更されていない場合は、紹介者テキストの有無に完全に連動させる
+                            if (hasIntro) {
+                                finalRankName = '神言学未受講（ご紹介）';
+                            } else {
+                                finalRankName = '神言学未受講（一般）';
+                            }
                         }
                         currentUpdates.applied_rank_name = finalRankName;
                     }
