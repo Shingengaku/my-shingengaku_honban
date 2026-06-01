@@ -2035,11 +2035,9 @@ export default function AdminDashboard() {
                 let introText = '';
                 let hasIntroducer = false;
 
-                // 紹介者の抽出 (備考から)
-                const remarks = app.remarks || '';
-                const introMatch = remarks.match(/紹介者:\s*([^\n]+)/);
-                if (introMatch && !introMatch[1].includes('なし') && !introMatch[1].includes('未入力')) {
-                    let introName = introMatch[1].trim();
+                // 紹介者の抽出 (introducerカラムから)
+                if (app.introducer && app.introducer !== 'なし' && app.introducer !== '未入力' && app.introducer !== 'ありません') {
+                    let introName = app.introducer.trim();
                     // 末尾の「様」「さま」「さん」を一旦削除して、一貫して「さま」を付与する
                     introName = introName.replace(/[様さまさん\s]+$/, '');
 
@@ -3983,6 +3981,9 @@ export default function AdminDashboard() {
                                         </td>
                                         <td className="px-3 py-2 align-top">
                                             <div className="text-sm text-gray-900">{rankName}</div>
+                                            {app.introducer && app.introducer !== 'なし' && app.introducer !== '未入力' && app.introducer !== 'ありません' && (
+                                                <div className="text-xs text-gray-500 mt-1">ご紹介者さま： {app.introducer}</div>
+                                            )}
                                             {app.remarks && (
                                                 <div className="text-xs text-gray-500 mt-1 whitespace-pre-wrap max-w-xs">{app.remarks}</div>
                                             )}
