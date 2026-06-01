@@ -136,11 +136,11 @@ export async function POST(request: Request) {
 
                         // タグの同期
                         if (hasIntro) {
-                            if (!finalTags.includes('紹介者')) {
-                                finalTags = [...finalTags, '紹介者'];
+                            if (!finalTags.includes('ご紹介')) {
+                                finalTags = [...finalTags, 'ご紹介'];
                             }
                         } else {
-                            finalTags = finalTags.filter((t: string) => t !== '紹介者');
+                            finalTags = finalTags.filter((t: string) => t !== 'ご紹介');
                         }
                         currentUpdates.tags = finalTags;
                     } else {
