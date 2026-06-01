@@ -126,38 +126,28 @@ export async function POST(request: Request) {
                     let finalRemarks = currentUpdates.remarks !== undefined ? currentUpdates.remarks : (currentDbApp.remarks || '');
                     let finalTags = currentUpdates.tags !== undefined ? currentUpdates.tags : (currentDbApp.tags || []);
 
-                    // 1. 紹介者 (introducer) が指定された場合、備考欄およびタグを更新する
+                    // 1. 紹介者 (introducer) が指定された場合、直接カラムとタグを更新
+                    let hasIntro = false;
                     if (body.introducer !== undefined) {
                         const introducer = body.introducer.trim();
-                        let remarksText = finalRemarks;
-
-                        // 備考欄の中の「紹介者: XXX」の置換または追加
-                        if (/紹介者[:：]/g.test(remarksText)) {
-                            remarksText = remarksText.replace(/紹介者[:：]\s*[^\n]*/g, introducer ? `紹介者: ${introducer}` : '紹介者: なし');
-                        } else if (introducer) {
-                            remarksText = remarksText ? `${remarksText}\n紹介者: ${introducer}` : `紹介者: ${introducer}`;
-                        }
+                        currentUpdates.introducer = introducer || null;
                         
-                        finalRemarks = remarksText;
-                        currentUpdates.remarks = finalRemarks;
+                        hasIntro = !!introducer && introducer !== 'なし' && introducer !== '未入力' && introducer !== 'ありません';
 
                         // タグの同期
-                        if (introducer) {
-                            if (!finalTags.includes('ご紹介')) {
-                                finalTags = [...finalTags, 'ご紹介'];
+                        if (hasIntro) {
+                            if (!finalTags.includes('紹介者')) {
+                                finalTags = [...finalTags, '紹介者'];
                             }
                         } else {
-                            finalTags = finalTags.filter((t: string) => t !== 'ご紹介');
+                            finalTags = finalTags.filter((t: string) => t !== '紹介者');
                         }
                         currentUpdates.tags = finalTags;
+                    } else {
+                        // introducerが送信されなかった場合のhasIntro判定 (DBの既存値から)
+                        const existingIntro = currentDbApp.introducer;
+                        hasIntro = !!existingIntro && existingIntro !== 'なし' && existingIntro !== '未入力' && existingIntro !== 'ありません';
                     }
-
-                    // 2. 紹介者有無により属性名を自動変更する
-                    const hasIntro = /紹介者[:：]/g.test(finalRemarks) && 
-                                     !finalRemarks.includes('紹介者: なし') && 
-                                     !finalRemarks.includes('紹介者: 未入力') &&
-                                     !finalRemarks.includes('紹介者: ありません') && 
-                                     finalRemarks.match(/紹介者[:：]\s*([^\n]+)/)?.[1]?.trim() !== '';
 
                     const normalizeRankName = (name: string) => {
                         if (name === '神言学未受講 (一般)') return '神言学未受講（一般）';

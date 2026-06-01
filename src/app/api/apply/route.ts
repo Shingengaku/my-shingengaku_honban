@@ -227,14 +227,15 @@ export async function POST(request: Request) {
             remarks += '【要確認】商品マスタに対象の商品のお申し込みがありません。\n';
         }
 
+        let finalIntroducer: string | null = null;
         if (introducer) {
-            remarks += `紹介者: ${introducer}\n`;
+            finalIntroducer = introducer;
             tags.push('ご紹介');
         } else if (!term_id) {
             if (no_introducer) {
-                remarks += '紹介者: なし\n';
+                finalIntroducer = 'なし';
             } else {
-                remarks += '紹介者: 未入力\n';
+                finalIntroducer = '未入力';
             }
         }
 
@@ -256,6 +257,7 @@ export async function POST(request: Request) {
                 matched_member_id: memberId,
                 applied_rank_name: rankName,
                 remarks: remarks || null,
+                introducer: finalIntroducer,
                 tags: tags,
                 participation_type: participation_type || 'venue',
                 online_venues: online_venues || null,

@@ -23,6 +23,7 @@ interface Application {
     attend_social?: boolean;
 
     remarks?: string; // 備考
+    introducer?: string; // 紹介者
     environment?: string; // production | development
     cc_email?: string;
     bcc_email?: string;
@@ -1389,10 +1390,8 @@ export default function AdminDashboard() {
     const openEditModal = (app: Application) => {
         setEditingApp(app);
         
-        // 備考欄から「紹介者」を抽出
-        const remarksText = app.remarks || '';
-        const introMatch = remarksText.match(/紹介者:\s*([^\n]+)/);
-        const introducerVal = (introMatch && !introMatch[1].includes('なし') && !introMatch[1].includes('未入力') && !introMatch[1].includes('ありません')) ? introMatch[1].trim() : '';
+        // 個人「紹介者」の抽出
+        const introducerVal = (app.introducer && !app.introducer.includes('なし') && !app.introducer.includes('未入力') && !app.introducer.includes('ありません')) ? app.introducer.trim() : '';
 
         setEditForm({
             input_name: app.input_name,
@@ -1839,7 +1838,7 @@ export default function AdminDashboard() {
         const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
 
         const header = [
-            'ID', '氏名', 'フリガナ', 'メールアドレス', '属性', '期', '特進', '会場', 'オンライン対象', '懇親会', '合計金額', '支払状況', '環境', '申込日時', '備考', 'タグ', '参加タイプ'
+            'ID', '氏名', 'フリガナ', 'メールアドレス', '属性', '期', '特進', '会場', 'オンライン対象', '懇親会', '合計金額', '支払状況', '環境', '申込日時', '紹介者', '備考', 'タグ', '参加タイプ'
         ].join(',');
 
         const rows = targetApps.map(app => {
@@ -1869,6 +1868,7 @@ export default function AdminDashboard() {
                 app.payment_status,
                 `"${env}"`,
                 `"${new Date(app.created_at).toLocaleString('ja-JP')}"`,
+                `"${app.introducer || ''}"`,
                 `"${remarks}"`,
                 `"${tags}"`,
                 `"${app.participation_type === 'online' ? 'オンライン' : '会場'}"`
@@ -1986,8 +1986,7 @@ export default function AdminDashboard() {
                 const vL = (app.venue || '').toLowerCase();
                 const k = (app.payment_key || '').toLowerCase();
                 const tags = app.tags || [];
-                const remarks = app.remarks || '';
-                const hasIntroducer = vL.includes('紹介') || vL.includes('ご紹介') || k.includes('紹介') || k.includes('ご紹介') || tags.includes('ご紹介') || rankName.includes('紹介') || rankName.includes('ご紹介') || (remarks.match(/紹介者:\s*([^\n]+)/) && !remarks.includes('紹介者: なし') && !remarks.includes('紹介者: 未入力'));
+                const hasIntroducer = vL.includes('紹介') || vL.includes('ご紹介') || k.includes('紹介') || k.includes('ご紹介') || tags.includes('ご紹介') || rankName.includes('紹介') || rankName.includes('ご紹介') || (!!app.introducer && app.introducer !== 'なし' && app.introducer !== '未入力' && app.introducer !== 'ありません');
 
                 // 「一般」の場合で紹介がある、または名前/商品自体が「紹介」の場合は 5 (水無月のご縁ｷｬﾝﾍﾟｰﾝ) とする
                 if (hasIntroducer && (rankName.includes('一般') || rankName === '')) {
