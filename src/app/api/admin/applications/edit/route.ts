@@ -3,9 +3,10 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { matchProduct, normalizeVenue, normalizeOnlineVenues } from '@/lib/venueUtils';
 
-function parseInputGeneration(genInput: any): number {
-    if (genInput === undefined || genInput === null) return 0;
+function parseInputGeneration(genInput: any): number | null {
+    if (genInput === undefined || genInput === null || genInput === '') return null;
     const str = String(genInput).trim();
+    if (str === '') return null;
     if (str === '法人' || str === '法人コース' || str === '9991') {
         return 9991;
     }
@@ -13,7 +14,7 @@ function parseInputGeneration(genInput: any): number {
         return 9992;
     }
     const val = parseInt(str);
-    return isNaN(val) ? 0 : val;
+    return isNaN(val) ? null : val;
 }
 
 export async function POST(request: Request) {
@@ -131,8 +132,8 @@ export async function POST(request: Request) {
                         let remarksText = finalRemarks;
 
                         // 備考欄の中の「紹介者: XXX」の置換または追加
-                        if (remarksText.includes('紹介者:')) {
-                            remarksText = remarksText.replace(/紹介者:\s*[^\n]*/g, introducer ? `紹介者: ${introducer}` : '紹介者: なし');
+                        if (/紹介者[:：]/g.test(remarksText)) {
+                            remarksText = remarksText.replace(/紹介者[:：]\s*[^\n]*/g, introducer ? `紹介者: ${introducer}` : '紹介者: なし');
                         } else if (introducer) {
                             remarksText = remarksText ? `${remarksText}\n紹介者: ${introducer}` : `紹介者: ${introducer}`;
                         }
@@ -151,17 +152,20 @@ export async function POST(request: Request) {
                         currentUpdates.tags = finalTags;
                     }
 
-                    // 2. 一般申し込み（matched_member_id が null）の場合に、紹介者有無により属性名を自動変更する
-                    const hasIntro = finalRemarks.includes('紹介者:') && 
+                    // 2. 紹介者有無により属性名を自動変更する
+                    const hasIntro = /紹介者[:：]/g.test(finalRemarks) && 
                                      !finalRemarks.includes('紹介者: なし') && 
                                      !finalRemarks.includes('紹介者: 未入力') &&
                                      !finalRemarks.includes('紹介者: ありません') && 
-                                     finalRemarks.match(/紹介者:\s*([^\n]+)/)?.[1]?.trim() !== '';
+                                     finalRemarks.match(/紹介者[:：]\s*([^\n]+)/)?.[1]?.trim() !== '';
 
-                    // 自動切り替えの対象とする属性名（一般またはご紹介）
-                    const autoConvertRanks = ['神言学未受講（一般）', '神言学未受講（ご紹介）'];
+                    // 自動切り替えの対象とする属性名（一般またはご紹介、表記ゆれ対応）
+                    const autoConvertRanks = [
+                        '神言学未受講（一般）', '神言学未受講（ご紹介）',
+                        '神言学未受講 (一般)', '神言学未受講 (ご紹介)'
+                    ];
 
-                    if (!finalMemberId && autoConvertRanks.includes(finalRankName)) {
+                    if (autoConvertRanks.includes(finalRankName)) {
                         if (hasIntro) {
                             finalRankName = '神言学未受講（ご紹介）';
                         } else {
@@ -289,23 +293,29 @@ export async function POST(request: Request) {
 
                 if (member_generation !== undefined && member_generation !== null) {
                     const genVal = parseInputGeneration(member_generation);
-                    memberUpdates.generation = genVal;
+                    if (genVal !== null) {
+                        memberUpdates.generation = genVal;
 
-                    // term_id も generation に合わせて同期する
-                    // terms テーブルで name = member_generation または name = member_generation + "期" の行を検索
-                    const { data: terms } = await supabaseAdmin
-                        .from('terms')
-                        .select('id, name');
-                    
-                    const targetTerm = terms?.find(t => {
-                        const tName = t.name || '';
-                        if (genVal === 9991) return tName.includes('法人');
-                        if (genVal === 9992) return tName.includes('経営幹部');
-                        return tName === String(genVal) || tName === `${genVal}期`;
-                    });
+                        // term_id も generation に合わせて同期する
+                        // terms テーブルで name = member_generation または name = member_generation + "期" の行を検索
+                        const { data: terms } = await supabaseAdmin
+                            .from('terms')
+                            .select('id, name');
+                        
+                        const targetTerm = terms?.find(t => {
+                            const tName = t.name || '';
+                            if (genVal === 9991) return tName.includes('法人');
+                            if (genVal === 9992) return tName.includes('経営幹部');
+                            return tName === String(genVal) || tName === `${genVal}期`;
+                        });
 
-                    if (targetTerm?.id) {
-                        memberUpdates.term_id = targetTerm.id;
+                        if (targetTerm?.id) {
+                            memberUpdates.term_id = targetTerm.id;
+                        }
+                    } else if (member_generation === '') {
+                        // 空文字が送られた場合は期をクリアする
+                        memberUpdates.generation = null;
+                        memberUpdates.term_id = null;
                     }
                 }
 
