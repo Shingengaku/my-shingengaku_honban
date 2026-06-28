@@ -216,7 +216,9 @@ const getParticipationStatus = (app: any, venueList: any[] = []) => {
 };
 
 export default function AdminDashboard() {
-    const VERSION = "2026-04-14-2325";
+    const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || "1.0.0";
+    const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME || "";
+    const VERSION = buildTime ? `v${appVersion} (Build: ${buildTime})` : `v${appVersion}`;
     const [apps, setApps] = useState<Application[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'unpaid' | 'paid' | 'cancelled' | 'not_required'>('all');
