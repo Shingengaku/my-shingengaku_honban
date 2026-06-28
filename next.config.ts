@@ -2,7 +2,11 @@ import type { NextConfig } from "next";
 import pkg from "./package.json";
 
 // 日本時間 (JST) で YYYY-MM-DD-hhmm 形式のビルドタイムスタンプを取得
+// 開発環境 (next dev) の場合は "dev-local" を返す
 const getJSTBuildTime = () => {
+  if (process.env.NODE_ENV === "development") {
+    return "dev-local";
+  }
   const d = new Date();
   const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
   const YYYY = jst.getUTCFullYear();
