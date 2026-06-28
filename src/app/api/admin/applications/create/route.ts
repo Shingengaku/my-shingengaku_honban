@@ -97,6 +97,42 @@ export async function POST(request: Request) {
 
         const isOnline = (participation_type === 'online');
 
+        let finalTags = body.tags ? (Array.isArray(body.tags) ? body.tags : []) : [];
+        let finalRankName = applied_rank_name || '一般';
+        let hasIntro = false;
+        let finalIntroducer = null;
+
+        if (body.introducer !== undefined) {
+            const introducer = body.introducer.trim();
+            finalIntroducer = introducer || null;
+            hasIntro = !!introducer && introducer !== 'なし' && introducer !== '未入力' && introducer !== 'ありません';
+
+            if (hasIntro) {
+                if (!finalTags.includes('ご紹介')) {
+                    finalTags = [...finalTags, 'ご紹介'];
+                }
+            } else {
+                finalTags = finalTags.filter((t: string) => t !== 'ご紹介');
+            }
+        }
+
+        const normalizeRankName = (name: string) => {
+            if (name === '神言学未受講 (一般)') return '神言学未受講（一般）';
+            if (name === '神言学未受講 (ご紹介)') return '神言学未受講（ご紹介）';
+            return name || '';
+        };
+
+        const originalRankName = normalizeRankName(applied_rank_name);
+        
+        if (['神言学未受講（一般）', '神言学未受講（ご紹介）'].includes(originalRankName) || originalRankName === '') {
+            // 新規作成時は、紹介者の有無によって自動設定
+            if (hasIntro) {
+                finalRankName = '神言学未受講（ご紹介）';
+            } else {
+                finalRankName = '神言学未受講（一般）';
+            }
+        }
+
         const { data, error: insertError } = await supabaseAdmin
             .from('applications')
             .insert({
@@ -108,13 +144,16 @@ export async function POST(request: Request) {
                 attend_social: isOnline ? false : attendSocial,
                 total_amount: total_amount || 0,
                 payment_status: payment_status || (total_amount === 0 ? 'paid' : 'unpaid'),
-                applied_rank_name: applied_rank_name || '一般',
+                applied_rank_name: finalRankName,
                 matched_member_id: targetMemberId,
                 remarks: remarks || null,
                 participation_type: participation_type || 'venue',
                 online_venues: isOnline ? (normalizeOnlineVenues(body.online_venues) || null) : null,
                 cc_email: cc_email || null,
                 bcc_email: bcc_email || null,
+                payment_key: body.payment_key || null,
+                introducer: finalIntroducer,
+                tags: finalTags,
                 environment: process.env.NODE_ENV === 'production' ? 'production' : 'development'
             })
             .select('id')

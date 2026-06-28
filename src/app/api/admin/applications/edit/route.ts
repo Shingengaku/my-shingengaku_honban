@@ -184,9 +184,9 @@ export async function POST(request: Request) {
                         .from('app_settings')
                         .select('*');
 
-                    const paymentLinks = settingsData?.find(row => row.key === 'payment_links')?.value || [];
+                    const paymentLinks = settingsData?.find((row: any) => row.key === 'payment_links')?.value || [];
 
-                    let rankId = null;
+                    let rankId: string | null = null;
                     try {
                         const { data: rankData } = await supabaseAdmin
                             .from('ranks')
@@ -196,6 +196,8 @@ export async function POST(request: Request) {
                         if (rankData) rankId = String(rankData.id);
                     } catch {}
 
+                    // payment_key は渡さない（古い値で誤マッチするのを防ぐ）
+                    // rank_id が null でも rank_name でフォールバックマッチされる
                     const matchedProduct = matchProduct(paymentLinks, {
                         venue: finalVenue,
                         social_venue: finalSocialVenue || 'ー',
@@ -203,21 +205,27 @@ export async function POST(request: Request) {
                         online_venues: finalOnlineVenues,
                         rank_id: rankId,
                         rank_name: finalRankName
+                        // payment_key: あえて渡さない
                     });
 
                     if (matchedProduct) {
                         const totalAmount = Number(matchedProduct.lecture_fee) + Number(matchedProduct.social_fee);
+                        // サーバー側マッチング結果を必ず優先（フロントから来た古いpayment_keyを上書き）
                         currentUpdates.total_amount = totalAmount;
                         currentUpdates.payment_key = matchedProduct.key;
                         
-                        // 懇親会の参加フラグも更新
-                        currentUpdates.attend_social = (finalSocialVenue && finalSocialVenue !== '参加しない');
+                        // 懇親会の参加フラグも更新（'none' はDB内部の「参加しない」値なので除外）
+                        currentUpdates.attend_social = !!(finalSocialVenue && finalSocialVenue !== '参加しない' && finalSocialVenue !== 'none' && finalSocialVenue !== 'ー');
 
                         // 以前が unpaid の場合に限り、金額0円になれば自動的に paid に切り替える
                         const currentPaymentStatus = currentUpdates.payment_status !== undefined ? currentUpdates.payment_status : currentDbApp.payment_status;
                         if (currentPaymentStatus === 'unpaid' && totalAmount === 0) {
                             currentUpdates.payment_status = 'paid';
                         }
+
+                        console.log(`[edit] 料金再計算: ${finalRankName} / ${matchedProduct.key} => ${totalAmount}円`);
+                    } else {
+                        console.warn(`[edit] 商品マッチング失敗: rank=${finalRankName}(id=${rankId}), venue=${finalVenue}, social=${finalSocialVenue}`);
                     }
                 }
             } catch (calcError) {
@@ -277,70 +285,8 @@ export async function POST(request: Request) {
                 }
             }
 
-            // メンバー詳細（期とふりがな）が提供されている場合は更新
-            // まず matched_member_id を取得する必要があります
-            const { data: appData, error: fetchError } = await supabaseAdmin
-                .from('applications')
-                .select('matched_member_id, input_name, input_furigana, input_email') // 入力も取得
-                .eq('id', id)
-                .single();
-
-            if (fetchError) console.error('Error fetching application for member update:', fetchError);
-            console.log('Matched Member ID:', appData?.matched_member_id);
-
-            let targetMemberId = appData?.matched_member_id;
-
-            // matched_member_id があれば、期・ふりがなのみ更新する
-            // ※ メンバーマスタへの自動登録は行わない（管理画面で明示的に操作すること）
-
-            if (targetMemberId) {
-                const memberUpdates: any = {};
-
-                if (member_generation !== undefined && member_generation !== null) {
-                    const genVal = parseInputGeneration(member_generation);
-                    if (genVal !== null) {
-                        memberUpdates.generation = genVal;
-
-                        // term_id も generation に合わせて同期する
-                        // terms テーブルで name = member_generation または name = member_generation + "期" の行を検索
-                        const { data: terms } = await supabaseAdmin
-                            .from('terms')
-                            .select('id, name');
-                        
-                        const targetTerm = terms?.find(t => {
-                            const tName = t.name || '';
-                            if (genVal === 9991) return tName.includes('法人');
-                            if (genVal === 9992) return tName.includes('経営幹部');
-                            return tName === String(genVal) || tName === `${genVal}期`;
-                        });
-
-                        if (targetTerm?.id) {
-                            memberUpdates.term_id = targetTerm.id;
-                        }
-                    } else if (member_generation === '') {
-                        // 空文字が送られた場合は期をクリアする
-                        memberUpdates.generation = null;
-                        memberUpdates.term_id = null;
-                    }
-                }
-
-                // アプリケーションで変更された場合、ふりがなを同期
-                if (appUpdates.input_furigana) {
-                    memberUpdates.furigana = appUpdates.input_furigana;
-                }
-
-                console.log('Member updates to apply:', memberUpdates);
-
-                if (Object.keys(memberUpdates).length > 0) {
-                    const { error: memberError } = await supabaseAdmin
-                        .from('members')
-                        .update(memberUpdates)
-                        .eq('id', targetMemberId);
-
-                    if (memberError) console.error('Error updating member:', memberError);
-                    else console.log('Member update successful');
-                }
-            }
+            // メンバーマスタ (members) への自動更新処理は、データの安全性を担保するため行いません。
+            // 申込データとマスタの紐付け (matched_member_id の更新) のみを行います。
 
             return NextResponse.json({ success: true });
         }

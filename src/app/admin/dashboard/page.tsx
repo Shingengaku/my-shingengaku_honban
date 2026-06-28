@@ -332,6 +332,18 @@ export default function AdminDashboard() {
     const [showUnappliedModal, setShowUnappliedModal] = useState(false);
     const [loadingUnapplied, setLoadingUnapplied] = useState(false);
 
+    // editForm.input_name が変更されたとき、同姓同名（または名前が部分一致）の受講生を検索
+    const matchedMasterMembers = useMemo(() => {
+        if (!editForm.input_name) return [];
+        const normalizedName = editForm.input_name.replace(/[\s\u3000]+/g, '');
+        if (!normalizedName) return [];
+        
+        return allMembers.filter((m: any) => {
+            const mName = (m.name || '').replace(/[\s\u3000]+/g, '');
+            return mName === normalizedName;
+        });
+    }, [editForm.input_name, allMembers]);
+
     // 集計除外ラベルがついているメンバーの判定キーセット
     const excludedMemberKeys = useMemo(() => {
         const keys = new Set<string>();
@@ -1406,6 +1418,8 @@ export default function AdminDashboard() {
             member_generation: app.members?.generation === 9991 ? '法人' : 
                                app.members?.generation === 9992 ? '経営幹部' : 
                                (app.members?.generation ? String(app.members.generation) : ''),
+            matched_member_id: app.matched_member_id || null,
+            matched_member_id: app.matched_member_id || null,
             cc_email: app.cc_email || adminEmail || '',
             bcc_email: app.bcc_email || adminBccEmail || '',
             participation_type: app.participation_type,
@@ -1697,6 +1711,8 @@ export default function AdminDashboard() {
                 social_venue: editForm.social_venue,
                 remarks: editForm.remarks,
                 member_generation: editForm.member_generation,
+                matched_member_id: editForm.matched_member_id || null,
+                matched_member_id: editForm.matched_member_id || null,
                 payment_key: editForm.payment_key, // Include product name
                 cc_email: editForm.cc_email,
                 bcc_email: editForm.bcc_email,
@@ -4136,45 +4152,152 @@ export default function AdminDashboard() {
                         <div className="bg-white p-5 rounded-lg shadow-xl w-[500px]">
                             <h3 className="text-lg font-bold mb-4">申込内容の修正</h3>
                             <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700">名前</label>
-                                        <input
-                                            className="border w-full p-2 rounded"
-                                            value={editForm.input_name || ''}
-                                            onChange={e => setEditForm({ ...editForm, input_name: e.target.value })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700">フリガナ</label>
-                                        <input
-                                            className="border w-full p-2 rounded"
-                                            value={editForm.input_furigana || ''}
-                                            onChange={e => setEditForm({ ...editForm, input_furigana: e.target.value })}
-                                        />
-                                    </div>
-                                </div>
+                                
+                                 <div className="grid grid-cols-2 gap-4 mb-4">
+                                     <div>
+                                         <label className="block text-sm font-bold text-gray-700">Email</label>
+                                         <input
+                                             className="border w-full p-2 rounded"
+                                             value={editForm.input_email || ''}
+                                             onChange={e => setEditForm({ ...editForm, input_email: e.target.value })}
+                                         />
+                                     </div>
+                                     <div>
+                                         <label className="block text-sm font-bold text-gray-700">期(Term)</label>
+                                         <input
+                                             type="text"
+                                             className="border w-full p-2 rounded bg-gray-100 text-gray-500 cursor-not-allowed font-medium"
+                                             value={
+                                                 editForm.matched_member_id 
+                                                 ? (editForm.member_generation === 9991 ? '法人' : 
+                                                    editForm.member_generation === 9992 ? '経営幹部' : 
+                                                    (editForm.member_generation ? `${editForm.member_generation}期` : '未設定'))
+                                                 : '未紐付け（一般）'
+                                             }
+                                             readOnly
+                                             placeholder="受講生マスタと紐付けると自動設定されます"
+                                         />
+                                         <p className="text-[9px] text-gray-500 mt-1">※期は受講生マスタから自動取得されます（直接編集不可）</p>
+                                     </div>
+                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700">Email</label>
-                                        <input
-                                            className="border w-full p-2 rounded"
-                                            value={editForm.input_email || ''}
-                                            onChange={e => setEditForm({ ...editForm, input_email: e.target.value })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700">期(Term)</label>
-                                        <input
-                                            type="text"
-                                            className="border w-full p-2 rounded"
-                                            value={editForm.member_generation || ''}
-                                            onChange={e => setEditForm({ ...editForm, member_generation: e.target.value })}
-                                            placeholder="例: 11、法人、経営幹部"
-                                        />
-                                    </div>
-                                </div>
+                                 {/* 受講生マスタとの紐付け・不一致比較 */}
+                                 <div className="mb-4 p-3 border rounded-lg bg-gray-50 border-gray-200">
+                                     <h4 className="text-xs font-bold text-gray-800 mb-2">受講生マスタとの照合・紐付け状況</h4>
+                                     
+                                     {editForm.matched_member_id ? (
+                                         // 紐付け済みの場合
+                                         <div>
+                                             {(() => {
+                                                 const linkedMember = allMembers.find(m => String(m.id) === String(editForm.matched_member_id));
+                                                 if (!linkedMember) return <p className="text-xs text-red-500">紐付け先メンバー情報が見つかりません (ID: {editForm.matched_member_id})</p>;
+                                                 
+                                                 const formatGenText = (gen: any) => {
+                                                     if (gen === 9991) return '法人';
+                                                     if (gen === 9992) return '経営幹部';
+                                                     return gen ? `${gen}期` : '未設定';
+                                                 };
+
+                                                 return (
+                                                     <div>
+                                                         <div className="flex justify-between items-center bg-green-50 border border-green-200 p-2.5 rounded mb-1.5">
+                                                             <div>
+                                                                 <span className="inline-block px-1.5 py-0.5 rounded text-[9px] bg-green-600 text-white font-bold mb-1">マスタ紐付け済み</span>
+                                                                 <div className="text-xs font-bold text-green-900">{linkedMember.name}（{linkedMember.furigana}）</div>
+                                                                 <div className="text-[10px] text-green-700">登録期: {formatGenText(linkedMember.generation)} / メール: {linkedMember.email || '(未登録)'}</div>
+                                                             </div>
+                                                             <button
+                                                                 type="button"
+                                                                 onClick={() => setEditForm(prev => ({ ...prev, matched_member_id: null, member_generation: '' }))}
+                                                                 className="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 text-xs rounded font-bold transition-colors"
+                                                             >
+                                                                 紐付けを解除
+                                                             </button>
+                                                         </div>
+                                                         <p className="text-[9px] text-gray-500">※紐付けを解除すると「一般申込者」扱いになり、期は空白になります（保存すると反映されます）。</p>
+                                                     </div>
+                                                 );
+                                             })()}
+                                         </div>
+                                     ) : (
+                                         // 未紐付けの場合
+                                         <div>
+                                             {matchedMasterMembers.length > 0 ? (
+                                                 <div>
+                                                     <p className="text-[10px] text-amber-700 mb-2 font-medium">⚠️ 受講生マスタに同名のメンバーが見つかりました。不一致箇所を確認の上、同一人物であれば紐付けを行ってください。</p>
+                                                     <div className="overflow-x-auto border rounded bg-white">
+                                                         <table className="min-w-full text-[10px] text-left border-collapse">
+                                                             <thead>
+                                                                 <tr className="bg-gray-50 border-b border-gray-200">
+                                                                     <th className="p-1.5 font-bold text-gray-600">項目</th>
+                                                                     <th className="p-1.5 font-bold text-gray-600">今回の申込データ</th>
+                                                                     <th className="p-1.5 font-bold text-gray-600">受講生マスタの登録</th>
+                                                                     <th className="p-1.5 font-bold text-gray-600 text-center">操作</th>
+                                                                 </tr>
+                                                             </thead>
+                                                             <tbody>
+                                                                 {matchedMasterMembers.map((m: any) => {
+                                                                     const isFuriganaMismatch = (editForm.input_furigana || '').replace(/[\s\u3000]+/g, '') !== (m.furigana || '').replace(/[\s\u3000]+/g, '');
+                                                                     const isEmailMismatch = (editForm.input_email || '').trim().toLowerCase() !== (m.email || '').trim().toLowerCase();
+                                                                     
+                                                                     const formatGenText = (gen: any) => {
+                                                                         if (gen === 9991) return '法人';
+                                                                         if (gen === 9992) return '経営幹部';
+                                                                         return gen ? `${gen}期` : '未設定';
+                                                                     };
+
+                                                                     return (
+                                                                         <tr key={m.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
+                                                                             <td className="p-1.5 font-medium text-gray-500 whitespace-nowrap">
+                                                                                 名前<br/>
+                                                                                 フリガナ<br/>
+                                                                                 Email<br/>
+                                                                                 期
+                                                                             </td>
+                                                                             <td className="p-1.5 text-gray-700">
+                                                                                 {editForm.input_name || ''}<br/>
+                                                                                 <span className={isFuriganaMismatch ? "text-amber-600 font-bold bg-amber-50 px-0.5 rounded" : ""}>{editForm.input_furigana || ''}</span><br/>
+                                                                                 <span className={isEmailMismatch ? "text-amber-600 font-bold bg-amber-50 px-0.5 rounded" : ""}>{editForm.input_email || ''}</span><br/>
+                                                                                 <span className="text-gray-400">（紐付けにより反映）</span>
+                                                                             </td>
+                                                                             <td className="p-1.5 text-gray-700">
+                                                                                 {m.name}<br/>
+                                                                                 <span className={isFuriganaMismatch ? "text-amber-600 font-bold bg-amber-50 px-0.5 rounded" : ""}>{m.furigana}</span><br/>
+                                                                                 <span className={isEmailMismatch ? "text-amber-600 font-bold bg-amber-50 px-0.5 rounded" : ""}>{m.email || '(未登録)'}</span><br/>
+                                                                                 <span className="font-bold text-indigo-700">{formatGenText(m.generation)}</span>
+                                                                             </td>
+                                                                             <td className="p-1.5 text-center align-middle whitespace-nowrap">
+                                                                                 <button
+                                                                                     type="button"
+                                                                                     onClick={() => setEditForm(prev => ({ 
+                                                                                         ...prev, 
+                                                                                         matched_member_id: m.id,
+                                                                                         member_generation: m.generation === 9991 ? 9991 : 
+                                                                                                            m.generation === 9992 ? 9992 : 
+                                                                                                            (m.generation ? Number(m.generation) : '')
+                                                                                     }))}
+                                                                                     className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded text-[9px] transition-colors"
+                                                                                 >
+                                                                                     紐付ける
+                                                                                 </button>
+                                                                             </td>
+                                                                         </tr>
+                                                                     );
+                                                                 })}
+                                                             </tbody>
+                                                         </table>
+                                                     </div>
+                                                 </div>
+                                             ) : (
+                                                 <div>
+                                                     <p className="text-[10px] text-gray-500 mb-1">受講生マスタに同名のメンバーは見つかりませんでした。この申込は「一般お申し込み」として処理されます。</p>
+                                                     <p className="text-[9px] text-gray-400">※新しく受講生として登録したい場合は、受講生マスタ画面から新規登録を行ってください。</p>
+                                                 </div>
+                                             )}
+                                         </div>
+                                     )}
+                                 </div>
+
 
                                 {/* 紹介者入力欄 (一般のみ) */}
                                 <div className="mb-4">

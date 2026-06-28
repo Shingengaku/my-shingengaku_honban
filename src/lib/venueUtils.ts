@@ -152,14 +152,26 @@ export function matchProduct(paymentLinks: any[], appData: {
                 .toLowerCase();
     };
 
-    console.log(`[matchProduct] マッチング開始 (Rank: ${appData.rank_id}, Venue: ${normalizedVenue}, Type: ${participationType})`);
+    console.log(`[matchProduct] マッチング開始 (Rank: ${appData.rank_id} / ${appData.rank_name}, Venue: ${normalizedVenue}, Type: ${participationType})`);
+
+    // rank_name から rank_id を補完するためのマッピング（ローカル解決）
+    const RANK_NAME_TO_ID: Record<string, string> = {
+        '神言学未受講（ご紹介）': '8',
+        '神言学未受講 (ご紹介)': '8',
+        '神言学未受講（一般）': '7',
+        '神言学未受講 (一般)': '7',
+    };
+    const resolvedRankId = appData.rank_id ||
+        (appData.rank_name ? RANK_NAME_TO_ID[appData.rank_name.trim()] ?? null : null);
 
     for (const lec of searchLectureVenues) {
         for (const soc of searchSocialVenues) {
             const found = paymentLinks.find(p => {
                 const venueMatch = superNormalize(p.venue_lecture || '') === superNormalize(lec || '');
                 const socialMatch = superNormalize(p.venue_social || '') === superNormalize(soc || '');
-                const rankMatch = String(p.rank_id).trim() === String(appData.rank_id || '').trim();
+                const rankMatch = resolvedRankId
+                    ? String(p.rank_id).trim() === String(resolvedRankId).trim()
+                    : false;
                 return venueMatch && socialMatch && rankMatch;
             });
             if (found) {
@@ -174,15 +186,16 @@ export function matchProduct(paymentLinks: any[], appData: {
     console.log(`[matchProduct] 厳密なマッチなし。救済マッチングを試みます...`);
 
     const rescueFound = paymentLinks.find(p => {
-        const rankMatch = String(p.rank_id).trim() === String(appData.rank_id || '').trim();
+        // rank_id または resolvedRankId でのマッチを試みる
+        const rankMatch = resolvedRankId
+            ? String(p.rank_id).trim() === String(resolvedRankId).trim()
+            : false;
         if (!rankMatch) return false;
 
         const pLec = superNormalize(p.venue_lecture || '');
         if (participationType === 'online') {
-            // オンラインの場合、マスタ側に「live」が含まれていればOK
             return pLec.includes('live') || pLec.includes('視聴');
         } else {
-            // 会場参加の場合、マスタ側に会場名（例：東京、福岡）が含まれていればOK
             return pLec.includes(superNormalize(normalizedVenue));
         }
     });
