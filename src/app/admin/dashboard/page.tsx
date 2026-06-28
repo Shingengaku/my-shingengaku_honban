@@ -3357,7 +3357,7 @@ export default function AdminDashboard() {
         <div className="min-h-screen bg-gray-100 p-4">
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-2">
-                    <h1 className='text-2xl font-bold text-gray-800'>神言学 管理ダッシュボード (v1.6)</h1>
+                    <h1 className='text-2xl font-bold text-gray-800'>神言学 管理ダッシュボード (v{appVersion})</h1>
                     <div className="flex items-center space-x-2 ml-auto">
                         <div className="flex space-x-2 mr-4 border-r pr-4 border-gray-300">
                             <Link href="/admin/members" className="text-sm px-3 py-1 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100">受講生マスタ</Link>
@@ -3387,7 +3387,7 @@ export default function AdminDashboard() {
                             <div className="w-px bg-gray-300 h-8 mx-2"></div>
                             <button onClick={() => setShowCreateModal(true)} className="px-4 py-2 rounded-md bg-green-600 text-white font-bold hover:bg-green-700">新規登録</button>
                             <button onClick={fetchUnappliedMembers} className="px-4 py-2 rounded-md bg-yellow-500 text-white font-bold hover:bg-yellow-600 ml-2">未申込者を確認</button>
-                            <span className="ml-4 text-[10px] font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-200">System Logic v2.5</span>
+                            <span className="ml-4 text-[10px] font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-200">System Logic v{appVersion}</span>
                         </div>
                         {/* 統計表示 */}
                         <div className="flex gap-4 items-stretch bg-white border border-gray-200 rounded-lg p-1.5 shadow-sm">
