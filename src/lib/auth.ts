@@ -1,6 +1,4 @@
 
-const SECRET = process.env.SESSION_SECRET || 'fallback-secret-key-change-this-in-prod';
-
 // Web Crypto API helpers
 function bufferToBase64(buffer: ArrayBuffer | ArrayBufferLike): string {
     return btoa(String.fromCharCode(...new Uint8Array(buffer)))
@@ -19,11 +17,17 @@ function base64ToUint8Array(base64: string): Uint8Array {
     return bytes;
 }
 
+/**
+ * セッション署名キーを取得する
+ * NOTE: モジュールトップレベルではなく関数内で process.env を読むことで、
+ * Vercel サーバーレス環境での環境変数の読み込みタイミング問題を回避する
+ */
 async function getKey() {
+    const secret = process.env.SESSION_SECRET || 'fallback-secret-key-change-this-in-prod';
     const encoder = new TextEncoder();
     return await crypto.subtle.importKey(
         'raw',
-        encoder.encode(SECRET),
+        encoder.encode(secret),
         { name: 'HMAC', hash: 'SHA-256' },
         false,
         ['sign', 'verify']
